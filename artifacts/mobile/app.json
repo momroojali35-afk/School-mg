@@ -26,7 +26,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://school-mg-2.onrender.com"
         }
       ],
       "expo-font",
