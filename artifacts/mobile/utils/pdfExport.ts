@@ -22,12 +22,12 @@
  *      foreignObjectRendering:false as a safe fallback.
  *   9. Export as PNG (lossless) inside A4 jsPDF and return a Blob URL.
  *
- *  Native strategy: expo-print + expo-sharing (unchanged).
+ *  Native strategy: expo-print + expo-file-system (saves directly to device).
  */
 
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 
 /* ─── Type stubs (dynamic imports keep native bundle clean) ───────────────── */
 
@@ -264,8 +264,11 @@ export async function downloadHtmlAsPdf(
   if (Platform.OS !== 'web') {
     console.log('[PDF] Native path — expo-print');
     const { uri } = await Print.printToFileAsync({ html });
-    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: filename });
-    return null;
+    const safeName = filename.replace(/['"\\<>]/g, '').trim();
+    const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
+    await FileSystem.copyAsync({ from: uri, to: destUri });
+    Alert.alert('PDF Saved', `"${safeName}.pdf" has been saved to your Files app.`);
+    return destUri;
   }
 
   /* ── Web path ────────────────────────────────────────────────────────── */
@@ -485,8 +488,11 @@ export async function downloadMultipleHtmlsAsPdf(
     console.log('[PDF] Native bulk path — expo-print');
     const combined = htmlPages.join('\n');
     const { uri } = await Print.printToFileAsync({ html: combined });
-    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: filename });
-    return null;
+    const safeName = filename.replace(/['"\\<>]/g, '').trim();
+    const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
+    await FileSystem.copyAsync({ from: uri, to: destUri });
+    Alert.alert('PDF Saved', `"${safeName}.pdf" has been saved to your Files app.`);
+    return destUri;
   }
 
   /* ── Single page: reuse the existing single-page pipeline ─────────────── */
