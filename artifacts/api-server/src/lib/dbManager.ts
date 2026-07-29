@@ -272,7 +272,10 @@ export function getDb() {
 }
 
 export function getActiveConnectionInfo() {
-  return { id: _activeId, name: _activeName, connected: _activeAdapter !== null, dbType: _activeDbType };
+  // The "env" connection is an internal fallback — not a user-configured DB.
+  // Report connected: false so the mobile app still shows the setup screen.
+  const userConfigured = _activeId !== null && _activeId !== "env";
+  return { id: _activeId, name: _activeName, connected: _activeAdapter !== null && userConfigured, dbType: _activeDbType };
 }
 
 export interface PublicConnection {

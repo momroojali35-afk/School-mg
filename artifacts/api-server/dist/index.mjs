@@ -46769,7 +46769,8 @@ function getAdapter() {
   return _activeAdapter;
 }
 function getActiveConnectionInfo() {
-  return { id: _activeId, name: _activeName, connected: _activeAdapter !== null, dbType: _activeDbType };
+  const userConfigured = _activeId !== null && _activeId !== "env";
+  return { id: _activeId, name: _activeName, connected: _activeAdapter !== null && userConfigured, dbType: _activeDbType };
 }
 function listConnections() {
   return loadStore().connections.map((c) => ({

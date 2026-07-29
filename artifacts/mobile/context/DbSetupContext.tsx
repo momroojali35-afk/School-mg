@@ -42,18 +42,10 @@ export function DbSetupProvider({ children }: { children: React.ReactNode }) {
 
   async function checkSetupStatus() {
     const [setup, cfg] = await AsyncStorage.multiGet([SETUP_KEY, PENDING_CONFIG_KEY]);
-    const localDone = setup[1] === 'true';
     setLocalConfig(cfg[1] ? JSON.parse(cfg[1]) : null);
 
-    if (localDone) {
-      // Fast path: this device already went through setup (or a previous server check cached it)
-      setIsSetupComplete(true);
-      return;
-    }
-
-    // Not set locally — ask the server. If the admin already configured a DB
-    // on any device, the server will say "connected: true" and we skip setup
-    // for all staff devices automatically.
+    // Always verify with the server — the local cache may be stale if the
+    // admin reset the DB connection from another device or the server restarted.
     try {
       const domain = process.env.EXPO_PUBLIC_DOMAIN;
       const base = domain ? `https://${domain}` : '';
@@ -63,17 +55,19 @@ export function DbSetupProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         if (data?.connected === true) {
-          // Server has a DB — cache locally so we skip this check next time
           await AsyncStorage.setItem(SETUP_KEY, 'true');
           setIsSetupComplete(true);
           return;
         }
       }
+      // Server says no active user-configured DB — clear local cache and show setup
+      await AsyncStorage.removeItem(SETUP_KEY);
+      setIsSetupComplete(false);
     } catch {
-      // Server unreachable — fall through to show setup screen
+      // Server unreachable — fall back to local cache so staff can still use the app
+      const localDone = setup[1] === 'true';
+      setIsSetupComplete(localDone);
     }
-
-    setIsSetupComplete(false);
   }
 
   const markSetupComplete = async () => {
