@@ -56,7 +56,7 @@ export default function TeacherSalary() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[s.currentMonth, { color: colors.mutedForeground }]}>{curMonth} {curYear}</Text>
-            <Text style={[s.currentAmount, { color: colors.text }]}>₹{(myTeacher?.salary ?? currentMonthRecord?.amount ?? 0).toLocaleString('en-IN')}</Text>
+            <Text style={[s.currentAmount, { color: colors.text }]}>₹{(currentMonthRecord?.amount ?? myTeacher?.salary ?? 0).toLocaleString('en-IN')}</Text>
             <View style={[s.statusBadge, { backgroundColor: currentMonthRecord?.status === 'paid' ? colors.success + '20' : colors.muted }]}>
               <Feather name={currentMonthRecord?.status === 'paid' ? 'check-circle' : 'minus-circle'} size={13} color={currentMonthRecord?.status === 'paid' ? colors.success : colors.mutedForeground} />
               <Text style={[s.statusText, { color: currentMonthRecord?.status === 'paid' ? colors.success : colors.mutedForeground }]}>
@@ -68,7 +68,7 @@ export default function TeacherSalary() {
 
         <View style={s.summaryRow}>
           {[
-            { label: 'Monthly Salary', value: `₹${(myTeacher?.salary ?? 0).toLocaleString('en-IN')}`, color: colors.primary },
+            { label: 'Monthly Salary', value: `₹${(myRecords[0]?.amount ?? myTeacher?.salary ?? 0).toLocaleString('en-IN')}`, color: colors.primary },
             { label: 'Paid This Year', value: myRecords.filter(r => r.year === curYear && r.status === 'paid').length, color: colors.success },
             { label: 'Total Records', value: myRecords.length, color: colors.info },
           ].map(stat => (
