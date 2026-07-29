@@ -1,6 +1,16 @@
 {
-  "activeId": "a395363e-6559-44f0-8888-982690dcc986",
+  "activeId": "env",
   "connections": [
+    {
+      "id": "env",
+      "name": "Environment Database",
+      "dbType": "postgresql",
+      "encryptedUrl": "2ae314d65aa5f2867b89f22e92375199:1ddb27df794d016d3aa7fed5ddc898e0e719f4fc3da2cf00f403b09f058890a6880531e8d93396ec1e1112379c2f57abb56ca107946b49b6fefb914c786df86a",
+      "host": "helium",
+      "dbName": "heliumdb",
+      "createdAt": "2026-07-29T04:55:10.317Z",
+      "updatedAt": "2026-07-29T04:55:10.317Z"
+    },
     {
       "dbType": "postgresql",
       "id": "8c632d47-95e9-4e6c-80b1-314f6a110d31",
