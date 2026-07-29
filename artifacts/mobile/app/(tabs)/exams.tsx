@@ -737,7 +737,7 @@ export default function ExamsScreen() {
           <TouchableOpacity style={s.backBtn} onPress={() => { setScreen('list'); setFrExamIds([]); setFrClass(null); }}>
             <Feather name="arrow-left" size={22} color={colors.text} />
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[s.backTitle, { color: colors.text }]}>Combined Results</Text>
             {frSelectedExams.length > 0 && (
               <Text style={{ fontSize: 11, color: colors.mutedForeground }} numberOfLines={1}>
@@ -754,7 +754,7 @@ export default function ExamsScreen() {
             >
               <Feather name={frGenerating ? 'loader' : 'download'} size={15} color={frGenerating ? colors.mutedForeground : '#fff'} />
               <Text style={{ fontSize: 12, fontWeight: '700', color: frGenerating ? colors.mutedForeground : '#fff' }}>
-                {frGenerating ? 'Generating…' : 'Download PDF'}
+                {frGenerating ? 'Generating…' : 'Download'}
               </Text>
             </TouchableOpacity>
           )}
