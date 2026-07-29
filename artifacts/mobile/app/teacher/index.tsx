@@ -234,30 +234,9 @@ export default function TeacherDashboard() {
   const birthdayCardRef = useRef<View>(null);
   const [showMonthBirthdays, setShowMonthBirthdays] = useState(false);
 
-  useEffect(() => {
-    if (isLoading) return;
-    if (!user) { router.replace('/login'); return; }
-    if (user.role === 'admin') router.replace('/(tabs)');
-  }, [isLoading, user]);
-
-  if (isLoading || !user || user.role !== 'teacher') return null;
-
-  // ── Time & greeting ─────────────────────────────────────────────────────────
+  // ── Stable values needed by hooks below (must be before early-return) ───────
   const now      = new Date();
   const todayStr = now.toISOString().split('T')[0];
-  const hour     = now.getHours();
-  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const dateLabel = now.toLocaleDateString('en-IN', {
-    weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
-  });
-
-  // ── Stats ───────────────────────────────────────────────────────────────────
-  const todayRecords        = attendanceRecords.filter(r => r.date === todayStr);
-  const presentCount        = todayRecords.filter(r => r.status === 'present').length;
-  const absentCount         = todayRecords.filter(r => r.status === 'absent').length;
-  const todayAttendanceTaken = attendanceRecords.some(
-    a => a.date === todayStr && a.takenBy === user.name,
-  );
 
   const upcomingExams = useMemo(() =>
     exams.filter(e => e.date >= todayStr)
@@ -294,6 +273,30 @@ export default function TeacherDashboard() {
         return da - db;
       });
   }, [students, now.getMonth(), now.getDate()]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) { router.replace('/login'); return; }
+    if (user.role === 'admin') router.replace('/(tabs)');
+  }, [isLoading, user]);
+
+  if (isLoading || !user || user.role !== 'teacher') return null;
+
+  // ── Time & greeting ─────────────────────────────────────────────────────────
+  const hour     = now.getHours();
+  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const dateLabel = now.toLocaleDateString('en-IN', {
+    weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
+  });
+
+  // ── Stats ───────────────────────────────────────────────────────────────────
+  const todayRecords        = attendanceRecords.filter(r => r.date === todayStr);
+  const presentCount        = todayRecords.filter(r => r.status === 'present').length;
+  const absentCount         = todayRecords.filter(r => r.status === 'absent').length;
+  const todayAttendanceTaken = attendanceRecords.some(
+    a => a.date === todayStr && a.takenBy === user.name,
+  );
+
   const initials = user.name
     .split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
