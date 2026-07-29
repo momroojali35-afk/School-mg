@@ -68,7 +68,7 @@ export default function TeacherSalary() {
 
         <View style={s.summaryRow}>
           {[
-            { label: 'Monthly Salary', value: `₹${(myRecords[0]?.amount ?? myTeacher?.salary ?? 0).toLocaleString('en-IN')}`, color: colors.primary },
+            { label: 'Total Salary', value: `₹${myRecords.reduce((sum, r) => sum + (r.amount ?? 0), 0).toLocaleString('en-IN')}`, color: colors.primary },
             { label: 'Paid This Year', value: myRecords.filter(r => r.year === curYear && r.status === 'paid').length, color: colors.success },
             { label: 'Total Records', value: myRecords.length, color: colors.info },
           ].map(stat => (
