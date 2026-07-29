@@ -337,6 +337,7 @@ interface AppContextType extends AppState {
   approveInactivationRequest: (id: string, adminNote?: string) => Promise<void>;
   rejectInactivationRequest: (id: string, adminNote?: string) => Promise<void>;
   refreshInactivationRequests: () => Promise<void>;
+  setStudentStatus: (id: string, status: 'active' | 'inactive') => Promise<void>;
   setClassAbsentLimit: (className: string, maxDays: number) => Promise<void>;
   updateDocumentBranding: (branding: DocumentBranding) => Promise<void>;
   addAlumni: (a: Omit<Alumni, 'id'>) => void;
@@ -1207,7 +1208,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateSalaryStatus, addSalaryRecord, deleteSalaryRecord,
       promoteStudent, bulkPromoteClass,
       submitInactivationRequest, approveInactivationRequest, rejectInactivationRequest,
-      refreshInactivationRequests, setClassAbsentLimit, updateDocumentBranding,
+      refreshInactivationRequests, setStudentStatus, setClassAbsentLimit, updateDocumentBranding,
       addAlumni, updateAlumni, deleteAlumni, bulkAddAlumni,
     }}>
       {children}
