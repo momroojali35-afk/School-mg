@@ -320,7 +320,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
     print-color-adjust: exact;
   }
   @page { size: A4 portrait; margin: 0; }
-  @media print { body { background: #fff; padding: 0; } }
+  @media print { body { background: #fff; padding: 0; margin: 0; } .page { zoom: 0.97; margin-top: 5mm; } }
   /* ---------- page shell ---------- */
   /* 794 px = A4 width at 96 dpi — ensures 1-to-1 mapping in html2pdf */
   .page { width:794px; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; }
@@ -785,7 +785,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:'Poppins',Arial,sans-serif; background:#d4d9e3; padding:14px 0 4px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   @page { size:A4 portrait; margin:0; }
-  @media print { body { background:#fff; padding:0; } }
+  @media print { body { background:#fff; padding:0; margin:0; } .page { zoom:0.97; margin-top:5mm; } }
   /* 794 px = A4 width at 96 dpi */
   .page { width:794px; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; }
   .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
