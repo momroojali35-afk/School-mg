@@ -628,23 +628,16 @@ export default function TeacherDashboard() {
                 if (a.route) router.push(a.route as any);
               }}
             >
-              <View style={[s.gridItem, a.disabled && s.gridItemLocked]}>
-                {a.disabled && (
-                  <View style={s.lockBadge}>
-                    <Feather name="lock" size={9} color="#fff" />
-                  </View>
-                )}
+              <View style={s.gridItem}>
                 <LinearGradient
-                  colors={a.disabled ? ['#94A3B8', '#CBD5E1'] : a.grad}
+                  colors={a.grad}
                   style={s.gridIconGrad}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 >
                   <Feather name={a.icon} size={22} color="#fff" />
                 </LinearGradient>
-                <Text style={[s.gridLabel, a.disabled && s.gridLabelMuted]} numberOfLines={1}>{a.label}</Text>
-                <Text style={[s.gridSub, a.disabled && s.gridSubLocked]} numberOfLines={1}>
-                  {a.disabled ? 'Locked' : a.sub}
-                </Text>
+                <Text style={s.gridLabel} numberOfLines={1}>{a.label}</Text>
+                <Text style={s.gridSub} numberOfLines={1}>{a.sub}</Text>
               </View>
             </AnimatedCard>
           ))}
