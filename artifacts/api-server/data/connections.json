@@ -1,0 +1,25 @@
+{
+  "activeId": "a395363e-6559-44f0-8888-982690dcc986",
+  "connections": [
+    {
+      "dbType": "postgresql",
+      "id": "8c632d47-95e9-4e6c-80b1-314f6a110d31",
+      "name": "momroojali3@gmail.com's",
+      "encryptedUrl": "f760c92edafe8ce8031dee4b0858d96b:1aae1c676f7df63dd3405b363dfed333724835abe560bf886fd26db1d2adbd86c3dc93e7241e1ab179bad30e1c2bac6e7ec78a3ee90c14376027bc9dc685314bc02d27fc7fc36d599de7c3c04ebd129a991eb6e7f2147dd1964e0a69b471b03a34cfef940cd8f6c77e91b1663314619507ab3079a36f6fcf70000942bc6e5e9f",
+      "host": "aws-0-ap-southeast-1.pooler.supabase.com:6543",
+      "dbName": "postgres",
+      "createdAt": "2026-07-22T02:31:12.303Z",
+      "updatedAt": "2026-07-29T02:56:56.577Z"
+    },
+    {
+      "dbType": "postgresql",
+      "id": "a395363e-6559-44f0-8888-982690dcc986",
+      "name": "momroojali3@gmail.com's",
+      "encryptedUrl": "37f3aef486b743acbff7d87372d75074:ff28e4039fa1c4b12dd1dd15516641bbb3739052ae1d71a6fc37a461ff87f5d09bf3cf4f071c12343f126c57d83c009045d4fd048d8d8ffe60f0d22ce8a6edc399b2ac739f53f842f8c5cde506107ab21570e41e33bd44eac18038e94986d08af65f83f233d9c8d541603fe611a166d4398958b8661e9677a23e35ec4fa4d7fb",
+      "host": "aws-0-ap-southeast-1.pooler.supabase.com:6543",
+      "dbName": "postgres",
+      "createdAt": "2026-07-29T04:20:02.200Z",
+      "updatedAt": "2026-07-29T04:20:02.200Z"
+    }
+  ]
+}

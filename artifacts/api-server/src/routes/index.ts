@@ -1,0 +1,44 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import classesRouter from "./classes";
+import sectionsRouter from "./sections";
+import studentsRouter from "./students";
+import teachersRouter from "./teachers";
+import subjectsRouter from "./subjects";
+import feeTypesRouter from "./feeTypes";
+import attendanceRouter from "./attendance";
+import examsRouter from "./exams";
+import examResultsRouter from "./examResults";
+import feeRecordsRouter from "./feeRecords";
+import expensesRouter from "./expenses";
+import salaryRecordsRouter from "./salaryRecords";
+import promotionsRouter from "./promotions";
+import dbConnectionsRouter from "./dbConnections";
+import markSubmissionsRouter from "./markSubmissions";
+import settingsRouter from "./settings";
+import inactivationRequestsRouter from "./inactivationRequests";
+import alumniRouter from "./alumni";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(dbConnectionsRouter);
+router.use(classesRouter);
+router.use(sectionsRouter);
+router.use(studentsRouter);
+router.use(teachersRouter);
+router.use(subjectsRouter);
+router.use(feeTypesRouter);
+router.use(attendanceRouter);
+router.use(examsRouter);
+router.use(examResultsRouter);
+router.use(feeRecordsRouter);
+router.use(expensesRouter);
+router.use(salaryRecordsRouter);
+router.use(promotionsRouter);
+router.use(markSubmissionsRouter);
+router.use(settingsRouter);
+router.use(inactivationRequestsRouter);
+router.use(alumniRouter);
+
+export default router;

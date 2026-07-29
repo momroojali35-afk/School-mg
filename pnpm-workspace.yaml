@@ -1,0 +1,40 @@
+packages:
+  - "artifacts/*"
+  - "lib/*"
+
+catalog:
+  # React (pinned to Expo SDK 54 expected versions)
+  react: "19.1.0"
+  react-dom: "19.1.0"
+  "@types/react": "~19.1.10"
+  "@types/react-dom": "~19.1.7"
+
+  # Data fetching
+  "@tanstack/react-query": "^5.80.0"
+
+  # Validation
+  zod: "^3.25.0"
+
+  # Database
+  drizzle-orm: "^0.43.1"
+
+  # Node tooling
+  "@types/node": "^20.19.0"
+  tsx: "^4.20.3"
+
+  # Vite / build
+  vite: "^6.3.5"
+  "@vitejs/plugin-react": "^4.5.2"
+  "@tailwindcss/vite": "^4.1.10"
+  tailwindcss: "^4.1.10"
+
+  # Replit Vite plugins
+  "@replit/vite-plugin-cartographer": "^0.3.0"
+  "@replit/vite-plugin-runtime-error-modal": "^0.0.3"
+
+  # UI utilities
+  class-variance-authority: "^0.7.1"
+  clsx: "^2.1.1"
+  framer-motion: "^12.17.0"
+  lucide-react: "^0.511.0"
+  tailwind-merge: "^3.3.0"

@@ -1,0 +1,19 @@
+{
+  "name": "@workspace/root",
+  "version": "0.0.0",
+  "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "ignoredBuiltDependencies": [
+      "@firebase/util",
+      "core-js",
+      "protobufjs",
+      "puppeteer"
+    ]
+  },
+  "devDependencies": {
+    "eas-cli": "^21.2.0"
+  }
+}
