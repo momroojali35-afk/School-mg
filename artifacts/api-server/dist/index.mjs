@@ -43922,25 +43922,8 @@ function drizzle(...params) {
   drizzle2.mock = mock;
 })(drizzle || (drizzle = {}));
 
-// ../../lib/db/src/index.ts
-var src_exports = {};
-__export(src_exports, {
-  db: () => db,
-  pool: () => pool
-});
-
 // ../../lib/db/src/schema/index.ts
 var schema_exports = {};
-
-// ../../lib/db/src/index.ts
-var { Pool: Pool3 } = esm_default;
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?"
-  );
-}
-var pool = new Pool3({ connectionString: process.env.DATABASE_URL });
-var db = drizzle(pool, { schema: schema_exports });
 
 // src/lib/dbManager.ts
 import fs from "node:fs";
@@ -43962,6 +43945,45 @@ var logger = (0, import_pino.default)({
       target: "pino-pretty",
       options: { colorize: true }
     }
+  }
+});
+
+// ../../lib/db/src/index.ts
+var src_exports = {};
+__export(src_exports, {
+  db: () => db,
+  getDb: () => getDb,
+  getPool: () => getPool,
+  pool: () => pool
+});
+var { Pool: Pool3 } = esm_default;
+var _pool;
+var _db;
+function getPool() {
+  if (!_pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error(
+        "DATABASE_URL must be set. Did you forget to provision a database?"
+      );
+    }
+    _pool = new Pool3({ connectionString: process.env.DATABASE_URL });
+  }
+  return _pool;
+}
+function getDb() {
+  if (!_db) {
+    _db = drizzle(getPool(), { schema: schema_exports });
+  }
+  return _db;
+}
+var pool = new Proxy({}, {
+  get(_t, prop) {
+    return getPool()[prop];
+  }
+});
+var db = new Proxy({}, {
+  get(_t, prop) {
+    return getDb()[prop];
   }
 });
 
@@ -45543,7 +45565,7 @@ async function destroyPool(id) {
   }
 }
 function buildDrizzle(pool2) {
-  return drizzle(pool2, { schema: src_exports });
+  return drizzle(pool2, { schema: schema_exports });
 }
 var firebaseApps = /* @__PURE__ */ new Map();
 var firestoreInstances = /* @__PURE__ */ new Map();
