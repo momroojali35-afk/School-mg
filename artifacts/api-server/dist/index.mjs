@@ -158,9 +158,9 @@ var require_ms = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/debug@4.4.3_supports-color@8.1.1/node_modules/debug/src/common.js
+// ../../node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "../../node_modules/.pnpm/debug@4.4.3_supports-color@8.1.1/node_modules/debug/src/common.js"(exports, module) {
+  "../../node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -335,9 +335,9 @@ var require_common = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/debug@4.4.3_supports-color@8.1.1/node_modules/debug/src/browser.js
+// ../../node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "../../node_modules/.pnpm/debug@4.4.3_supports-color@8.1.1/node_modules/debug/src/browser.js"(exports, module) {
+  "../../node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs;
     exports.save = save;
     exports.load = load;
@@ -518,29 +518,27 @@ var require_has_flag = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/supports-color@8.1.1/node_modules/supports-color/index.js
+// ../../node_modules/.pnpm/supports-color@7.2.0/node_modules/supports-color/index.js
 var require_supports_color = __commonJS({
-  "../../node_modules/.pnpm/supports-color@8.1.1/node_modules/supports-color/index.js"(exports, module) {
+  "../../node_modules/.pnpm/supports-color@7.2.0/node_modules/supports-color/index.js"(exports, module) {
     "use strict";
     var os = __require("os");
     var tty = __require("tty");
     var hasFlag = require_has_flag();
     var { env } = process;
-    var flagForceColor;
+    var forceColor;
     if (hasFlag("no-color") || hasFlag("no-colors") || hasFlag("color=false") || hasFlag("color=never")) {
-      flagForceColor = 0;
+      forceColor = 0;
     } else if (hasFlag("color") || hasFlag("colors") || hasFlag("color=true") || hasFlag("color=always")) {
-      flagForceColor = 1;
+      forceColor = 1;
     }
-    function envForceColor() {
-      if ("FORCE_COLOR" in env) {
-        if (env.FORCE_COLOR === "true") {
-          return 1;
-        }
-        if (env.FORCE_COLOR === "false") {
-          return 0;
-        }
-        return env.FORCE_COLOR.length === 0 ? 1 : Math.min(Number.parseInt(env.FORCE_COLOR, 10), 3);
+    if ("FORCE_COLOR" in env) {
+      if (env.FORCE_COLOR === "true") {
+        forceColor = 1;
+      } else if (env.FORCE_COLOR === "false") {
+        forceColor = 0;
+      } else {
+        forceColor = env.FORCE_COLOR.length === 0 ? 1 : Math.min(parseInt(env.FORCE_COLOR, 10), 3);
       }
     }
     function translateLevel(level) {
@@ -554,22 +552,15 @@ var require_supports_color = __commonJS({
         has16m: level >= 3
       };
     }
-    function supportsColor(haveStream, { streamIsTTY, sniffFlags = true } = {}) {
-      const noFlagForceColor = envForceColor();
-      if (noFlagForceColor !== void 0) {
-        flagForceColor = noFlagForceColor;
-      }
-      const forceColor = sniffFlags ? flagForceColor : noFlagForceColor;
+    function supportsColor(haveStream, streamIsTTY) {
       if (forceColor === 0) {
         return 0;
       }
-      if (sniffFlags) {
-        if (hasFlag("color=16m") || hasFlag("color=full") || hasFlag("color=truecolor")) {
-          return 3;
-        }
-        if (hasFlag("color=256")) {
-          return 2;
-        }
+      if (hasFlag("color=16m") || hasFlag("color=full") || hasFlag("color=truecolor")) {
+        return 3;
+      }
+      if (hasFlag("color=256")) {
+        return 2;
       }
       if (haveStream && !streamIsTTY && forceColor === void 0) {
         return 0;
@@ -586,7 +577,7 @@ var require_supports_color = __commonJS({
         return 1;
       }
       if ("CI" in env) {
-        if (["TRAVIS", "CIRCLECI", "APPVEYOR", "GITLAB_CI", "GITHUB_ACTIONS", "BUILDKITE", "DRONE"].some((sign) => sign in env) || env.CI_NAME === "codeship") {
+        if (["TRAVIS", "CIRCLECI", "APPVEYOR", "GITLAB_CI", "GITHUB_ACTIONS", "BUILDKITE"].some((sign) => sign in env) || env.CI_NAME === "codeship") {
           return 1;
         }
         return min;
@@ -598,7 +589,7 @@ var require_supports_color = __commonJS({
         return 3;
       }
       if ("TERM_PROGRAM" in env) {
-        const version2 = Number.parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
+        const version2 = parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
         switch (env.TERM_PROGRAM) {
           case "iTerm.app":
             return version2 >= 3 ? 3 : 2;
@@ -617,24 +608,21 @@ var require_supports_color = __commonJS({
       }
       return min;
     }
-    function getSupportLevel(stream, options = {}) {
-      const level = supportsColor(stream, {
-        streamIsTTY: stream && stream.isTTY,
-        ...options
-      });
+    function getSupportLevel(stream) {
+      const level = supportsColor(stream, stream && stream.isTTY);
       return translateLevel(level);
     }
     module.exports = {
       supportsColor: getSupportLevel,
-      stdout: getSupportLevel({ isTTY: tty.isatty(1) }),
-      stderr: getSupportLevel({ isTTY: tty.isatty(2) })
+      stdout: translateLevel(supportsColor(true, tty.isatty(1))),
+      stderr: translateLevel(supportsColor(true, tty.isatty(2)))
     };
   }
 });
 
-// ../../node_modules/.pnpm/debug@4.4.3_supports-color@8.1.1/node_modules/debug/src/node.js
+// ../../node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "../../node_modules/.pnpm/debug@4.4.3_supports-color@8.1.1/node_modules/debug/src/node.js"(exports, module) {
+  "../../node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util2 = __require("util");
     exports.init = init;
@@ -806,9 +794,9 @@ var require_node = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/debug@4.4.3_supports-color@8.1.1/node_modules/debug/src/index.js
+// ../../node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "../../node_modules/.pnpm/debug@4.4.3_supports-color@8.1.1/node_modules/debug/src/index.js"(exports, module) {
+  "../../node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -958,12 +946,12 @@ var require_depd = __commonJS({
     }
     function callSiteLocation(callSite) {
       var file = callSite.getFileName() || "<anonymous>";
-      var line2 = callSite.getLineNumber();
+      var line = callSite.getLineNumber();
       var colm = callSite.getColumnNumber();
       if (callSite.isEval()) {
         file = callSite.getEvalOrigin() + ", " + file;
       }
-      var site = [file, line2, colm];
+      var site = [file, line, colm];
       site.callSite = callSite;
       site.name = callSite.getFunctionName();
       return site;
@@ -985,8 +973,8 @@ var require_depd = __commonJS({
       return typeName && callSite.getMethodName() ? typeName + "." + funcName : funcName;
     }
     function formatPlain(msg, caller, stack) {
-      var timestamp2 = (/* @__PURE__ */ new Date()).toUTCString();
-      var formatted = timestamp2 + " " + this._namespace + " deprecated " + msg;
+      var timestamp = (/* @__PURE__ */ new Date()).toUTCString();
+      var formatted = timestamp + " " + this._namespace + " deprecated " + msg;
       if (this._traced) {
         for (var i = 0; i < stack.length; i++) {
           formatted += "\n    at " + stack[i].toString();
@@ -5868,8 +5856,8 @@ var require_dist = __commonJS({
     }
     function skipValue(str, index, len) {
       while (index < len) {
-        const char2 = str.charCodeAt(index);
-        if (char2 === SEMI)
+        const char = str.charCodeAt(index);
+        if (char === SEMI)
           break;
         index++;
       }
@@ -5877,8 +5865,8 @@ var require_dist = __commonJS({
     }
     function skipOWS(header, index, len) {
       while (index < len) {
-        const char2 = header.charCodeAt(index);
-        if (char2 !== SP && char2 !== HTAB)
+        const char = header.charCodeAt(index);
+        if (char !== SP && char !== HTAB)
           break;
         index++;
       }
@@ -5886,8 +5874,8 @@ var require_dist = __commonJS({
     }
     function trailingOWS(header, start, end) {
       while (end > start) {
-        const char2 = header.charCodeAt(end - 1);
-        if (char2 !== SP && char2 !== HTAB)
+        const char = header.charCodeAt(end - 1);
+        if (char !== SP && char !== HTAB)
           break;
         end--;
       }
@@ -15780,11 +15768,11 @@ var require_json = __commonJS({
     var debug = require_src()("body-parser:json");
     var read = require_read();
     var { normalizeOptions } = require_utils();
-    module.exports = json2;
+    module.exports = json;
     var FIRST_CHAR_REGEXP = /^[\x20\x09\x0a\x0d]*([^\x20\x09\x0a\x0d])/;
     var JSON_SYNTAX_CHAR = "#";
     var JSON_SYNTAX_REGEXP = /#+/g;
-    function json2(options) {
+    function json(options) {
       const normalizedOptions = normalizeOptions(options, "application/json");
       const parse = createJsonParser(options);
       const readOptions = {
@@ -15835,8 +15823,8 @@ var require_json = __commonJS({
         }
       };
     }
-    function createStrictSyntaxError(str, char2) {
-      const index = str.indexOf(char2);
+    function createStrictSyntaxError(str, char) {
+      const index = str.indexOf(char);
       let partial = "";
       if (index !== -1) {
         partial = str.substring(0, index) + JSON_SYNTAX_CHAR.repeat(str.length - index);
@@ -15901,8 +15889,8 @@ var require_text = __commonJS({
     var debug = require_src()("body-parser:text");
     var read = require_read();
     var { normalizeOptions, passthrough } = require_utils();
-    module.exports = text2;
-    function text2(options) {
+    module.exports = text;
+    function text(options) {
       const normalizedOptions = normalizeOptions(options, "text/plain");
       return function textParser(req, res, next) {
         read(req, res, next, passthrough, debug, normalizedOptions);
@@ -17910,8 +17898,8 @@ var require_stringify = __commonJS({
       formatter: formats.formatters[defaultFormat],
       // deprecated
       indices: false,
-      serializeDate: function serializeDate(date2) {
-        return toISO.call(date2);
+      serializeDate: function serializeDate(date) {
+        return toISO.call(date);
       },
       skipNulls: false,
       strictNullHandling: false
@@ -19097,14 +19085,14 @@ var require_etag = __commonJS({
   "../../node_modules/.pnpm/etag@1.8.1/node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto3 = __require("crypto");
+    var crypto4 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash = crypto3.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash = crypto4.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash + '"';
     }
@@ -19286,7 +19274,7 @@ var require_ipaddr = __commonJS({
           return ipaddr.IPv6.parse("::ffff:" + this.toString());
         };
         IPv4.prototype.prefixLengthFromSubnetMask = function() {
-          var cidr2, i, k, octet, stop, zeros, zerotable;
+          var cidr, i, k, octet, stop, zeros, zerotable;
           zerotable = {
             0: 8,
             128: 7,
@@ -19298,7 +19286,7 @@ var require_ipaddr = __commonJS({
             254: 1,
             255: 0
           };
-          cidr2 = 0;
+          cidr = 0;
           stop = false;
           for (i = k = 3; k >= 0; i = k += -1) {
             octet = this.octets[i];
@@ -19310,12 +19298,12 @@ var require_ipaddr = __commonJS({
               if (zeros !== 8) {
                 stop = true;
               }
-              cidr2 += zeros;
+              cidr += zeros;
             } else {
               return null;
             }
           }
-          return 32 - cidr2;
+          return 32 - cidr;
         };
         return IPv4;
       })();
@@ -19493,7 +19481,7 @@ var require_ipaddr = __commonJS({
           return new ipaddr.IPv4([high >> 8, high & 255, low >> 8, low & 255]);
         };
         IPv6.prototype.prefixLengthFromSubnetMask = function() {
-          var cidr2, i, k, part, stop, zeros, zerotable;
+          var cidr, i, k, part, stop, zeros, zerotable;
           zerotable = {
             0: 16,
             32768: 15,
@@ -19513,7 +19501,7 @@ var require_ipaddr = __commonJS({
             65534: 1,
             65535: 0
           };
-          cidr2 = 0;
+          cidr = 0;
           stop = false;
           for (i = k = 7; k >= 0; i = k += -1) {
             part = this.parts[i];
@@ -19525,12 +19513,12 @@ var require_ipaddr = __commonJS({
               if (zeros !== 16) {
                 stop = true;
               }
-              cidr2 += zeros;
+              cidr += zeros;
             } else {
               return null;
             }
           }
-          return 128 - cidr2;
+          return 128 - cidr;
         };
         return IPv6;
       })();
@@ -19702,11 +19690,11 @@ var require_ipaddr = __commonJS({
         return new this(octets);
       };
       ipaddr.IPv4.broadcastAddressFromCIDR = function(string) {
-        var cidr2, error, i, ipInterfaceOctets, octets, subnetMaskOctets;
+        var cidr, error, i, ipInterfaceOctets, octets, subnetMaskOctets;
         try {
-          cidr2 = this.parseCIDR(string);
-          ipInterfaceOctets = cidr2[0].toByteArray();
-          subnetMaskOctets = this.subnetMaskFromPrefixLength(cidr2[1]).toByteArray();
+          cidr = this.parseCIDR(string);
+          ipInterfaceOctets = cidr[0].toByteArray();
+          subnetMaskOctets = this.subnetMaskFromPrefixLength(cidr[1]).toByteArray();
           octets = [];
           i = 0;
           while (i < 4) {
@@ -19720,11 +19708,11 @@ var require_ipaddr = __commonJS({
         }
       };
       ipaddr.IPv4.networkAddressFromCIDR = function(string) {
-        var cidr2, error, i, ipInterfaceOctets, octets, subnetMaskOctets;
+        var cidr, error, i, ipInterfaceOctets, octets, subnetMaskOctets;
         try {
-          cidr2 = this.parseCIDR(string);
-          ipInterfaceOctets = cidr2[0].toByteArray();
-          subnetMaskOctets = this.subnetMaskFromPrefixLength(cidr2[1]).toByteArray();
+          cidr = this.parseCIDR(string);
+          ipInterfaceOctets = cidr[0].toByteArray();
+          subnetMaskOctets = this.subnetMaskFromPrefixLength(cidr[1]).toByteArray();
           octets = [];
           i = 0;
           while (i < 4) {
@@ -20205,11 +20193,11 @@ var require_dist2 = __commonJS({
     exports.TokenData = TokenData;
     var PathError = class extends TypeError {
       constructor(message, originalPath) {
-        let text2 = message;
+        let text = message;
         if (originalPath)
-          text2 += `: ${originalPath}`;
-        text2 += `; visit https://git.new/pathToRegexpError for info`;
-        super(text2);
+          text += `: ${originalPath}`;
+        text += `; visit https://git.new/pathToRegexpError for info`;
+        super(text);
         this.originalPath = originalPath;
       }
     };
@@ -22108,9 +22096,9 @@ var require_fresh = __commonJS({
       }
       return true;
     }
-    function parseHttpDate(date2) {
-      var timestamp2 = date2 && Date.parse(date2);
-      return typeof timestamp2 === "number" ? timestamp2 : NaN;
+    function parseHttpDate(date) {
+      var timestamp = date && Date.parse(date);
+      return typeof timestamp === "number" ? timestamp : NaN;
     }
     function parseTokenList(str) {
       var end = 0;
@@ -22524,8 +22512,8 @@ var require_content_disposition = __commonJS({
       }
       return new ContentDisposition(type, params);
     }
-    function pencode(char2) {
-      return "%" + String(char2).charCodeAt(0).toString(16).toUpperCase();
+    function pencode(char) {
+      return "%" + String(char).charCodeAt(0).toString(16).toUpperCase();
     }
     function qstring(val) {
       var str = String(val);
@@ -22555,8 +22543,8 @@ var require_content_disposition = __commonJS({
       }
       return normalized.slice(start + 1, end);
     }
-    function isHexDigit(char2) {
-      const code = char2.charCodeAt(0);
+    function isHexDigit(char) {
+      const code = char.charCodeAt(0);
       return code >= 48 && code <= 57 || // 0-9
       code >= 65 && code <= 70 || // A-F
       code >= 97 && code <= 102;
@@ -22591,17 +22579,17 @@ var require_content_disposition = __commonJS({
 // ../../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "../../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js"(exports) {
-    var crypto3 = __require("crypto");
+    var crypto4 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto4.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(input, secret) {
       if ("string" != typeof input) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input.slice(0, input.lastIndexOf(".")), expectedInput = exports.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input);
-      return expectedBuffer.length === inputBuffer.length && crypto3.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto4.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -23214,9 +23202,9 @@ var require_send = __commonJS({
       }
       return list;
     }
-    function parseHttpDate(date2) {
-      var timestamp2 = date2 && Date.parse(date2);
-      return typeof timestamp2 === "number" ? timestamp2 : NaN;
+    function parseHttpDate(date) {
+      var timestamp = date && Date.parse(date);
+      return typeof timestamp === "number" ? timestamp : NaN;
     }
     function parseTokenList(str) {
       var end = 0;
@@ -23452,7 +23440,7 @@ var require_response = __commonJS({
       }
       return this;
     };
-    res.json = function json2(obj) {
+    res.json = function json(obj) {
       var app2 = this.app;
       var escape2 = app2.get("json escape");
       var replacer = app2.get("json replacer");
@@ -23777,9 +23765,9 @@ var require_response = __commonJS({
       file.pipe(res2);
     }
     function stringify(value, replacer, spaces, escape2) {
-      var json2 = replacer || spaces ? JSON.stringify(value, replacer, spaces) : JSON.stringify(value);
-      if (escape2 && typeof json2 === "string") {
-        json2 = json2.replace(/[<>&]/g, function(c) {
+      var json = replacer || spaces ? JSON.stringify(value, replacer, spaces) : JSON.stringify(value);
+      if (escape2 && typeof json === "string") {
+        json = json.replace(/[<>&]/g, function(c) {
           switch (c.charCodeAt(0)) {
             case 60:
               return "\\u003c";
@@ -23793,7 +23781,7 @@ var require_response = __commonJS({
           }
         });
       }
-      return json2;
+      return json;
     }
   }
 });
@@ -24664,35 +24652,35 @@ var require_redact = __commonJS({
       let inQuotes = false;
       let quoteChar = "";
       for (let i = 0; i < path2.length; i++) {
-        const char2 = path2[i];
-        if (!inBrackets && char2 === ".") {
+        const char = path2[i];
+        if (!inBrackets && char === ".") {
           if (current) {
             parts.push(current);
             current = "";
           }
-        } else if (char2 === "[") {
+        } else if (char === "[") {
           if (current) {
             parts.push(current);
             current = "";
           }
           inBrackets = true;
-        } else if (char2 === "]" && inBrackets) {
+        } else if (char === "]" && inBrackets) {
           parts.push(current);
           current = "";
           inBrackets = false;
           inQuotes = false;
-        } else if ((char2 === '"' || char2 === "'") && inBrackets) {
+        } else if ((char === '"' || char === "'") && inBrackets) {
           if (!inQuotes) {
             inQuotes = true;
-            quoteChar = char2;
-          } else if (char2 === quoteChar) {
+            quoteChar = char;
+          } else if (char === quoteChar) {
             inQuotes = false;
             quoteChar = "";
           } else {
-            current += char2;
+            current += char;
           }
         } else {
-          current += char2;
+          current += char;
         }
       }
       if (current) {
@@ -24989,18 +24977,18 @@ var require_redact = __commonJS({
       let inQuotes = false;
       let quoteChar = "";
       for (let i = 0; i < path2.length; i++) {
-        const char2 = path2[i];
-        if ((char2 === '"' || char2 === "'") && bracketCount > 0) {
+        const char = path2[i];
+        if ((char === '"' || char === "'") && bracketCount > 0) {
           if (!inQuotes) {
             inQuotes = true;
-            quoteChar = char2;
-          } else if (char2 === quoteChar) {
+            quoteChar = char;
+          } else if (char === quoteChar) {
             inQuotes = false;
             quoteChar = "";
           }
-        } else if (char2 === "[" && !inQuotes) {
+        } else if (char === "[" && !inQuotes) {
           bracketCount++;
-        } else if (char2 === "]" && !inQuotes) {
+        } else if (char === "]" && !inQuotes) {
           bracketCount--;
           if (bracketCount < 0) {
             throw new Error(`Invalid redaction path (${path2})`);
@@ -25232,13 +25220,13 @@ var require_time = __commonJS({
       const secondsSinceEpoch = currentTimeNs / NS_PER_SEC;
       const nanosWithinSecond = currentTimeNs % NS_PER_SEC;
       const msSinceEpoch = Number(secondsSinceEpoch * 1000n + nanosWithinSecond / 1000000n);
-      const date2 = new Date(msSinceEpoch);
-      const year = date2.getUTCFullYear();
-      const month = (date2.getUTCMonth() + 1).toString().padStart(2, "0");
-      const day = date2.getUTCDate().toString().padStart(2, "0");
-      const hours = date2.getUTCHours().toString().padStart(2, "0");
-      const minutes = date2.getUTCMinutes().toString().padStart(2, "0");
-      const seconds = date2.getUTCSeconds().toString().padStart(2, "0");
+      const date = new Date(msSinceEpoch);
+      const year = date.getUTCFullYear();
+      const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+      const day = date.getUTCDate().toString().padStart(2, "0");
+      const hours = date.getUTCHours().toString().padStart(2, "0");
+      const minutes = date.getUTCMinutes().toString().padStart(2, "0");
+      const seconds = date.getUTCSeconds().toString().padStart(2, "0");
       return `,"time":"${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${nanosWithinSecond.toString().padStart(9, "0")}Z"`;
     };
     module.exports = { nullTime, epochTime, unixTime, isoTime, isoTimeNano };
@@ -26849,14 +26837,14 @@ var require_tools = __commonJS({
       let result = "";
       let last = 0;
       let found = false;
-      let point2 = 255;
+      let point = 255;
       const l = str.length;
       if (l > 100) {
         return JSON.stringify(str);
       }
-      for (var i = 0; i < l && point2 >= 32; i++) {
-        point2 = str.charCodeAt(i);
-        if (point2 === 34 || point2 === 92) {
+      for (var i = 0; i < l && point >= 32; i++) {
+        point = str.charCodeAt(i);
+        if (point === 34 || point === 92) {
           result += str.slice(last, i) + "\\";
           last = i;
           found = true;
@@ -26867,16 +26855,16 @@ var require_tools = __commonJS({
       } else {
         result += str.slice(last);
       }
-      return point2 < 32 ? JSON.stringify(str) : '"' + result + '"';
+      return point < 32 ? JSON.stringify(str) : '"' + result + '"';
     }
-    function asJson(obj, msg, num, time2) {
+    function asJson(obj, msg, num, time) {
       if (asJsonChan.hasSubscribers === false) {
-        return _asJson.call(this, obj, msg, num, time2);
+        return _asJson.call(this, obj, msg, num, time);
       }
       const store = { instance: this, arguments };
-      return asJsonChan.traceSync(_asJson, store, this, obj, msg, num, time2);
+      return asJsonChan.traceSync(_asJson, store, this, obj, msg, num, time);
     }
-    function _asJson(obj, msg, num, time2) {
+    function _asJson(obj, msg, num, time) {
       const stringify2 = this[stringifySym];
       const stringifySafe = this[stringifySafeSym];
       const stringifiers = this[stringifiersSym];
@@ -26886,7 +26874,7 @@ var require_tools = __commonJS({
       const formatters = this[formattersSym];
       const messageKey = this[messageKeySym];
       const errorKey = this[errorKeySym];
-      let data = this[lsCacheSym][num] + time2;
+      let data = this[lsCacheSym][num] + time;
       data = data + chindings;
       let value;
       if (formatters.log) {
@@ -27713,7 +27701,7 @@ var require_safe_stable_stringify = __commonJS({
         }
       }
       const circularValue = getCircularValueOption(options);
-      const bigint2 = getBooleanOption(options, "bigint");
+      const bigint = getBooleanOption(options, "bigint");
       const deterministic = getDeterministicOption(options);
       const comparator = typeof deterministic === "function" ? deterministic : void 0;
       const maximumDepth = getPositiveIntegerOption(options, "maximumDepth");
@@ -27821,7 +27809,7 @@ ${originalIndentation}`;
           case "undefined":
             return void 0;
           case "bigint":
-            if (bigint2) {
+            if (bigint) {
               return String(value);
             }
           // fallthrough
@@ -27912,7 +27900,7 @@ ${originalIndentation}`;
           case "undefined":
             return void 0;
           case "bigint":
-            if (bigint2) {
+            if (bigint) {
               return String(value);
             }
           // fallthrough
@@ -28024,7 +28012,7 @@ ${originalIndentation}`;
           case "undefined":
             return void 0;
           case "bigint":
-            if (bigint2) {
+            if (bigint) {
               return String(value);
             }
           // fallthrough
@@ -28120,7 +28108,7 @@ ${originalIndentation}`;
           case "undefined":
             return void 0;
           case "bigint":
-            if (bigint2) {
+            if (bigint) {
               return String(value);
             }
           // fallthrough
@@ -28341,7 +28329,7 @@ var require_pino = __commonJS({
     var stdSerializers = require_pino_std_serializers();
     var caller = require_caller();
     var redaction = require_redaction();
-    var time2 = require_time();
+    var time = require_time();
     var proto = require_proto();
     var symbols = require_symbols();
     var { configure } = require_safe_stable_stringify();
@@ -28382,7 +28370,7 @@ var require_pino = __commonJS({
       mixinMergeStrategySym,
       msgPrefixSym
     } = symbols;
-    var { epochTime, nullTime } = time2;
+    var { epochTime, nullTime } = time;
     var { pid } = process;
     var hostname = os.hostname();
     var defaultErrorSerializer = stdSerializers.err;
@@ -28428,7 +28416,7 @@ var require_pino = __commonJS({
         redact,
         crlf,
         serializers: serializers2,
-        timestamp: timestamp2,
+        timestamp,
         messageKey,
         errorKey,
         nestedKey,
@@ -28478,8 +28466,8 @@ var require_pino = __commonJS({
           chindings = coreChindings(Object.assign({}, base, { name }));
         }
       }
-      const time3 = timestamp2 instanceof Function ? timestamp2 : timestamp2 ? epochTime : nullTime;
-      const timeSliceIndex = time3().indexOf(":") + 1;
+      const time2 = timestamp instanceof Function ? timestamp : timestamp ? epochTime : nullTime;
+      const timeSliceIndex = time2().indexOf(":") + 1;
       if (useOnlyCustomLevels && !customLevels) throw Error("customLevels is required if useOnlyCustomLevels is set true");
       if (mixin && typeof mixin !== "function") throw Error(`Unknown mixin type "${typeof mixin}" - expected "function"`);
       if (msgPrefix && typeof msgPrefix !== "string") throw Error(`Unknown msgPrefix type "${typeof msgPrefix}" - expected "string"`);
@@ -28495,7 +28483,7 @@ var require_pino = __commonJS({
         [levelCompSym]: levelCompFunc,
         [useOnlyCustomLevelsSym]: useOnlyCustomLevels,
         [streamSym]: stream,
-        [timeSym]: time3,
+        [timeSym]: time2,
         [timeSliceIndexSym]: timeSliceIndex,
         [stringifySym]: stringify,
         [stringifySafeSym]: stringifySafe,
@@ -28535,7 +28523,7 @@ var require_pino = __commonJS({
     module.exports.multistream = require_multistream();
     module.exports.levels = mappings();
     module.exports.stdSerializers = serializers;
-    module.exports.stdTimeFunctions = Object.assign({}, time2);
+    module.exports.stdTimeFunctions = Object.assign({}, time);
     module.exports.symbols = symbols;
     module.exports.version = version2;
     module.exports.default = pino2;
@@ -28841,8 +28829,8 @@ var require_postgres_array = __commonJS({
       consumeDimensions() {
         if (this.source[0] === "[") {
           while (!this.isEof()) {
-            var char2 = this.nextCharacter();
-            if (char2.value === "=") break;
+            var char = this.nextCharacter();
+            if (char.value === "=") break;
           }
         }
       }
@@ -28929,23 +28917,23 @@ var require_postgres_date = __commonJS({
       var second = parseInt(matches[6], 10);
       var ms = matches[7];
       ms = ms ? 1e3 * parseFloat(ms) : 0;
-      var date2;
+      var date;
       var offset = timeZoneOffset(isoDate);
       if (offset != null) {
-        date2 = new Date(Date.UTC(year, month, day, hour, minute, second, ms));
+        date = new Date(Date.UTC(year, month, day, hour, minute, second, ms));
         if (is0To99(year)) {
-          date2.setUTCFullYear(year);
+          date.setUTCFullYear(year);
         }
         if (offset !== 0) {
-          date2.setTime(date2.getTime() - offset);
+          date.setTime(date.getTime() - offset);
         }
       } else {
-        date2 = new Date(year, month, day, hour, minute, second, ms);
+        date = new Date(year, month, day, hour, minute, second, ms);
         if (is0To99(year)) {
-          date2.setFullYear(year);
+          date.setFullYear(year);
         }
       }
-      return date2;
+      return date;
     };
     function getDate(isoDate) {
       var matches = DATE.exec(isoDate);
@@ -28959,11 +28947,11 @@ var require_postgres_date = __commonJS({
       }
       var month = parseInt(matches[2], 10) - 1;
       var day = matches[3];
-      var date2 = new Date(year, month, day);
+      var date = new Date(year, month, day);
       if (is0To99(year)) {
-        date2.setFullYear(year);
+        date.setFullYear(year);
       }
-      return date2;
+      return date;
     }
     function timeZoneOffset(isoDate) {
       if (isoDate.endsWith("+00")) {
@@ -29078,9 +29066,9 @@ var require_postgres_interval = __commonJS({
       var microseconds = fraction + "000000".slice(fraction.length);
       return parseInt(microseconds, 10) / 1e3;
     }
-    function parse(interval2) {
-      if (!interval2) return {};
-      var matches = INTERVAL.exec(interval2);
+    function parse(interval) {
+      if (!interval) return {};
+      var matches = INTERVAL.exec(interval);
       var isNegative = matches[8] === "-";
       return Object.keys(positions).reduce(function(parsed, property) {
         var position = positions[property];
@@ -29260,12 +29248,12 @@ var require_textParsers = __commonJS({
       if (value[0] !== "<" && value[1] !== "(") {
         return null;
       }
-      var point2 = "(";
+      var point = "(";
       var radius = "";
       var pointParsed = false;
       for (var i = 2; i < value.length - 1; i++) {
         if (!pointParsed) {
-          point2 += value[i];
+          point += value[i];
         }
         if (value[i] === ")") {
           pointParsed = true;
@@ -29278,7 +29266,7 @@ var require_textParsers = __commonJS({
         }
         radius += value[i];
       }
-      var result = parsePoint(point2);
+      var result = parsePoint(point);
       result.radius = parseFloat(radius);
       return result;
     };
@@ -29861,12 +29849,12 @@ var require_utils4 = __commonJS({
       }
       return JSON.stringify(val);
     }
-    function dateToString(date2) {
-      let offset = -date2.getTimezoneOffset();
-      let year = date2.getFullYear();
+    function dateToString(date) {
+      let offset = -date.getTimezoneOffset();
+      let year = date.getFullYear();
       const isBCYear = year < 1;
       if (isBCYear) year = Math.abs(year) + 1;
-      let ret = String(year).padStart(4, "0") + "-" + String(date2.getMonth() + 1).padStart(2, "0") + "-" + String(date2.getDate()).padStart(2, "0") + "T" + String(date2.getHours()).padStart(2, "0") + ":" + String(date2.getMinutes()).padStart(2, "0") + ":" + String(date2.getSeconds()).padStart(2, "0") + "." + String(date2.getMilliseconds()).padStart(3, "0");
+      let ret = String(year).padStart(4, "0") + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0") + "T" + String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0") + ":" + String(date.getSeconds()).padStart(2, "0") + "." + String(date.getMilliseconds()).padStart(3, "0");
       if (offset < 0) {
         ret += "-";
         offset *= -1;
@@ -29877,11 +29865,11 @@ var require_utils4 = __commonJS({
       if (isBCYear) ret += " BC";
       return ret;
     }
-    function dateToStringUTC(date2) {
-      let year = date2.getUTCFullYear();
+    function dateToStringUTC(date) {
+      let year = date.getUTCFullYear();
       const isBCYear = year < 1;
       if (isBCYear) year = Math.abs(year) + 1;
-      let ret = String(year).padStart(4, "0") + "-" + String(date2.getUTCMonth() + 1).padStart(2, "0") + "-" + String(date2.getUTCDate()).padStart(2, "0") + "T" + String(date2.getUTCHours()).padStart(2, "0") + ":" + String(date2.getUTCMinutes()).padStart(2, "0") + ":" + String(date2.getUTCSeconds()).padStart(2, "0") + "." + String(date2.getUTCMilliseconds()).padStart(3, "0");
+      let ret = String(year).padStart(4, "0") + "-" + String(date.getUTCMonth() + 1).padStart(2, "0") + "-" + String(date.getUTCDate()).padStart(2, "0") + "T" + String(date.getUTCHours()).padStart(2, "0") + ":" + String(date.getUTCMinutes()).padStart(2, "0") + ":" + String(date.getUTCSeconds()).padStart(2, "0") + "." + String(date.getUTCMilliseconds()).padStart(3, "0");
       ret += "+00:00";
       if (isBCYear) ret += " BC";
       return ret;
@@ -29973,11 +29961,11 @@ var require_utils5 = __commonJS({
       const outer = await md5(Buffer.concat([Buffer.from(inner), salt]));
       return "md5" + outer;
     }
-    async function sha256(text2) {
-      return await subtleCrypto.digest("SHA-256", text2);
+    async function sha256(text) {
+      return await subtleCrypto.digest("SHA-256", text);
     }
-    async function hashByName(hashName, text2) {
-      return await subtleCrypto.digest(hashName, text2);
+    async function hashByName(hashName, text) {
+      return await subtleCrypto.digest(hashName, text);
     }
     async function hmacSha256(keyBuffer, msg) {
       const key = await subtleCrypto.importKey("raw", keyBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -30108,7 +30096,7 @@ var require_cert_signatures = __commonJS({
 var require_sasl = __commonJS({
   "../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
-    var crypto3 = require_utils5();
+    var crypto4 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
     function saslprep(password) {
       const nonAsciiSpace = /[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g;
@@ -30126,7 +30114,7 @@ var require_sasl = __commonJS({
       if (mechanism === "SCRAM-SHA-256-PLUS" && typeof stream.getPeerCertificate !== "function") {
         throw new Error("SASL: Mechanism SCRAM-SHA-256-PLUS requires a certificate");
       }
-      const clientNonce = crypto3.randomBytes(18).toString("base64");
+      const clientNonce = crypto4.randomBytes(18).toString("base64");
       const gs2Header = mechanism === "SCRAM-SHA-256-PLUS" ? "p=tls-server-end-point" : stream ? "y" : "n";
       return {
         mechanism,
@@ -30168,20 +30156,20 @@ var require_sasl = __commonJS({
         const peerCert = stream.getPeerCertificate().raw;
         let hashName = signatureAlgorithmHashFromCertificate(peerCert);
         if (hashName === "MD5" || hashName === "SHA-1") hashName = "SHA-256";
-        const certHash = await crypto3.hashByName(hashName, peerCert);
+        const certHash = await crypto4.hashByName(hashName, peerCert);
         const bindingData = Buffer.concat([Buffer.from("p=tls-server-end-point,,"), Buffer.from(certHash)]);
         channelBinding = bindingData.toString("base64");
       }
       const clientFinalMessageWithoutProof = "c=" + channelBinding + ",r=" + sv.nonce;
       const authMessage = clientFirstMessageBare + "," + serverFirstMessage + "," + clientFinalMessageWithoutProof;
       const saltBytes = Buffer.from(sv.salt, "base64");
-      const saltedPassword = await crypto3.deriveKey(saslprep(password), saltBytes, sv.iteration);
-      const clientKey = await crypto3.hmacSha256(saltedPassword, "Client Key");
-      const storedKey = await crypto3.sha256(clientKey);
-      const clientSignature = await crypto3.hmacSha256(storedKey, authMessage);
+      const saltedPassword = await crypto4.deriveKey(saslprep(password), saltBytes, sv.iteration);
+      const clientKey = await crypto4.hmacSha256(saltedPassword, "Client Key");
+      const storedKey = await crypto4.sha256(clientKey);
+      const clientSignature = await crypto4.hmacSha256(storedKey, authMessage);
       const clientProof = xorBuffers(Buffer.from(clientKey), Buffer.from(clientSignature)).toString("base64");
-      const serverKey = await crypto3.hmacSha256(saltedPassword, "Server Key");
-      const serverSignatureBytes = await crypto3.hmacSha256(serverKey, authMessage);
+      const serverKey = await crypto4.hmacSha256(saltedPassword, "Server Key");
+      const serverSignatureBytes = await crypto4.hmacSha256(serverKey, authMessage);
       session.message = "SASLResponse";
       session.serverSignature = Buffer.from(serverSignatureBytes).toString("base64");
       session.response = clientFinalMessageWithoutProof + ",p=" + clientProof;
@@ -30198,21 +30186,21 @@ var require_sasl = __commonJS({
         throw new Error("SASL: SCRAM-SERVER-FINAL-MESSAGE: server signature does not match");
       }
     }
-    function isPrintableChars(text2) {
-      if (typeof text2 !== "string") {
+    function isPrintableChars(text) {
+      if (typeof text !== "string") {
         throw new TypeError("SASL: text must be a string");
       }
-      return text2.split("").map((_, i) => text2.charCodeAt(i)).every((c) => c >= 33 && c <= 43 || c >= 45 && c <= 126);
+      return text.split("").map((_, i) => text.charCodeAt(i)).every((c) => c >= 33 && c <= 43 || c >= 45 && c <= 126);
     }
-    function isBase64(text2) {
-      return /^(?:[a-zA-Z0-9+/]{4})*(?:[a-zA-Z0-9+/]{2}==|[a-zA-Z0-9+/]{3}=)?$/.test(text2);
+    function isBase64(text) {
+      return /^(?:[a-zA-Z0-9+/]{4})*(?:[a-zA-Z0-9+/]{2}==|[a-zA-Z0-9+/]{3}=)?$/.test(text);
     }
-    function parseAttributePairs(text2) {
-      if (typeof text2 !== "string") {
+    function parseAttributePairs(text) {
+      if (typeof text !== "string") {
         throw new TypeError("SASL: attribute pairs text must be a string");
       }
       return new Map(
-        text2.split(",").map((attrValue) => {
+        text.split(",").map((attrValue) => {
           if (!/^.=/.test(attrValue)) {
             throw new Error("SASL: Invalid attribute pair entry");
           }
@@ -31091,9 +31079,9 @@ var require_messages = __commonJS({
     };
     exports.ReadyForQueryMessage = ReadyForQueryMessage;
     var CommandCompleteMessage = class {
-      constructor(length, text2) {
+      constructor(length, text) {
         this.length = length;
-        this.text = text2;
+        this.text = text;
         this.name = "commandComplete";
       }
     };
@@ -31265,8 +31253,8 @@ var require_serializer = __commonJS({
         /* code.startup */
       );
     };
-    var query = (text2) => {
-      return writer.addCString(text2).flush(
+    var query = (text) => {
+      return writer.addCString(text).flush(
         81
         /* code.query */
       );
@@ -31391,8 +31379,8 @@ var require_serializer = __commonJS({
       return msg.name ? cstringMessage(68, `${msg.type}${msg.name || ""}`) : msg.type === "P" ? emptyDescribePortal : emptyDescribeStatement;
     };
     var close = (msg) => {
-      const text2 = `${msg.type}${msg.name || ""}`;
-      return cstringMessage(67, text2);
+      const text = `${msg.type}${msg.name || ""}`;
+      return cstringMessage(67, text);
     };
     var copyData = (chunk) => {
       return writer.add(chunk).flush(
@@ -31664,8 +31652,8 @@ var require_parser = __commonJS({
       return new messages_1.ReadyForQueryMessage(LATEINIT_LENGTH, status);
     };
     var parseCommandCompleteMessage = (reader) => {
-      const text2 = reader.cstring();
-      return new messages_1.CommandCompleteMessage(LATEINIT_LENGTH, text2);
+      const text = reader.cstring();
+      return new messages_1.CommandCompleteMessage(LATEINIT_LENGTH, text);
     };
     var parseCopyData = (reader, length) => {
       const chunk = reader.bytes(length - 4);
@@ -32046,8 +32034,8 @@ var require_connection = __commonJS({
         }
         return this.stream.write(buffer);
       }
-      query(text2) {
-        this._send(serialize.query(text2));
+      query(text) {
+        this._send(serialize.query(text));
       }
       // send parse message
       parse(query) {
@@ -32284,8 +32272,8 @@ var require_helper = __commonJS({
     module.exports.getPassword = function(connInfo, stream, cb) {
       var pass;
       var lineStream = stream.pipe(split());
-      function onLine(line2) {
-        var entry = parseLine(line2);
+      function onLine(line) {
+        var entry = parseLine(line);
         if (entry && isValidEntry(entry) && matcher(connInfo, entry)) {
           pass = entry[passKey];
           lineStream.end();
@@ -32303,8 +32291,8 @@ var require_helper = __commonJS({
       stream.on("error", onErr);
       lineStream.on("data", onLine).on("end", onEnd).on("error", onErr);
     };
-    var parseLine = module.exports.parseLine = function(line2) {
-      if (line2.length < 11 || line2.match(/^\s+#/)) {
+    var parseLine = module.exports.parseLine = function(line) {
+      if (line.length < 11 || line.match(/^\s+#/)) {
         return null;
       }
       var curChar = "";
@@ -32315,15 +32303,15 @@ var require_helper = __commonJS({
       var obj = {};
       var isLastField = false;
       var addToObj = function(idx, i0, i1) {
-        var field = line2.substring(i0, i1);
+        var field = line.substring(i0, i1);
         if (!Object.hasOwnProperty.call(process.env, "PGPASS_NO_DEESCAPE")) {
           field = field.replace(/\\([:\\])/g, "$1");
         }
         obj[fieldNames[idx]] = field;
       };
-      for (var i = 0; i < line2.length - 1; i += 1) {
-        curChar = line2.charAt(i + 1);
-        prevChar = line2.charAt(i);
+      for (var i = 0; i < line.length - 1; i += 1) {
+        curChar = line.charAt(i + 1);
+        prevChar = line.charAt(i);
         isLastField = fieldIdx == nrOfFields - 1;
         if (isLastField) {
           addToObj(fieldIdx, startIdx);
@@ -32411,7 +32399,7 @@ var require_client = __commonJS({
     var Query2 = require_query();
     var defaults2 = require_defaults();
     var Connection2 = require_connection();
-    var crypto3 = require_utils5();
+    var crypto4 = require_utils5();
     var activeQueryDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
@@ -32662,7 +32650,7 @@ var require_client = __commonJS({
       _handleAuthMD5Password(msg) {
         this._getPassword(async () => {
           try {
-            const hashedPassword = await crypto3.postgresMd5PasswordHash(this.user, this.password, msg.salt);
+            const hashedPassword = await crypto4.postgresMd5PasswordHash(this.user, this.password, msg.salt);
             this.connection.password(hashedPassword);
           } catch (e) {
             this.emit("error", e);
@@ -33388,9 +33376,9 @@ var require_pg_pool = __commonJS({
         this._idle.push(new IdleItem(client, idleListener, tid));
         this._pulseQueue();
       }
-      query(text2, values, cb) {
-        if (typeof text2 === "function") {
-          const response2 = promisify(this.Promise, text2);
+      query(text, values, cb) {
+        if (typeof text === "function") {
+          const response2 = promisify(this.Promise, text);
           setImmediate(function() {
             return response2.callback(new Error("Passing a function as the first parameter to pool.query is not supported"));
           });
@@ -33418,7 +33406,7 @@ var require_pg_pool = __commonJS({
           client.once("error", onError);
           this.log("dispatching query");
           try {
-            client.query(text2, values, (err2, res) => {
+            client.query(text, values, (err2, res) => {
               this.log("query dispatched");
               client.removeListener("error", onError);
               if (clientReleased) {
@@ -34218,8 +34206,8 @@ var ZodIssueCode = util.arrayToEnum([
   "not_finite"
 ]);
 var quotelessJson = (obj) => {
-  const json2 = JSON.stringify(obj, null, 2);
-  return json2.replace(/"([^"]+)":/g, "$1:");
+  const json = JSON.stringify(obj, null, 2);
+  return json.replace(/"([^"]+)":/g, "$1:");
 };
 var ZodError = class _ZodError extends Error {
   get errors() {
@@ -38006,7 +37994,7 @@ router.get("/healthz", (_req, res) => {
 });
 var health_default = router;
 
-// src/routes/classes.ts
+// src/routes/dbConnections.ts
 var import_express2 = __toESM(require_express2(), 1);
 
 // ../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/esm/index.mjs
@@ -38024,7 +38012,7 @@ var TypeOverrides = import_lib.default.TypeOverrides;
 var defaults = import_lib.default.defaults;
 var esm_default = import_lib.default;
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/entity.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/entity.js
 var entityKind = /* @__PURE__ */ Symbol.for("drizzle:entityKind");
 function is(value, type) {
   if (!value || typeof value !== "object") {
@@ -38050,7 +38038,7 @@ function is(value, type) {
   return false;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/logger.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/logger.js
 var ConsoleLogWriter = class {
   static [entityKind] = "ConsoleLogWriter";
   write(message) {
@@ -38081,7 +38069,7 @@ var NoopLogger = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/query-promise.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/query-promise.js
 var QueryPromise = class {
   static [entityKind] = "QueryPromise";
   [Symbol.toStringTag] = "QueryPromise";
@@ -38105,7 +38093,7 @@ var QueryPromise = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/column.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/column.js
 var Column = class {
   constructor(table, config) {
     this.table = table;
@@ -38156,7 +38144,7 @@ var Column = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/column-builder.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/column-builder.js
 var ColumnBuilder = class {
   static [entityKind] = "ColumnBuilder";
   config;
@@ -38254,16 +38242,15 @@ var ColumnBuilder = class {
   }
   /** @internal Sets the name of the column to the key within the table definition if a name was not given. */
   setName(name) {
-    if (this.config.name !== "")
-      return;
+    if (this.config.name !== "") return;
     this.config.name = name;
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/table.utils.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/table.utils.js
 var TableName = /* @__PURE__ */ Symbol.for("drizzle:Name");
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/foreign-keys.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/foreign-keys.js
 var ForeignKeyBuilder = class {
   static [entityKind] = "PgForeignKeyBuilder";
   /** @internal */
@@ -38320,15 +38307,12 @@ var ForeignKey = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/tracing-utils.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/tracing-utils.js
 function iife(fn, ...args) {
   return fn(...args);
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/unique-constraint.js
-function unique(name) {
-  return new UniqueOnConstraintBuilder(name);
-}
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/unique-constraint.js
 function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
@@ -38378,21 +38362,21 @@ var UniqueConstraint = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/utils/array.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/utils/array.js
 function parsePgArrayValue(arrayString, startFrom, inQuotes) {
   for (let i = startFrom; i < arrayString.length; i++) {
-    const char2 = arrayString[i];
-    if (char2 === "\\") {
+    const char = arrayString[i];
+    if (char === "\\") {
       i++;
       continue;
     }
-    if (char2 === '"') {
+    if (char === '"') {
       return [arrayString.slice(startFrom, i).replace(/\\/g, ""), i + 1];
     }
     if (inQuotes) {
       continue;
     }
-    if (char2 === "," || char2 === "}") {
+    if (char === "," || char === "}") {
       return [arrayString.slice(startFrom, i).replace(/\\/g, ""), i];
     }
   }
@@ -38403,8 +38387,8 @@ function parsePgNestedArray(arrayString, startFrom = 0) {
   let i = startFrom;
   let lastCharIsComma = false;
   while (i < arrayString.length) {
-    const char2 = arrayString[i];
-    if (char2 === ",") {
+    const char = arrayString[i];
+    if (char === ",") {
       if (lastCharIsComma || i === startFrom) {
         result.push("");
       }
@@ -38413,20 +38397,20 @@ function parsePgNestedArray(arrayString, startFrom = 0) {
       continue;
     }
     lastCharIsComma = false;
-    if (char2 === "\\") {
+    if (char === "\\") {
       i += 2;
       continue;
     }
-    if (char2 === '"') {
+    if (char === '"') {
       const [value2, startFrom2] = parsePgArrayValue(arrayString, i + 1, true);
       result.push(value2);
       i = startFrom2;
       continue;
     }
-    if (char2 === "}") {
+    if (char === "}") {
       return [result, i + 1];
     }
-    if (char2 === "{") {
+    if (char === "{") {
       const [value2, startFrom2] = parsePgNestedArray(arrayString, i + 1);
       result.push(value2);
       i = startFrom2;
@@ -38454,7 +38438,7 @@ function makePgArray(array) {
   }).join(",")}}`;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/common.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/common.js
 var PgColumnBuilder = class extends ColumnBuilder {
   foreignKeyConfigs = [];
   static [entityKind] = "PgColumnBuilder";
@@ -38633,13 +38617,12 @@ var PgArray = class _PgArray extends PgColumn {
     const a = value.map(
       (v) => v === null ? null : is(this.baseColumn, _PgArray) ? this.baseColumn.mapToDriverValue(v, true) : this.baseColumn.mapToDriverValue(v)
     );
-    if (isNestedArray)
-      return a;
+    if (isNestedArray) return a;
     return makePgArray(a);
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/enum.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/enum.js
 var PgEnumObjectColumnBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgEnumObjectColumnBuilder";
   constructor(name, enumInstance) {
@@ -38697,16 +38680,17 @@ var PgEnumColumn = class extends PgColumn {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/subquery.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/subquery.js
 var Subquery = class {
   static [entityKind] = "Subquery";
-  constructor(sql2, selection, alias, isWith = false) {
+  constructor(sql2, fields, alias, isWith = false, usedTables = []) {
     this._ = {
       brand: "Subquery",
       sql: sql2,
-      selectedFields: selection,
+      selectedFields: fields,
       alias,
-      isWith
+      isWith,
+      usedTables
     };
   }
   // getSQL(): SQL<unknown> {
@@ -38717,10 +38701,10 @@ var WithSubquery = class extends Subquery {
   static [entityKind] = "WithSubquery";
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/version.js
-var version = "0.43.1";
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/version.js
+var version = "0.45.2";
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/tracing.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/tracing.js
 var otel;
 var rawTracer;
 var tracer = {
@@ -38755,10 +38739,10 @@ var tracer = {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/view-common.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/view-common.js
 var ViewBaseConfig = /* @__PURE__ */ Symbol.for("drizzle:ViewBaseConfig");
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/table.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/table.js
 var Schema = /* @__PURE__ */ Symbol.for("drizzle:Schema");
 var Columns = /* @__PURE__ */ Symbol.for("drizzle:Columns");
 var ExtraConfigColumns = /* @__PURE__ */ Symbol.for("drizzle:ExtraConfigColumns");
@@ -38820,7 +38804,7 @@ function getTableUniqueName(table) {
   return `${table[Schema] ?? "public"}.${table[TableName]}`;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/sql/sql.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/sql/sql.js
 var FakePrimitiveParam = class {
   static [entityKind] = "FakePrimitiveParam";
 };
@@ -38854,11 +38838,21 @@ var StringChunk = class {
 var SQL = class _SQL {
   constructor(queryChunks) {
     this.queryChunks = queryChunks;
+    for (const chunk of queryChunks) {
+      if (is(chunk, Table)) {
+        const schemaName = chunk[Table.Symbol.Schema];
+        this.usedTables.push(
+          schemaName === void 0 ? chunk[Table.Symbol.Name] : schemaName + "." + chunk[Table.Symbol.Name]
+        );
+      }
+    }
   }
   static [entityKind] = "SQL";
   /** @internal */
   decoder = noopDecoder;
   shouldInlineParams = false;
+  /** @internal */
+  usedTables = [];
   append(query) {
     this.queryChunks.push(...query.queryChunks);
     return this;
@@ -39204,7 +39198,7 @@ Subquery.prototype.getSQL = function() {
   return new SQL([this]);
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/alias.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/alias.js
 var ColumnAliasProxyHandler = class {
   constructor(table) {
     this.table = table;
@@ -39300,7 +39294,7 @@ function mapColumnsInSQLToAlias(query, alias) {
   }));
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/selection-proxy.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/selection-proxy.js
 var SelectionProxyHandler = class _SelectionProxyHandler {
   static [entityKind] = "SelectionProxyHandler";
   config;
@@ -39368,7 +39362,7 @@ var SelectionProxyHandler = class _SelectionProxyHandler {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/utils.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/utils.js
 function mapResultRow(columns, row, joinsNotNullableMap) {
   const nullifyMap = {};
   const result = columns.reduce(
@@ -39378,6 +39372,8 @@ function mapResultRow(columns, row, joinsNotNullableMap) {
         decoder = field;
       } else if (is(field, SQL)) {
         decoder = field.decoder;
+      } else if (is(field, Subquery)) {
+        decoder = field._.sql.decoder;
       } else {
         decoder = field.sql.decoder;
       }
@@ -39420,7 +39416,7 @@ function orderSelectedFields(fields, pathPrefix) {
       return result;
     }
     const newPath = pathPrefix ? [...pathPrefix, name] : [name];
-    if (is(field, Column) || is(field, SQL) || is(field, SQL.Aliased)) {
+    if (is(field, Column) || is(field, SQL) || is(field, SQL.Aliased) || is(field, Subquery)) {
       result.push({ path: newPath, field });
     } else if (is(field, Table)) {
       result.push(...orderSelectedFields(field[Table.Symbol.Columns], newPath));
@@ -39459,8 +39455,7 @@ function mapUpdateSet(table, values) {
 function applyMixins(baseClass, extendedClasses) {
   for (const extendedClass of extendedClasses) {
     for (const name of Object.getOwnPropertyNames(extendedClass.prototype)) {
-      if (name === "constructor")
-        continue;
+      if (name === "constructor") continue;
       Object.defineProperty(
         baseClass.prototype,
         name,
@@ -39475,487 +39470,44 @@ function getTableColumns(table) {
 function getTableLikeName(table) {
   return is(table, Subquery) ? table._.alias : is(table, View) ? table[ViewBaseConfig].name : is(table, SQL) ? void 0 : table[Table.Symbol.IsAlias] ? table[Table.Symbol.Name] : table[Table.Symbol.BaseName];
 }
-function getColumnNameAndConfig(a, b) {
-  return {
-    name: typeof a === "string" && a.length > 0 ? a : "",
-    config: typeof a === "object" ? a : b
-  };
-}
 function isConfig(data) {
-  if (typeof data !== "object" || data === null)
-    return false;
-  if (data.constructor.name !== "Object")
-    return false;
+  if (typeof data !== "object" || data === null) return false;
+  if (data.constructor.name !== "Object") return false;
   if ("logger" in data) {
     const type = typeof data["logger"];
-    if (type !== "boolean" && (type !== "object" || typeof data["logger"]["logQuery"] !== "function") && type !== "undefined")
-      return false;
+    if (type !== "boolean" && (type !== "object" || typeof data["logger"]["logQuery"] !== "function") && type !== "undefined") return false;
     return true;
   }
   if ("schema" in data) {
     const type = typeof data["schema"];
-    if (type !== "object" && type !== "undefined")
-      return false;
+    if (type !== "object" && type !== "undefined") return false;
     return true;
   }
   if ("casing" in data) {
     const type = typeof data["casing"];
-    if (type !== "string" && type !== "undefined")
-      return false;
+    if (type !== "string" && type !== "undefined") return false;
     return true;
   }
   if ("mode" in data) {
-    if (data["mode"] !== "default" || data["mode"] !== "planetscale" || data["mode"] !== void 0)
-      return false;
+    if (data["mode"] !== "default" || data["mode"] !== "planetscale" || data["mode"] !== void 0) return false;
     return true;
   }
   if ("connection" in data) {
     const type = typeof data["connection"];
-    if (type !== "string" && type !== "object" && type !== "undefined")
-      return false;
+    if (type !== "string" && type !== "object" && type !== "undefined") return false;
     return true;
   }
   if ("client" in data) {
     const type = typeof data["client"];
-    if (type !== "object" && type !== "function" && type !== "undefined")
-      return false;
+    if (type !== "object" && type !== "function" && type !== "undefined") return false;
     return true;
   }
-  if (Object.keys(data).length === 0)
-    return true;
+  if (Object.keys(data).length === 0) return true;
   return false;
 }
+var textDecoder = typeof TextDecoder === "undefined" ? null : new TextDecoder();
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/delete.js
-var PgDeleteBase = class extends QueryPromise {
-  constructor(table, session, dialect, withList) {
-    super();
-    this.session = session;
-    this.dialect = dialect;
-    this.config = { table, withList };
-  }
-  static [entityKind] = "PgDelete";
-  config;
-  /**
-   * Adds a `where` clause to the query.
-   *
-   * Calling this method will delete only those rows that fulfill a specified condition.
-   *
-   * See docs: {@link https://orm.drizzle.team/docs/delete}
-   *
-   * @param where the `where` clause.
-   *
-   * @example
-   * You can use conditional operators and `sql function` to filter the rows to be deleted.
-   *
-   * ```ts
-   * // Delete all cars with green color
-   * await db.delete(cars).where(eq(cars.color, 'green'));
-   * // or
-   * await db.delete(cars).where(sql`${cars.color} = 'green'`)
-   * ```
-   *
-   * You can logically combine conditional operators with `and()` and `or()` operators:
-   *
-   * ```ts
-   * // Delete all BMW cars with a green color
-   * await db.delete(cars).where(and(eq(cars.color, 'green'), eq(cars.brand, 'BMW')));
-   *
-   * // Delete all cars with the green or blue color
-   * await db.delete(cars).where(or(eq(cars.color, 'green'), eq(cars.color, 'blue')));
-   * ```
-   */
-  where(where) {
-    this.config.where = where;
-    return this;
-  }
-  returning(fields = this.config.table[Table.Symbol.Columns]) {
-    this.config.returningFields = fields;
-    this.config.returning = orderSelectedFields(fields);
-    return this;
-  }
-  /** @internal */
-  getSQL() {
-    return this.dialect.buildDeleteQuery(this.config);
-  }
-  toSQL() {
-    const { typings: _typings, ...rest } = this.dialect.sqlToQuery(this.getSQL());
-    return rest;
-  }
-  /** @internal */
-  _prepare(name) {
-    return tracer.startActiveSpan("drizzle.prepareQuery", () => {
-      return this.session.prepareQuery(this.dialect.sqlToQuery(this.getSQL()), this.config.returning, name, true);
-    });
-  }
-  prepare(name) {
-    return this._prepare(name);
-  }
-  authToken;
-  /** @internal */
-  setToken(token) {
-    this.authToken = token;
-    return this;
-  }
-  execute = (placeholderValues) => {
-    return tracer.startActiveSpan("drizzle.operation", () => {
-      return this._prepare().execute(placeholderValues, this.authToken);
-    });
-  };
-  /** @internal */
-  getSelectedFields() {
-    return this.config.returningFields ? new Proxy(
-      this.config.returningFields,
-      new SelectionProxyHandler({
-        alias: getTableName(this.config.table),
-        sqlAliasedBehavior: "alias",
-        sqlBehavior: "error"
-      })
-    ) : void 0;
-  }
-  $dynamic() {
-    return this;
-  }
-};
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/casing.js
-function toSnakeCase(input) {
-  const words = input.replace(/['\u2019]/g, "").match(/[\da-z]+|[A-Z]+(?![a-z])|[A-Z][\da-z]+/g) ?? [];
-  return words.map((word) => word.toLowerCase()).join("_");
-}
-function toCamelCase(input) {
-  const words = input.replace(/['\u2019]/g, "").match(/[\da-z]+|[A-Z]+(?![a-z])|[A-Z][\da-z]+/g) ?? [];
-  return words.reduce((acc, word, i) => {
-    const formattedWord = i === 0 ? word.toLowerCase() : `${word[0].toUpperCase()}${word.slice(1)}`;
-    return acc + formattedWord;
-  }, "");
-}
-function noopCase(input) {
-  return input;
-}
-var CasingCache = class {
-  static [entityKind] = "CasingCache";
-  /** @internal */
-  cache = {};
-  cachedTables = {};
-  convert;
-  constructor(casing) {
-    this.convert = casing === "snake_case" ? toSnakeCase : casing === "camelCase" ? toCamelCase : noopCase;
-  }
-  getColumnCasing(column) {
-    if (!column.keyAsName)
-      return column.name;
-    const schema = column.table[Table.Symbol.Schema] ?? "public";
-    const tableName = column.table[Table.Symbol.OriginalName];
-    const key = `${schema}.${tableName}.${column.name}`;
-    if (!this.cache[key]) {
-      this.cacheTable(column.table);
-    }
-    return this.cache[key];
-  }
-  cacheTable(table) {
-    const schema = table[Table.Symbol.Schema] ?? "public";
-    const tableName = table[Table.Symbol.OriginalName];
-    const tableKey = `${schema}.${tableName}`;
-    if (!this.cachedTables[tableKey]) {
-      for (const column of Object.values(table[Table.Symbol.Columns])) {
-        const columnKey = `${tableKey}.${column.name}`;
-        this.cache[columnKey] = this.convert(column.name);
-      }
-      this.cachedTables[tableKey] = true;
-    }
-  }
-  clearCache() {
-    this.cache = {};
-    this.cachedTables = {};
-  }
-};
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/errors.js
-var DrizzleError = class extends Error {
-  static [entityKind] = "DrizzleError";
-  constructor({ message, cause }) {
-    super(message);
-    this.name = "DrizzleError";
-    this.cause = cause;
-  }
-};
-var TransactionRollbackError = class extends DrizzleError {
-  static [entityKind] = "TransactionRollbackError";
-  constructor() {
-    super({ message: "Rollback" });
-  }
-};
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/int.common.js
-var PgIntColumnBaseBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgIntColumnBaseBuilder";
-  generatedAlwaysAsIdentity(sequence) {
-    if (sequence) {
-      const { name, ...options } = sequence;
-      this.config.generatedIdentity = {
-        type: "always",
-        sequenceName: name,
-        sequenceOptions: options
-      };
-    } else {
-      this.config.generatedIdentity = {
-        type: "always"
-      };
-    }
-    this.config.hasDefault = true;
-    this.config.notNull = true;
-    return this;
-  }
-  generatedByDefaultAsIdentity(sequence) {
-    if (sequence) {
-      const { name, ...options } = sequence;
-      this.config.generatedIdentity = {
-        type: "byDefault",
-        sequenceName: name,
-        sequenceOptions: options
-      };
-    } else {
-      this.config.generatedIdentity = {
-        type: "byDefault"
-      };
-    }
-    this.config.hasDefault = true;
-    this.config.notNull = true;
-    return this;
-  }
-};
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/bigint.js
-var PgBigInt53Builder = class extends PgIntColumnBaseBuilder {
-  static [entityKind] = "PgBigInt53Builder";
-  constructor(name) {
-    super(name, "number", "PgBigInt53");
-  }
-  /** @internal */
-  build(table) {
-    return new PgBigInt53(table, this.config);
-  }
-};
-var PgBigInt53 = class extends PgColumn {
-  static [entityKind] = "PgBigInt53";
-  getSQLType() {
-    return "bigint";
-  }
-  mapFromDriverValue(value) {
-    if (typeof value === "number") {
-      return value;
-    }
-    return Number(value);
-  }
-};
-var PgBigInt64Builder = class extends PgIntColumnBaseBuilder {
-  static [entityKind] = "PgBigInt64Builder";
-  constructor(name) {
-    super(name, "bigint", "PgBigInt64");
-  }
-  /** @internal */
-  build(table) {
-    return new PgBigInt64(
-      table,
-      this.config
-    );
-  }
-};
-var PgBigInt64 = class extends PgColumn {
-  static [entityKind] = "PgBigInt64";
-  getSQLType() {
-    return "bigint";
-  }
-  // eslint-disable-next-line unicorn/prefer-native-coercion-functions
-  mapFromDriverValue(value) {
-    return BigInt(value);
-  }
-};
-function bigint(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  if (config.mode === "number") {
-    return new PgBigInt53Builder(name);
-  }
-  return new PgBigInt64Builder(name);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/bigserial.js
-var PgBigSerial53Builder = class extends PgColumnBuilder {
-  static [entityKind] = "PgBigSerial53Builder";
-  constructor(name) {
-    super(name, "number", "PgBigSerial53");
-    this.config.hasDefault = true;
-    this.config.notNull = true;
-  }
-  /** @internal */
-  build(table) {
-    return new PgBigSerial53(
-      table,
-      this.config
-    );
-  }
-};
-var PgBigSerial53 = class extends PgColumn {
-  static [entityKind] = "PgBigSerial53";
-  getSQLType() {
-    return "bigserial";
-  }
-  mapFromDriverValue(value) {
-    if (typeof value === "number") {
-      return value;
-    }
-    return Number(value);
-  }
-};
-var PgBigSerial64Builder = class extends PgColumnBuilder {
-  static [entityKind] = "PgBigSerial64Builder";
-  constructor(name) {
-    super(name, "bigint", "PgBigSerial64");
-    this.config.hasDefault = true;
-  }
-  /** @internal */
-  build(table) {
-    return new PgBigSerial64(
-      table,
-      this.config
-    );
-  }
-};
-var PgBigSerial64 = class extends PgColumn {
-  static [entityKind] = "PgBigSerial64";
-  getSQLType() {
-    return "bigserial";
-  }
-  // eslint-disable-next-line unicorn/prefer-native-coercion-functions
-  mapFromDriverValue(value) {
-    return BigInt(value);
-  }
-};
-function bigserial(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  if (config.mode === "number") {
-    return new PgBigSerial53Builder(name);
-  }
-  return new PgBigSerial64Builder(name);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/boolean.js
-var PgBooleanBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgBooleanBuilder";
-  constructor(name) {
-    super(name, "boolean", "PgBoolean");
-  }
-  /** @internal */
-  build(table) {
-    return new PgBoolean(table, this.config);
-  }
-};
-var PgBoolean = class extends PgColumn {
-  static [entityKind] = "PgBoolean";
-  getSQLType() {
-    return "boolean";
-  }
-};
-function boolean(name) {
-  return new PgBooleanBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/char.js
-var PgCharBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgCharBuilder";
-  constructor(name, config) {
-    super(name, "string", "PgChar");
-    this.config.length = config.length;
-    this.config.enumValues = config.enum;
-  }
-  /** @internal */
-  build(table) {
-    return new PgChar(
-      table,
-      this.config
-    );
-  }
-};
-var PgChar = class extends PgColumn {
-  static [entityKind] = "PgChar";
-  length = this.config.length;
-  enumValues = this.config.enumValues;
-  getSQLType() {
-    return this.length === void 0 ? `char` : `char(${this.length})`;
-  }
-};
-function char(a, b = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgCharBuilder(name, config);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/cidr.js
-var PgCidrBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgCidrBuilder";
-  constructor(name) {
-    super(name, "string", "PgCidr");
-  }
-  /** @internal */
-  build(table) {
-    return new PgCidr(table, this.config);
-  }
-};
-var PgCidr = class extends PgColumn {
-  static [entityKind] = "PgCidr";
-  getSQLType() {
-    return "cidr";
-  }
-};
-function cidr(name) {
-  return new PgCidrBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/custom.js
-var PgCustomColumnBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgCustomColumnBuilder";
-  constructor(name, fieldConfig, customTypeParams) {
-    super(name, "custom", "PgCustomColumn");
-    this.config.fieldConfig = fieldConfig;
-    this.config.customTypeParams = customTypeParams;
-  }
-  /** @internal */
-  build(table) {
-    return new PgCustomColumn(
-      table,
-      this.config
-    );
-  }
-};
-var PgCustomColumn = class extends PgColumn {
-  static [entityKind] = "PgCustomColumn";
-  sqlName;
-  mapTo;
-  mapFrom;
-  constructor(table, config) {
-    super(table, config);
-    this.sqlName = config.customTypeParams.dataType(config.fieldConfig);
-    this.mapTo = config.customTypeParams.toDriver;
-    this.mapFrom = config.customTypeParams.fromDriver;
-  }
-  getSQLType() {
-    return this.sqlName;
-  }
-  mapFromDriverValue(value) {
-    return typeof this.mapFrom === "function" ? this.mapFrom(value) : value;
-  }
-  mapToDriverValue(value) {
-    return typeof this.mapTo === "function" ? this.mapTo(value) : value;
-  }
-};
-function customType(customTypeParams) {
-  return (a, b) => {
-    const { name, config } = getColumnNameAndConfig(a, b);
-    return new PgCustomColumnBuilder(name, config, customTypeParams);
-  };
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/date.common.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/date.common.js
 var PgDateColumnBaseBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgDateColumnBaseBuilder";
   defaultNow() {
@@ -39963,7 +39515,7 @@ var PgDateColumnBaseBuilder = class extends PgColumnBuilder {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/date.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/date.js
 var PgDateBuilder = class extends PgDateColumnBaseBuilder {
   static [entityKind] = "PgDateBuilder";
   constructor(name) {
@@ -39980,7 +39532,8 @@ var PgDate = class extends PgColumn {
     return "date";
   }
   mapFromDriverValue(value) {
-    return new Date(value);
+    if (typeof value === "string") return new Date(value);
+    return value;
   }
   mapToDriverValue(value) {
     return value.toISOString();
@@ -40004,121 +39557,13 @@ var PgDateString = class extends PgColumn {
   getSQLType() {
     return "date";
   }
-};
-function date(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  if (config?.mode === "date") {
-    return new PgDateBuilder(name);
-  }
-  return new PgDateStringBuilder(name);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/double-precision.js
-var PgDoublePrecisionBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgDoublePrecisionBuilder";
-  constructor(name) {
-    super(name, "number", "PgDoublePrecision");
-  }
-  /** @internal */
-  build(table) {
-    return new PgDoublePrecision(
-      table,
-      this.config
-    );
-  }
-};
-var PgDoublePrecision = class extends PgColumn {
-  static [entityKind] = "PgDoublePrecision";
-  getSQLType() {
-    return "double precision";
-  }
   mapFromDriverValue(value) {
-    if (typeof value === "string") {
-      return Number.parseFloat(value);
-    }
-    return value;
+    if (typeof value === "string") return value;
+    return value.toISOString().slice(0, -14);
   }
 };
-function doublePrecision(name) {
-  return new PgDoublePrecisionBuilder(name ?? "");
-}
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/inet.js
-var PgInetBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgInetBuilder";
-  constructor(name) {
-    super(name, "string", "PgInet");
-  }
-  /** @internal */
-  build(table) {
-    return new PgInet(table, this.config);
-  }
-};
-var PgInet = class extends PgColumn {
-  static [entityKind] = "PgInet";
-  getSQLType() {
-    return "inet";
-  }
-};
-function inet(name) {
-  return new PgInetBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/integer.js
-var PgIntegerBuilder = class extends PgIntColumnBaseBuilder {
-  static [entityKind] = "PgIntegerBuilder";
-  constructor(name) {
-    super(name, "number", "PgInteger");
-  }
-  /** @internal */
-  build(table) {
-    return new PgInteger(table, this.config);
-  }
-};
-var PgInteger = class extends PgColumn {
-  static [entityKind] = "PgInteger";
-  getSQLType() {
-    return "integer";
-  }
-  mapFromDriverValue(value) {
-    if (typeof value === "string") {
-      return Number.parseInt(value);
-    }
-    return value;
-  }
-};
-function integer(name) {
-  return new PgIntegerBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/interval.js
-var PgIntervalBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgIntervalBuilder";
-  constructor(name, intervalConfig) {
-    super(name, "string", "PgInterval");
-    this.config.intervalConfig = intervalConfig;
-  }
-  /** @internal */
-  build(table) {
-    return new PgInterval(table, this.config);
-  }
-};
-var PgInterval = class extends PgColumn {
-  static [entityKind] = "PgInterval";
-  fields = this.config.intervalConfig.fields;
-  precision = this.config.intervalConfig.precision;
-  getSQLType() {
-    const fields = this.fields ? ` ${this.fields}` : "";
-    const precision = this.precision ? `(${this.precision})` : "";
-    return `interval${fields}${precision}`;
-  }
-};
-function interval(a, b = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgIntervalBuilder(name, config);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/json.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/json.js
 var PgJsonBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgJsonBuilder";
   constructor(name) {
@@ -40151,11 +39596,8 @@ var PgJson = class extends PgColumn {
     return value;
   }
 };
-function json(name) {
-  return new PgJsonBuilder(name ?? "");
-}
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/jsonb.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/jsonb.js
 var PgJsonbBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgJsonbBuilder";
   constructor(name) {
@@ -40188,114 +39630,8 @@ var PgJsonb = class extends PgColumn {
     return value;
   }
 };
-function jsonb(name) {
-  return new PgJsonbBuilder(name ?? "");
-}
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/line.js
-var PgLineBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgLineBuilder";
-  constructor(name) {
-    super(name, "array", "PgLine");
-  }
-  /** @internal */
-  build(table) {
-    return new PgLineTuple(
-      table,
-      this.config
-    );
-  }
-};
-var PgLineTuple = class extends PgColumn {
-  static [entityKind] = "PgLine";
-  getSQLType() {
-    return "line";
-  }
-  mapFromDriverValue(value) {
-    const [a, b, c] = value.slice(1, -1).split(",");
-    return [Number.parseFloat(a), Number.parseFloat(b), Number.parseFloat(c)];
-  }
-  mapToDriverValue(value) {
-    return `{${value[0]},${value[1]},${value[2]}}`;
-  }
-};
-var PgLineABCBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgLineABCBuilder";
-  constructor(name) {
-    super(name, "json", "PgLineABC");
-  }
-  /** @internal */
-  build(table) {
-    return new PgLineABC(
-      table,
-      this.config
-    );
-  }
-};
-var PgLineABC = class extends PgColumn {
-  static [entityKind] = "PgLineABC";
-  getSQLType() {
-    return "line";
-  }
-  mapFromDriverValue(value) {
-    const [a, b, c] = value.slice(1, -1).split(",");
-    return { a: Number.parseFloat(a), b: Number.parseFloat(b), c: Number.parseFloat(c) };
-  }
-  mapToDriverValue(value) {
-    return `{${value.a},${value.b},${value.c}}`;
-  }
-};
-function line(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  if (!config?.mode || config.mode === "tuple") {
-    return new PgLineBuilder(name);
-  }
-  return new PgLineABCBuilder(name);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/macaddr.js
-var PgMacaddrBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgMacaddrBuilder";
-  constructor(name) {
-    super(name, "string", "PgMacaddr");
-  }
-  /** @internal */
-  build(table) {
-    return new PgMacaddr(table, this.config);
-  }
-};
-var PgMacaddr = class extends PgColumn {
-  static [entityKind] = "PgMacaddr";
-  getSQLType() {
-    return "macaddr";
-  }
-};
-function macaddr(name) {
-  return new PgMacaddrBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/macaddr8.js
-var PgMacaddr8Builder = class extends PgColumnBuilder {
-  static [entityKind] = "PgMacaddr8Builder";
-  constructor(name) {
-    super(name, "string", "PgMacaddr8");
-  }
-  /** @internal */
-  build(table) {
-    return new PgMacaddr8(table, this.config);
-  }
-};
-var PgMacaddr8 = class extends PgColumn {
-  static [entityKind] = "PgMacaddr8";
-  getSQLType() {
-    return "macaddr8";
-  }
-};
-function macaddr8(name) {
-  return new PgMacaddr8Builder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/numeric.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/numeric.js
 var PgNumericBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgNumericBuilder";
   constructor(name, precision, scale) {
@@ -40318,8 +39654,7 @@ var PgNumeric = class extends PgColumn {
     this.scale = config.scale;
   }
   mapFromDriverValue(value) {
-    if (typeof value === "string")
-      return value;
+    if (typeof value === "string") return value;
     return String(value);
   }
   getSQLType() {
@@ -40357,8 +39692,7 @@ var PgNumericNumber = class extends PgColumn {
     this.scale = config.scale;
   }
   mapFromDriverValue(value) {
-    if (typeof value === "number")
-      return value;
+    if (typeof value === "number") return value;
     return Number(value);
   }
   mapToDriverValue = String;
@@ -40408,310 +39742,8 @@ var PgNumericBigInt = class extends PgColumn {
     }
   }
 };
-function numeric(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  const mode = config?.mode;
-  return mode === "number" ? new PgNumericNumberBuilder(name, config?.precision, config?.scale) : mode === "bigint" ? new PgNumericBigIntBuilder(name, config?.precision, config?.scale) : new PgNumericBuilder(name, config?.precision, config?.scale);
-}
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/point.js
-var PgPointTupleBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgPointTupleBuilder";
-  constructor(name) {
-    super(name, "array", "PgPointTuple");
-  }
-  /** @internal */
-  build(table) {
-    return new PgPointTuple(
-      table,
-      this.config
-    );
-  }
-};
-var PgPointTuple = class extends PgColumn {
-  static [entityKind] = "PgPointTuple";
-  getSQLType() {
-    return "point";
-  }
-  mapFromDriverValue(value) {
-    if (typeof value === "string") {
-      const [x, y] = value.slice(1, -1).split(",");
-      return [Number.parseFloat(x), Number.parseFloat(y)];
-    }
-    return [value.x, value.y];
-  }
-  mapToDriverValue(value) {
-    return `(${value[0]},${value[1]})`;
-  }
-};
-var PgPointObjectBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgPointObjectBuilder";
-  constructor(name) {
-    super(name, "json", "PgPointObject");
-  }
-  /** @internal */
-  build(table) {
-    return new PgPointObject(
-      table,
-      this.config
-    );
-  }
-};
-var PgPointObject = class extends PgColumn {
-  static [entityKind] = "PgPointObject";
-  getSQLType() {
-    return "point";
-  }
-  mapFromDriverValue(value) {
-    if (typeof value === "string") {
-      const [x, y] = value.slice(1, -1).split(",");
-      return { x: Number.parseFloat(x), y: Number.parseFloat(y) };
-    }
-    return value;
-  }
-  mapToDriverValue(value) {
-    return `(${value.x},${value.y})`;
-  }
-};
-function point(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  if (!config?.mode || config.mode === "tuple") {
-    return new PgPointTupleBuilder(name);
-  }
-  return new PgPointObjectBuilder(name);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
-function hexToBytes(hex) {
-  const bytes = [];
-  for (let c = 0; c < hex.length; c += 2) {
-    bytes.push(Number.parseInt(hex.slice(c, c + 2), 16));
-  }
-  return new Uint8Array(bytes);
-}
-function bytesToFloat64(bytes, offset) {
-  const buffer = new ArrayBuffer(8);
-  const view = new DataView(buffer);
-  for (let i = 0; i < 8; i++) {
-    view.setUint8(i, bytes[offset + i]);
-  }
-  return view.getFloat64(0, true);
-}
-function parseEWKB(hex) {
-  const bytes = hexToBytes(hex);
-  let offset = 0;
-  const byteOrder = bytes[offset];
-  offset += 1;
-  const view = new DataView(bytes.buffer);
-  const geomType = view.getUint32(offset, byteOrder === 1);
-  offset += 4;
-  let _srid;
-  if (geomType & 536870912) {
-    _srid = view.getUint32(offset, byteOrder === 1);
-    offset += 4;
-  }
-  if ((geomType & 65535) === 1) {
-    const x = bytesToFloat64(bytes, offset);
-    offset += 8;
-    const y = bytesToFloat64(bytes, offset);
-    offset += 8;
-    return [x, y];
-  }
-  throw new Error("Unsupported geometry type");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
-var PgGeometryBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgGeometryBuilder";
-  constructor(name) {
-    super(name, "array", "PgGeometry");
-  }
-  /** @internal */
-  build(table) {
-    return new PgGeometry(
-      table,
-      this.config
-    );
-  }
-};
-var PgGeometry = class extends PgColumn {
-  static [entityKind] = "PgGeometry";
-  getSQLType() {
-    return "geometry(point)";
-  }
-  mapFromDriverValue(value) {
-    return parseEWKB(value);
-  }
-  mapToDriverValue(value) {
-    return `point(${value[0]} ${value[1]})`;
-  }
-};
-var PgGeometryObjectBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgGeometryObjectBuilder";
-  constructor(name) {
-    super(name, "json", "PgGeometryObject");
-  }
-  /** @internal */
-  build(table) {
-    return new PgGeometryObject(
-      table,
-      this.config
-    );
-  }
-};
-var PgGeometryObject = class extends PgColumn {
-  static [entityKind] = "PgGeometryObject";
-  getSQLType() {
-    return "geometry(point)";
-  }
-  mapFromDriverValue(value) {
-    const parsed = parseEWKB(value);
-    return { x: parsed[0], y: parsed[1] };
-  }
-  mapToDriverValue(value) {
-    return `point(${value.x} ${value.y})`;
-  }
-};
-function geometry(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  if (!config?.mode || config.mode === "tuple") {
-    return new PgGeometryBuilder(name);
-  }
-  return new PgGeometryObjectBuilder(name);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/real.js
-var PgRealBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgRealBuilder";
-  constructor(name, length) {
-    super(name, "number", "PgReal");
-    this.config.length = length;
-  }
-  /** @internal */
-  build(table) {
-    return new PgReal(table, this.config);
-  }
-};
-var PgReal = class extends PgColumn {
-  static [entityKind] = "PgReal";
-  constructor(table, config) {
-    super(table, config);
-  }
-  getSQLType() {
-    return "real";
-  }
-  mapFromDriverValue = (value) => {
-    if (typeof value === "string") {
-      return Number.parseFloat(value);
-    }
-    return value;
-  };
-};
-function real(name) {
-  return new PgRealBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/serial.js
-var PgSerialBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgSerialBuilder";
-  constructor(name) {
-    super(name, "number", "PgSerial");
-    this.config.hasDefault = true;
-    this.config.notNull = true;
-  }
-  /** @internal */
-  build(table) {
-    return new PgSerial(table, this.config);
-  }
-};
-var PgSerial = class extends PgColumn {
-  static [entityKind] = "PgSerial";
-  getSQLType() {
-    return "serial";
-  }
-};
-function serial(name) {
-  return new PgSerialBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/smallint.js
-var PgSmallIntBuilder = class extends PgIntColumnBaseBuilder {
-  static [entityKind] = "PgSmallIntBuilder";
-  constructor(name) {
-    super(name, "number", "PgSmallInt");
-  }
-  /** @internal */
-  build(table) {
-    return new PgSmallInt(table, this.config);
-  }
-};
-var PgSmallInt = class extends PgColumn {
-  static [entityKind] = "PgSmallInt";
-  getSQLType() {
-    return "smallint";
-  }
-  mapFromDriverValue = (value) => {
-    if (typeof value === "string") {
-      return Number(value);
-    }
-    return value;
-  };
-};
-function smallint(name) {
-  return new PgSmallIntBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/smallserial.js
-var PgSmallSerialBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgSmallSerialBuilder";
-  constructor(name) {
-    super(name, "number", "PgSmallSerial");
-    this.config.hasDefault = true;
-    this.config.notNull = true;
-  }
-  /** @internal */
-  build(table) {
-    return new PgSmallSerial(
-      table,
-      this.config
-    );
-  }
-};
-var PgSmallSerial = class extends PgColumn {
-  static [entityKind] = "PgSmallSerial";
-  getSQLType() {
-    return "smallserial";
-  }
-};
-function smallserial(name) {
-  return new PgSmallSerialBuilder(name ?? "");
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/text.js
-var PgTextBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgTextBuilder";
-  constructor(name, config) {
-    super(name, "string", "PgText");
-    this.config.enumValues = config.enum;
-  }
-  /** @internal */
-  build(table) {
-    return new PgText(table, this.config);
-  }
-};
-var PgText = class extends PgColumn {
-  static [entityKind] = "PgText";
-  enumValues = this.config.enumValues;
-  getSQLType() {
-    return "text";
-  }
-};
-function text(a, b = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgTextBuilder(name, config);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/time.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/time.js
 var PgTimeBuilder = class extends PgDateColumnBaseBuilder {
   constructor(name, withTimezone, precision) {
     super(name, "string", "PgTime");
@@ -40740,12 +39772,8 @@ var PgTime = class extends PgColumn {
     return `time${precision}${this.withTimezone ? " with time zone" : ""}`;
   }
 };
-function time(a, b = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgTimeBuilder(name, config.withTimezone ?? false, config.precision);
-}
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/timestamp.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/timestamp.js
 var PgTimestampBuilder = class extends PgDateColumnBaseBuilder {
   static [entityKind] = "PgTimestampBuilder";
   constructor(name, withTimezone, precision) {
@@ -40771,9 +39799,10 @@ var PgTimestamp = class extends PgColumn {
     const precision = this.precision === void 0 ? "" : ` (${this.precision})`;
     return `timestamp${precision}${this.withTimezone ? " with time zone" : ""}`;
   }
-  mapFromDriverValue = (value) => {
-    return new Date(this.withTimezone ? value : value + "+0000");
-  };
+  mapFromDriverValue(value) {
+    if (typeof value === "string") return new Date(this.withTimezone ? value : value + "+0000");
+    return value;
+  }
   mapToDriverValue = (value) => {
     return value.toISOString();
   };
@@ -40806,16 +39835,19 @@ var PgTimestampString = class extends PgColumn {
     const precision = this.precision === void 0 ? "" : `(${this.precision})`;
     return `timestamp${precision}${this.withTimezone ? " with time zone" : ""}`;
   }
-};
-function timestamp(a, b = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  if (config?.mode === "string") {
-    return new PgTimestampStringBuilder(name, config.withTimezone ?? false, config.precision);
+  mapFromDriverValue(value) {
+    if (typeof value === "string") return value;
+    const shortened = value.toISOString().slice(0, -1).replace("T", " ");
+    if (this.withTimezone) {
+      const offset = value.getTimezoneOffset();
+      const sign = offset <= 0 ? "+" : "-";
+      return `${shortened}${sign}${Math.floor(Math.abs(offset) / 60).toString().padStart(2, "0")}`;
+    }
+    return shortened;
   }
-  return new PgTimestampBuilder(name, config?.withTimezone ?? false, config?.precision);
-}
+};
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/uuid.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/uuid.js
 var PgUUIDBuilder = class extends PgColumnBuilder {
   static [entityKind] = "PgUUIDBuilder";
   constructor(name) {
@@ -40838,198 +39870,8 @@ var PgUUID = class extends PgColumn {
     return "uuid";
   }
 };
-function uuid(name) {
-  return new PgUUIDBuilder(name ?? "");
-}
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/varchar.js
-var PgVarcharBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgVarcharBuilder";
-  constructor(name, config) {
-    super(name, "string", "PgVarchar");
-    this.config.length = config.length;
-    this.config.enumValues = config.enum;
-  }
-  /** @internal */
-  build(table) {
-    return new PgVarchar(
-      table,
-      this.config
-    );
-  }
-};
-var PgVarchar = class extends PgColumn {
-  static [entityKind] = "PgVarchar";
-  length = this.config.length;
-  enumValues = this.config.enumValues;
-  getSQLType() {
-    return this.length === void 0 ? `varchar` : `varchar(${this.length})`;
-  }
-};
-function varchar(a, b = {}) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgVarcharBuilder(name, config);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
-var PgBinaryVectorBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgBinaryVectorBuilder";
-  constructor(name, config) {
-    super(name, "string", "PgBinaryVector");
-    this.config.dimensions = config.dimensions;
-  }
-  /** @internal */
-  build(table) {
-    return new PgBinaryVector(
-      table,
-      this.config
-    );
-  }
-};
-var PgBinaryVector = class extends PgColumn {
-  static [entityKind] = "PgBinaryVector";
-  dimensions = this.config.dimensions;
-  getSQLType() {
-    return `bit(${this.dimensions})`;
-  }
-};
-function bit(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgBinaryVectorBuilder(name, config);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
-var PgHalfVectorBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgHalfVectorBuilder";
-  constructor(name, config) {
-    super(name, "array", "PgHalfVector");
-    this.config.dimensions = config.dimensions;
-  }
-  /** @internal */
-  build(table) {
-    return new PgHalfVector(
-      table,
-      this.config
-    );
-  }
-};
-var PgHalfVector = class extends PgColumn {
-  static [entityKind] = "PgHalfVector";
-  dimensions = this.config.dimensions;
-  getSQLType() {
-    return `halfvec(${this.dimensions})`;
-  }
-  mapToDriverValue(value) {
-    return JSON.stringify(value);
-  }
-  mapFromDriverValue(value) {
-    return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
-  }
-};
-function halfvec(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgHalfVectorBuilder(name, config);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
-var PgSparseVectorBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgSparseVectorBuilder";
-  constructor(name, config) {
-    super(name, "string", "PgSparseVector");
-    this.config.dimensions = config.dimensions;
-  }
-  /** @internal */
-  build(table) {
-    return new PgSparseVector(
-      table,
-      this.config
-    );
-  }
-};
-var PgSparseVector = class extends PgColumn {
-  static [entityKind] = "PgSparseVector";
-  dimensions = this.config.dimensions;
-  getSQLType() {
-    return `sparsevec(${this.dimensions})`;
-  }
-};
-function sparsevec(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgSparseVectorBuilder(name, config);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
-var PgVectorBuilder = class extends PgColumnBuilder {
-  static [entityKind] = "PgVectorBuilder";
-  constructor(name, config) {
-    super(name, "array", "PgVector");
-    this.config.dimensions = config.dimensions;
-  }
-  /** @internal */
-  build(table) {
-    return new PgVector(
-      table,
-      this.config
-    );
-  }
-};
-var PgVector = class extends PgColumn {
-  static [entityKind] = "PgVector";
-  dimensions = this.config.dimensions;
-  getSQLType() {
-    return `vector(${this.dimensions})`;
-  }
-  mapToDriverValue(value) {
-    return JSON.stringify(value);
-  }
-  mapFromDriverValue(value) {
-    return value.slice(1, -1).split(",").map((v) => Number.parseFloat(v));
-  }
-};
-function vector(a, b) {
-  const { name, config } = getColumnNameAndConfig(a, b);
-  return new PgVectorBuilder(name, config);
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/columns/all.js
-function getPgColumnBuilders() {
-  return {
-    bigint,
-    bigserial,
-    boolean,
-    char,
-    cidr,
-    customType,
-    date,
-    doublePrecision,
-    inet,
-    integer,
-    interval,
-    json,
-    jsonb,
-    line,
-    macaddr,
-    macaddr8,
-    numeric,
-    point,
-    geometry,
-    real,
-    serial,
-    smallint,
-    smallserial,
-    text,
-    time,
-    timestamp,
-    uuid,
-    varchar,
-    bit,
-    halfvec,
-    sparsevec,
-    vector
-  };
-}
-
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/table.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/table.js
 var InlineForeignKeys = /* @__PURE__ */ Symbol.for("drizzle:PgInlineForeignKeys");
 var EnableRLS = /* @__PURE__ */ Symbol.for("drizzle:EnableRLS");
 var PgTable = class extends Table {
@@ -41048,44 +39890,8 @@ var PgTable = class extends Table {
   /** @internal */
   [Table.Symbol.ExtraConfigColumns] = {};
 };
-function pgTableWithSchema(name, columns, extraConfig, schema, baseName = name) {
-  const rawTable = new PgTable(name, schema, baseName);
-  const parsedColumns = typeof columns === "function" ? columns(getPgColumnBuilders()) : columns;
-  const builtColumns = Object.fromEntries(
-    Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
-      const colBuilder = colBuilderBase;
-      colBuilder.setName(name2);
-      const column = colBuilder.build(rawTable);
-      rawTable[InlineForeignKeys].push(...colBuilder.buildForeignKeys(column, rawTable));
-      return [name2, column];
-    })
-  );
-  const builtColumnsForExtraConfig = Object.fromEntries(
-    Object.entries(parsedColumns).map(([name2, colBuilderBase]) => {
-      const colBuilder = colBuilderBase;
-      colBuilder.setName(name2);
-      const column = colBuilder.buildExtraConfigColumn(rawTable);
-      return [name2, column];
-    })
-  );
-  const table = Object.assign(rawTable, builtColumns);
-  table[Table.Symbol.Columns] = builtColumns;
-  table[Table.Symbol.ExtraConfigColumns] = builtColumnsForExtraConfig;
-  if (extraConfig) {
-    table[PgTable.Symbol.ExtraConfigBuilder] = extraConfig;
-  }
-  return Object.assign(table, {
-    enableRLS: () => {
-      table[PgTable.Symbol.EnableRLS] = true;
-      return table;
-    }
-  });
-}
-var pgTable = (name, columns, extraConfig) => {
-  return pgTableWithSchema(name, columns, extraConfig, void 0);
-};
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/primary-keys.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/primary-keys.js
 var PrimaryKeyBuilder = class {
   static [entityKind] = "PgPrimaryKeyBuilder";
   /** @internal */
@@ -41115,7 +39921,86 @@ var PrimaryKey = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/sql/expressions/conditions.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/casing.js
+function toSnakeCase(input) {
+  const words = input.replace(/['\u2019]/g, "").match(/[\da-z]+|[A-Z]+(?![a-z])|[A-Z][\da-z]+/g) ?? [];
+  return words.map((word) => word.toLowerCase()).join("_");
+}
+function toCamelCase(input) {
+  const words = input.replace(/['\u2019]/g, "").match(/[\da-z]+|[A-Z]+(?![a-z])|[A-Z][\da-z]+/g) ?? [];
+  return words.reduce((acc, word, i) => {
+    const formattedWord = i === 0 ? word.toLowerCase() : `${word[0].toUpperCase()}${word.slice(1)}`;
+    return acc + formattedWord;
+  }, "");
+}
+function noopCase(input) {
+  return input;
+}
+var CasingCache = class {
+  static [entityKind] = "CasingCache";
+  /** @internal */
+  cache = {};
+  cachedTables = {};
+  convert;
+  constructor(casing) {
+    this.convert = casing === "snake_case" ? toSnakeCase : casing === "camelCase" ? toCamelCase : noopCase;
+  }
+  getColumnCasing(column) {
+    if (!column.keyAsName) return column.name;
+    const schema = column.table[Table.Symbol.Schema] ?? "public";
+    const tableName = column.table[Table.Symbol.OriginalName];
+    const key = `${schema}.${tableName}.${column.name}`;
+    if (!this.cache[key]) {
+      this.cacheTable(column.table);
+    }
+    return this.cache[key];
+  }
+  cacheTable(table) {
+    const schema = table[Table.Symbol.Schema] ?? "public";
+    const tableName = table[Table.Symbol.OriginalName];
+    const tableKey = `${schema}.${tableName}`;
+    if (!this.cachedTables[tableKey]) {
+      for (const column of Object.values(table[Table.Symbol.Columns])) {
+        const columnKey = `${tableKey}.${column.name}`;
+        this.cache[columnKey] = this.convert(column.name);
+      }
+      this.cachedTables[tableKey] = true;
+    }
+  }
+  clearCache() {
+    this.cache = {};
+    this.cachedTables = {};
+  }
+};
+
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/errors.js
+var DrizzleError = class extends Error {
+  static [entityKind] = "DrizzleError";
+  constructor({ message, cause }) {
+    super(message);
+    this.name = "DrizzleError";
+    this.cause = cause;
+  }
+};
+var DrizzleQueryError = class _DrizzleQueryError extends Error {
+  constructor(query, params, cause) {
+    super(`Failed query: ${query}
+params: ${params}`);
+    this.query = query;
+    this.params = params;
+    this.cause = cause;
+    Error.captureStackTrace(this, _DrizzleQueryError);
+    if (cause) this.cause = cause;
+  }
+};
+var TransactionRollbackError = class extends DrizzleError {
+  static [entityKind] = "TransactionRollbackError";
+  constructor() {
+    super({ message: "Rollback" });
+  }
+};
+
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/sql/expressions/conditions.js
 function bindIfParam(value, column) {
   if (isDriverValueEncoder(column) && !isSQLWrapper(value) && !is(value, Param) && !is(value, Placeholder) && !is(value, Column) && !is(value, Table) && !is(value, View)) {
     return new Param(value, column);
@@ -41230,7 +40115,7 @@ function notIlike(column, value) {
   return sql`${column} not ilike ${value}`;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/sql/expressions/select.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/sql/expressions/select.js
 function asc(column) {
   return sql`${column} asc`;
 }
@@ -41238,7 +40123,7 @@ function desc(column) {
   return sql`${column} desc`;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/relations.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/relations.js
 var Relation = class {
   constructor(sourceTable, referencedTable, relationName) {
     this.sourceTable = sourceTable;
@@ -41499,12 +40384,12 @@ function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelect
   return result;
 }
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/view-base.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/view-base.js
 var PgViewBase = class extends View {
   static [entityKind] = "PgViewBase";
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/dialect.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/dialect.js
 var PgDialect = class {
   static [entityKind] = "PgDialect";
   /** @internal */
@@ -41542,7 +40427,7 @@ var PgDialect = class {
     });
   }
   escapeName(name) {
-    return `"${name}"`;
+    return `"${name.replace(/"/g, '""')}"`;
   }
   escapeParam(num) {
     return `$${num + 1}`;
@@ -41551,8 +40436,7 @@ var PgDialect = class {
     return `'${str.replace(/'/g, "''")}'`;
   }
   buildWithCTE(queries) {
-    if (!queries?.length)
-      return void 0;
+    if (!queries?.length) return void 0;
     const withSqlChunks = [sql`with `];
     for (const [i, w] of queries.entries()) {
       withSqlChunks.push(sql`${sql.identifier(w._.alias)} as (${w._.sql})`);
@@ -41577,7 +40461,8 @@ var PgDialect = class {
     const setSize = columnNames.length;
     return sql.join(columnNames.flatMap((colName, i) => {
       const col = tableColumns[colName];
-      const value = set[colName] ?? sql.param(col.onUpdateFn(), col);
+      const onUpdateFnResult = col.onUpdateFn?.();
+      const value = set[colName] ?? (is(onUpdateFnResult, SQL) ? onUpdateFnResult : sql.param(onUpdateFnResult, col));
       const res = sql`${sql.identifier(this.casing.getColumnCasing(col))} = ${value}`;
       if (i < setSize - 1) {
         return [res, sql.raw(", ")];
@@ -41641,6 +40526,16 @@ var PgDialect = class {
         } else {
           chunk.push(field);
         }
+      } else if (is(field, Subquery)) {
+        const entries = Object.entries(field._.selectedFields);
+        if (entries.length === 1) {
+          const entry = entries[0][1];
+          const fieldDecoder = is(entry, SQL) ? entry.decoder : is(entry, Column) ? { mapFromDriverValue: (v) => entry.mapFromDriverValue(v) } : entry.sql.decoder;
+          if (fieldDecoder) {
+            field._.sql.decoder = fieldDecoder;
+          }
+        }
+        chunk.push(field);
       }
       if (i < columnsLen - 1) {
         chunk.push(sql`, `);
@@ -42599,7 +41494,7 @@ var PgDialect = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/query-builders/query-builder.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/query-builders/query-builder.js
 var TypedQueryBuilder = class {
   static [entityKind] = "TypedQueryBuilder";
   /** @internal */
@@ -42608,7 +41503,7 @@ var TypedQueryBuilder = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/select.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/select.js
 var PgSelectBuilder = class {
   static [entityKind] = "PgSelectBuilder";
   fields;
@@ -42674,6 +41569,8 @@ var PgSelectQueryBuilderBase = class extends TypedQueryBuilder {
   isPartialSelect;
   session;
   dialect;
+  cacheConfig = void 0;
+  usedTables = /* @__PURE__ */ new Set();
   constructor({ table, fields, isPartialSelect, session, dialect, withList, distinct }) {
     super();
     this.config = {
@@ -42687,15 +41584,22 @@ var PgSelectQueryBuilderBase = class extends TypedQueryBuilder {
     this.session = session;
     this.dialect = dialect;
     this._ = {
-      selectedFields: fields
+      selectedFields: fields,
+      config: this.config
     };
     this.tableName = getTableLikeName(table);
     this.joinsNotNullableMap = typeof this.tableName === "string" ? { [this.tableName]: true } : {};
+    for (const item of extractUsedTable(table)) this.usedTables.add(item);
+  }
+  /** @internal */
+  getUsedTables() {
+    return [...this.usedTables];
   }
   createJoin(joinType, lateral) {
     return (table, on) => {
       const baseTableName = this.tableName;
       const tableName = getTableLikeName(table);
+      for (const item of extractUsedTable(table)) this.usedTables.add(item);
       if (typeof tableName === "string" && this.config.joins?.some((join) => join.alias === tableName)) {
         throw new Error(`Alias "${tableName}" is already used in this query`);
       }
@@ -43316,8 +42220,13 @@ var PgSelectQueryBuilderBase = class extends TypedQueryBuilder {
     return rest;
   }
   as(alias) {
+    const usedTables = [];
+    usedTables.push(...extractUsedTable(this.config.table));
+    if (this.config.joins) {
+      for (const it of this.config.joins) usedTables.push(...extractUsedTable(it.table));
+    }
     return new Proxy(
-      new Subquery(this.getSQL(), this.config.fields, alias),
+      new Subquery(this.getSQL(), this.config.fields, alias, false, [...new Set(usedTables)]),
       new SelectionProxyHandler({ alias, sqlAliasedBehavior: "alias", sqlBehavior: "error" })
     );
   }
@@ -43331,18 +42240,26 @@ var PgSelectQueryBuilderBase = class extends TypedQueryBuilder {
   $dynamic() {
     return this;
   }
+  $withCache(config) {
+    this.cacheConfig = config === void 0 ? { config: {}, enable: true, autoInvalidate: true } : config === false ? { enable: false } : { enable: true, autoInvalidate: true, ...config };
+    return this;
+  }
 };
 var PgSelectBase = class extends PgSelectQueryBuilderBase {
   static [entityKind] = "PgSelect";
   /** @internal */
   _prepare(name) {
-    const { session, config, dialect, joinsNotNullableMap, authToken } = this;
+    const { session, config, dialect, joinsNotNullableMap, authToken, cacheConfig, usedTables } = this;
     if (!session) {
       throw new Error("Cannot execute a query on a query builder. Please use a database instance instead.");
     }
+    const { fields } = config;
     return tracer.startActiveSpan("drizzle.prepareQuery", () => {
-      const fieldsList = orderSelectedFields(config.fields);
-      const query = session.prepareQuery(dialect.sqlToQuery(this.getSQL()), fieldsList, name, true);
+      const fieldsList = orderSelectedFields(fields);
+      const query = session.prepareQuery(dialect.sqlToQuery(this.getSQL()), fieldsList, name, true, void 0, {
+        type: "select",
+        tables: [...usedTables]
+      }, cacheConfig);
       query.joinsNotNullableMap = joinsNotNullableMap;
       return query.setToken(authToken);
     });
@@ -43402,7 +42319,7 @@ var intersectAll = createSetOperator("intersect", true);
 var except = createSetOperator("except", false);
 var exceptAll = createSetOperator("except", true);
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
 var QueryBuilder = class {
   static [entityKind] = "PgQueryBuilder";
   dialect;
@@ -43489,7 +42406,117 @@ var QueryBuilder = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/insert.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/utils.js
+function extractUsedTable(table) {
+  if (is(table, PgTable)) {
+    return [table[Schema] ? `${table[Schema]}.${table[Table.Symbol.BaseName]}` : table[Table.Symbol.BaseName]];
+  }
+  if (is(table, Subquery)) {
+    return table._.usedTables ?? [];
+  }
+  if (is(table, SQL)) {
+    return table.usedTables ?? [];
+  }
+  return [];
+}
+
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/delete.js
+var PgDeleteBase = class extends QueryPromise {
+  constructor(table, session, dialect, withList) {
+    super();
+    this.session = session;
+    this.dialect = dialect;
+    this.config = { table, withList };
+  }
+  static [entityKind] = "PgDelete";
+  config;
+  cacheConfig;
+  /**
+   * Adds a `where` clause to the query.
+   *
+   * Calling this method will delete only those rows that fulfill a specified condition.
+   *
+   * See docs: {@link https://orm.drizzle.team/docs/delete}
+   *
+   * @param where the `where` clause.
+   *
+   * @example
+   * You can use conditional operators and `sql function` to filter the rows to be deleted.
+   *
+   * ```ts
+   * // Delete all cars with green color
+   * await db.delete(cars).where(eq(cars.color, 'green'));
+   * // or
+   * await db.delete(cars).where(sql`${cars.color} = 'green'`)
+   * ```
+   *
+   * You can logically combine conditional operators with `and()` and `or()` operators:
+   *
+   * ```ts
+   * // Delete all BMW cars with a green color
+   * await db.delete(cars).where(and(eq(cars.color, 'green'), eq(cars.brand, 'BMW')));
+   *
+   * // Delete all cars with the green or blue color
+   * await db.delete(cars).where(or(eq(cars.color, 'green'), eq(cars.color, 'blue')));
+   * ```
+   */
+  where(where) {
+    this.config.where = where;
+    return this;
+  }
+  returning(fields = this.config.table[Table.Symbol.Columns]) {
+    this.config.returningFields = fields;
+    this.config.returning = orderSelectedFields(fields);
+    return this;
+  }
+  /** @internal */
+  getSQL() {
+    return this.dialect.buildDeleteQuery(this.config);
+  }
+  toSQL() {
+    const { typings: _typings, ...rest } = this.dialect.sqlToQuery(this.getSQL());
+    return rest;
+  }
+  /** @internal */
+  _prepare(name) {
+    return tracer.startActiveSpan("drizzle.prepareQuery", () => {
+      return this.session.prepareQuery(this.dialect.sqlToQuery(this.getSQL()), this.config.returning, name, true, void 0, {
+        type: "delete",
+        tables: extractUsedTable(this.config.table)
+      }, this.cacheConfig);
+    });
+  }
+  prepare(name) {
+    return this._prepare(name);
+  }
+  authToken;
+  /** @internal */
+  setToken(token) {
+    this.authToken = token;
+    return this;
+  }
+  execute = (placeholderValues) => {
+    return tracer.startActiveSpan("drizzle.operation", () => {
+      return this._prepare().execute(placeholderValues, this.authToken);
+    });
+  };
+  /** @internal */
+  getSelectedFields() {
+    return this.config.returningFields ? new Proxy(
+      this.config.returningFields,
+      new SelectionProxyHandler({
+        alias: getTableName(this.config.table),
+        sqlAliasedBehavior: "alias",
+        sqlBehavior: "error"
+      })
+    ) : void 0;
+  }
+  $dynamic() {
+    return this;
+  }
+};
+
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/insert.js
 var PgInsertBuilder = class {
   constructor(table, session, dialect, withList, overridingSystemValue_) {
     this.table = table;
@@ -43552,6 +42579,7 @@ var PgInsertBase = class extends QueryPromise {
   }
   static [entityKind] = "PgInsert";
   config;
+  cacheConfig;
   returning(fields = this.config.table[Table.Symbol.Columns]) {
     this.config.returningFields = fields;
     this.config.returning = orderSelectedFields(fields);
@@ -43645,7 +42673,10 @@ var PgInsertBase = class extends QueryPromise {
   /** @internal */
   _prepare(name) {
     return tracer.startActiveSpan("drizzle.prepareQuery", () => {
-      return this.session.prepareQuery(this.dialect.sqlToQuery(this.getSQL()), this.config.returning, name, true);
+      return this.session.prepareQuery(this.dialect.sqlToQuery(this.getSQL()), this.config.returning, name, true, void 0, {
+        type: "insert",
+        tables: extractUsedTable(this.config.table)
+      }, this.cacheConfig);
     });
   }
   prepare(name) {
@@ -43678,7 +42709,7 @@ var PgInsertBase = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
 var PgRefreshMaterializedView = class extends QueryPromise {
   constructor(view, session, dialect) {
     super();
@@ -43732,7 +42763,7 @@ var PgRefreshMaterializedView = class extends QueryPromise {
   };
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/update.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/update.js
 var PgUpdateBuilder = class {
   constructor(table, session, dialect, withList) {
     this.table = table;
@@ -43769,6 +42800,7 @@ var PgUpdateBase = class extends QueryPromise {
   config;
   tableName;
   joinsNotNullableMap;
+  cacheConfig;
   from(source) {
     const src = source;
     const tableName = getTableLikeName(src);
@@ -43908,7 +42940,10 @@ var PgUpdateBase = class extends QueryPromise {
   }
   /** @internal */
   _prepare(name) {
-    const query = this.session.prepareQuery(this.dialect.sqlToQuery(this.getSQL()), this.config.returning, name, true);
+    const query = this.session.prepareQuery(this.dialect.sqlToQuery(this.getSQL()), this.config.returning, name, true, void 0, {
+      type: "insert",
+      tables: extractUsedTable(this.config.table)
+    }, this.cacheConfig);
     query.joinsNotNullableMap = this.joinsNotNullableMap;
     return query;
   }
@@ -43940,7 +42975,7 @@ var PgUpdateBase = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/count.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/count.js
 var PgCountBuilder = class _PgCountBuilder extends SQL {
   constructor(params) {
     super(_PgCountBuilder.buildEmbeddedCount(params.source, params.filters).queryChunks);
@@ -43991,7 +43026,7 @@ var PgCountBuilder = class _PgCountBuilder extends SQL {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/query.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/query.js
 var RelationalQueryBuilder = class {
   constructor(fullSchema, schema, tableNamesMap, table, tableConfig, dialect, session) {
     this.fullSchema = fullSchema;
@@ -44104,7 +43139,7 @@ var PgRelationalQuery = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/raw.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/query-builders/raw.js
 var PgRaw = class extends QueryPromise {
   constructor(execute, sql2, query, mapBatchResult) {
     super();
@@ -44133,7 +43168,7 @@ var PgRaw = class extends QueryPromise {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/db.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/db.js
 var PgDatabase = class {
   constructor(dialect, session, schema) {
     this.dialect = dialect;
@@ -44163,6 +43198,8 @@ var PgDatabase = class {
         );
       }
     }
+    this.$cache = { invalidate: async (_params) => {
+    } };
   }
   static [entityKind] = "PgDatabase";
   query;
@@ -44219,6 +43256,7 @@ var PgDatabase = class {
   $count(source, filters) {
     return new PgCountBuilder({ source, filters, session: this.session });
   }
+  $cache;
   /**
    * Incorporates a previously defined CTE (using `$with`) into the main query.
    *
@@ -44409,10 +43447,46 @@ var PgDatabase = class {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/session.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/cache/core/cache.js
+var Cache = class {
+  static [entityKind] = "Cache";
+};
+var NoopCache = class extends Cache {
+  strategy() {
+    return "all";
+  }
+  static [entityKind] = "NoopCache";
+  async get(_key) {
+    return void 0;
+  }
+  async put(_hashedQuery, _response, _tables, _config) {
+  }
+  async onMutate(_params) {
+  }
+};
+async function hashQuery(sql2, params) {
+  const dataToHash = `${sql2}-${JSON.stringify(params)}`;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(dataToHash);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = [...new Uint8Array(hashBuffer)];
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return hashHex;
+}
+
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/pg-core/session.js
 var PgPreparedQuery = class {
-  constructor(query) {
+  constructor(query, cache, queryMetadata, cacheConfig) {
     this.query = query;
+    this.cache = cache;
+    this.queryMetadata = queryMetadata;
+    this.cacheConfig = cacheConfig;
+    if (cache && cache.strategy() === "all" && cacheConfig === void 0) {
+      this.cacheConfig = { enable: true, autoInvalidate: true };
+    }
+    if (!this.cacheConfig?.enable) {
+      this.cacheConfig = void 0;
+    }
   }
   authToken;
   getQuery() {
@@ -44429,6 +43503,72 @@ var PgPreparedQuery = class {
   static [entityKind] = "PgPreparedQuery";
   /** @internal */
   joinsNotNullableMap;
+  /** @internal */
+  async queryWithCache(queryString, params, query) {
+    if (this.cache === void 0 || is(this.cache, NoopCache) || this.queryMetadata === void 0) {
+      try {
+        return await query();
+      } catch (e) {
+        throw new DrizzleQueryError(queryString, params, e);
+      }
+    }
+    if (this.cacheConfig && !this.cacheConfig.enable) {
+      try {
+        return await query();
+      } catch (e) {
+        throw new DrizzleQueryError(queryString, params, e);
+      }
+    }
+    if ((this.queryMetadata.type === "insert" || this.queryMetadata.type === "update" || this.queryMetadata.type === "delete") && this.queryMetadata.tables.length > 0) {
+      try {
+        const [res] = await Promise.all([
+          query(),
+          this.cache.onMutate({ tables: this.queryMetadata.tables })
+        ]);
+        return res;
+      } catch (e) {
+        throw new DrizzleQueryError(queryString, params, e);
+      }
+    }
+    if (!this.cacheConfig) {
+      try {
+        return await query();
+      } catch (e) {
+        throw new DrizzleQueryError(queryString, params, e);
+      }
+    }
+    if (this.queryMetadata.type === "select") {
+      const fromCache = await this.cache.get(
+        this.cacheConfig.tag ?? await hashQuery(queryString, params),
+        this.queryMetadata.tables,
+        this.cacheConfig.tag !== void 0,
+        this.cacheConfig.autoInvalidate
+      );
+      if (fromCache === void 0) {
+        let result;
+        try {
+          result = await query();
+        } catch (e) {
+          throw new DrizzleQueryError(queryString, params, e);
+        }
+        await this.cache.put(
+          this.cacheConfig.tag ?? await hashQuery(queryString, params),
+          result,
+          // make sure we send tables that were used in a query only if user wants to invalidate it on each write
+          this.cacheConfig.autoInvalidate ? this.queryMetadata.tables : [],
+          this.cacheConfig.tag !== void 0,
+          this.cacheConfig.config
+        );
+        return result;
+      }
+      return fromCache;
+    }
+    try {
+      return await query();
+    } catch (e) {
+      throw new DrizzleQueryError(queryString, params, e);
+    }
+  }
 };
 var PgSession = class {
   constructor(dialect) {
@@ -44494,12 +43634,13 @@ var PgTransaction = class extends PgDatabase {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/node-postgres/session.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/node-postgres/session.js
 var { Pool: Pool2, types: types2 } = esm_default;
 var NodePgPreparedQuery = class extends PgPreparedQuery {
-  constructor(client, queryString, params, logger2, fields, name, _isResponseInArrayMode, customResultMapper) {
-    super({ sql: queryString, params });
+  constructor(client, queryString, params, logger2, cache, queryMetadata, cacheConfig, fields, name, _isResponseInArrayMode, customResultMapper) {
+    super({ sql: queryString, params }, cache, queryMetadata, cacheConfig);
     this.client = client;
+    this.queryString = queryString;
     this.params = params;
     this.logger = logger2;
     this.fields = fields;
@@ -44596,7 +43737,9 @@ var NodePgPreparedQuery = class extends PgPreparedQuery {
             "drizzle.query.text": rawQuery.text,
             "drizzle.query.params": JSON.stringify(params)
           });
-          return client.query(rawQuery, params);
+          return this.queryWithCache(rawQuery.text, params, async () => {
+            return await client.query(rawQuery, params);
+          });
         });
       }
       const result = await tracer.startActiveSpan("drizzle.driver.execute", (span) => {
@@ -44605,7 +43748,9 @@ var NodePgPreparedQuery = class extends PgPreparedQuery {
           "drizzle.query.text": query.text,
           "drizzle.query.params": JSON.stringify(params)
         });
-        return client.query(query, params);
+        return this.queryWithCache(query.text, params, async () => {
+          return await client.query(query, params);
+        });
       });
       return tracer.startActiveSpan("drizzle.mapResponse", () => {
         return customResultMapper ? customResultMapper(result.rows) : result.rows.map((row) => mapResultRow(fields, row, joinsNotNullableMap));
@@ -44622,7 +43767,9 @@ var NodePgPreparedQuery = class extends PgPreparedQuery {
           "drizzle.query.text": this.rawQueryConfig.text,
           "drizzle.query.params": JSON.stringify(params)
         });
-        return this.client.query(this.rawQueryConfig, params).then((result) => result.rows);
+        return this.queryWithCache(this.rawQueryConfig.text, params, async () => {
+          return this.client.query(this.rawQueryConfig, params);
+        }).then((result) => result.rows);
       });
     });
   }
@@ -44638,15 +43785,20 @@ var NodePgSession = class _NodePgSession extends PgSession {
     this.schema = schema;
     this.options = options;
     this.logger = options.logger ?? new NoopLogger();
+    this.cache = options.cache ?? new NoopCache();
   }
   static [entityKind] = "NodePgSession";
   logger;
-  prepareQuery(query, fields, name, isResponseInArrayMode, customResultMapper) {
+  cache;
+  prepareQuery(query, fields, name, isResponseInArrayMode, customResultMapper, queryMetadata, cacheConfig) {
     return new NodePgPreparedQuery(
       this.client,
       query.sql,
       query.params,
       this.logger,
+      this.cache,
+      queryMetadata,
+      cacheConfig,
       fields,
       name,
       isResponseInArrayMode,
@@ -44654,7 +43806,8 @@ var NodePgSession = class _NodePgSession extends PgSession {
     );
   }
   async transaction(transaction, config) {
-    const session = this.client instanceof Pool2 ? new _NodePgSession(await this.client.connect(), this.dialect, this.schema, this.options) : this;
+    const isPool = this.client instanceof Pool2 || Object.getPrototypeOf(this.client).constructor.name.includes("Pool");
+    const session = isPool ? new _NodePgSession(await this.client.connect(), this.dialect, this.schema, this.options) : this;
     const tx = new NodePgTransaction(this.dialect, session, this.schema);
     await tx.execute(sql`begin${config ? sql` ${tx.getTransactionConfigSQL(config)}` : void 0}`);
     try {
@@ -44665,9 +43818,7 @@ var NodePgSession = class _NodePgSession extends PgSession {
       await tx.execute(sql`rollback`);
       throw error;
     } finally {
-      if (this.client instanceof Pool2) {
-        session.client.release();
-      }
+      if (isPool) session.client.release();
     }
   }
   async count(sql2) {
@@ -44699,7 +43850,7 @@ var NodePgTransaction = class _NodePgTransaction extends PgTransaction {
   }
 };
 
-// ../../node_modules/.pnpm/drizzle-orm@0.43.1_@opentelemetry+api@1.9.1_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/node-postgres/driver.js
+// ../../node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.22.0/node_modules/drizzle-orm/node-postgres/driver.js
 var NodePgDriver = class {
   constructor(client, dialect, options = {}) {
     this.client = client;
@@ -44708,7 +43859,10 @@ var NodePgDriver = class {
   }
   static [entityKind] = "NodePgDriver";
   createSession(schema) {
-    return new NodePgSession(this.client, this.dialect, schema, { logger: this.options.logger });
+    return new NodePgSession(this.client, this.dialect, schema, {
+      logger: this.options.logger,
+      cache: this.options.cache
+    });
   }
 };
 var NodePgDatabase = class extends PgDatabase {
@@ -44734,10 +43888,14 @@ function construct(client, config = {}) {
       tableNamesMap: tablesConfig.tableNamesMap
     };
   }
-  const driver = new NodePgDriver(client, dialect, { logger: logger2 });
+  const driver = new NodePgDriver(client, dialect, { logger: logger2, cache: config.cache });
   const session = driver.createSession(schema);
   const db2 = new NodePgDatabase(dialect, session, schema);
   db2.$client = client;
+  db2.$cache = config.cache;
+  if (db2.$cache) {
+    db2.$cache["invalidate"] = config.cache?.onMutate;
+  }
   return db2;
 }
 function drizzle(...params) {
@@ -44749,8 +43907,7 @@ function drizzle(...params) {
   }
   if (isConfig(params[0])) {
     const { connection, client, ...drizzleConfig } = params[0];
-    if (client)
-      return construct(client, drizzleConfig);
+    if (client) return construct(client, drizzleConfig);
     const instance = typeof connection === "string" ? new esm_default.Pool({
       connectionString: connection
     }) : new esm_default.Pool(connection);
@@ -44768,286 +43925,27 @@ function drizzle(...params) {
 // ../../lib/db/src/index.ts
 var src_exports = {};
 __export(src_exports, {
-  alumniTable: () => alumniTable,
-  appSettingsTable: () => appSettingsTable,
-  attendanceRecordsTable: () => attendanceRecordsTable,
-  classesTable: () => classesTable,
   db: () => db,
-  examResultsTable: () => examResultsTable,
-  examsTable: () => examsTable,
-  expensesTable: () => expensesTable,
-  feeRecordsTable: () => feeRecordsTable,
-  feeTypesTable: () => feeTypesTable,
-  inactivationRequestsTable: () => inactivationRequestsTable,
-  markAuditLogTable: () => markAuditLogTable,
-  markSubmissionsTable: () => markSubmissionsTable,
-  pool: () => pool,
-  promotionRecordsTable: () => promotionRecordsTable,
-  salaryRecordsTable: () => salaryRecordsTable,
-  sectionsTable: () => sectionsTable,
-  studentsTable: () => studentsTable,
-  subjectsTable: () => subjectsTable,
-  teachersTable: () => teachersTable
+  pool: () => pool
 });
 
 // ../../lib/db/src/schema/index.ts
 var schema_exports = {};
-__export(schema_exports, {
-  alumniTable: () => alumniTable,
-  appSettingsTable: () => appSettingsTable,
-  attendanceRecordsTable: () => attendanceRecordsTable,
-  classesTable: () => classesTable,
-  examResultsTable: () => examResultsTable,
-  examsTable: () => examsTable,
-  expensesTable: () => expensesTable,
-  feeRecordsTable: () => feeRecordsTable,
-  feeTypesTable: () => feeTypesTable,
-  inactivationRequestsTable: () => inactivationRequestsTable,
-  markAuditLogTable: () => markAuditLogTable,
-  markSubmissionsTable: () => markSubmissionsTable,
-  promotionRecordsTable: () => promotionRecordsTable,
-  salaryRecordsTable: () => salaryRecordsTable,
-  sectionsTable: () => sectionsTable,
-  studentsTable: () => studentsTable,
-  subjectsTable: () => subjectsTable,
-  teachersTable: () => teachersTable
-});
-var genId = sql`gen_random_uuid()`;
-var classesTable = pgTable("classes", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var sectionsTable = pgTable("sections", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var studentsTable = pgTable("students", {
-  id: text("id").primaryKey().default(genId),
-  name: text("name").notNull(),
-  fatherName: text("father_name").notNull(),
-  motherName: text("mother_name").notNull(),
-  mobileNumber: text("mobile_number").notNull(),
-  class: text("class").notNull(),
-  section: text("section"),
-  admissionNo: text("admission_no"),
-  rollNumber: text("roll_number").notNull(),
-  dateOfBirth: text("date_of_birth").notNull(),
-  address: text("address"),
-  photo: text("photo"),
-  annualFee: integer("annual_fee"),
-  discountType: text("discount_type"),
-  // 'fixed' | 'percent'
-  discountValue: integer("discount_value"),
-  status: text("status").notNull().default("active"),
-  // 'active' | 'inactive'
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var teachersTable = pgTable("teachers", {
-  id: text("id").primaryKey().default(genId),
-  name: text("name").notNull(),
-  subject: text("subject").notNull(),
-  mobileNumber: text("mobile_number").notNull(),
-  salary: integer("salary").notNull(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  joinDate: text("join_date").notNull(),
-  photo: text("photo"),
-  // { addStudent, feeCollection, manageClasses, manageExams, manageResults, promoteStudents, sendFeeReminder }
-  permissions: jsonb("permissions").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var appSettingsTable = pgTable("app_settings", {
-  key: text("key").primaryKey(),
-  value: jsonb("value").notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
-var subjectsTable = pgTable("subjects", {
-  id: text("id").primaryKey().default(genId),
-  name: text("name").notNull().unique(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var attendanceRecordsTable = pgTable("attendance_records", {
-  id: text("id").primaryKey().default(genId),
-  studentId: text("student_id").notNull(),
-  studentName: text("student_name").notNull(),
-  class: text("class").notNull(),
-  date: text("date").notNull(),
-  // ISO date string YYYY-MM-DD
-  status: text("status").notNull(),
-  // 'present' | 'absent' | 'leave'
-  takenBy: text("taken_by").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var inactivationRequestsTable = pgTable("inactivation_requests", {
-  id: text("id").primaryKey().default(genId),
-  studentId: text("student_id").notNull(),
-  studentName: text("student_name").notNull(),
-  studentClass: text("student_class").notNull(),
-  teacherId: text("teacher_id").notNull(),
-  teacherName: text("teacher_name").notNull(),
-  reason: text("reason").notNull(),
-  documentBase64: text("document_base64"),
-  // base64-encoded file content
-  documentName: text("document_name"),
-  // original filename
-  documentMimeType: text("document_mime_type"),
-  status: text("status").notNull().default("pending"),
-  // 'pending' | 'approved' | 'rejected'
-  adminNote: text("admin_note"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  reviewedAt: timestamp("reviewed_at")
-});
-var examsTable = pgTable("exams", {
-  id: text("id").primaryKey().default(genId),
-  name: text("name").notNull(),
-  class: text("class").notNull(),
-  subjects: jsonb("subjects").notNull(),
-  // string[]
-  subjectSchedule: jsonb("subject_schedule"),
-  // SubjectSchedule[] | null
-  classSubjects: jsonb("class_subjects"),
-  // ClassSubjectAssignment[] | null — multi-class support
-  date: text("date").notNull(),
-  maxMarks: integer("max_marks").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var examResultsTable = pgTable(
-  "exam_results",
-  {
-    id: text("id").primaryKey().default(genId),
-    examId: text("exam_id").notNull(),
-    studentId: text("student_id").notNull(),
-    studentName: text("student_name").notNull(),
-    class: text("class").notNull(),
-    rollNumber: text("roll_number").notNull(),
-    marks: jsonb("marks").notNull(),
-    // Record<string, number>
-    createdAt: timestamp("created_at").defaultNow().notNull()
-  },
-  (t) => [unique("exam_results_exam_student").on(t.examId, t.studentId)]
-);
-var markSubmissionsTable = pgTable(
-  "mark_submissions",
-  {
-    id: text("id").primaryKey().default(genId),
-    examId: text("exam_id").notNull(),
-    class: text("class").notNull(),
-    subject: text("subject").notNull(),
-    // 'draft' | 'submitted' | 'locked'
-    status: text("status").notNull().default("draft"),
-    teacherId: text("teacher_id"),
-    teacherName: text("teacher_name"),
-    submittedAt: timestamp("submitted_at"),
-    lockedBy: text("locked_by"),
-    lockedAt: timestamp("locked_at"),
-    createdAt: timestamp("created_at").defaultNow().notNull()
-  },
-  (t) => [unique("mark_submissions_exam_class_subject").on(t.examId, t.class, t.subject)]
-);
-var markAuditLogTable = pgTable("mark_audit_log", {
-  id: text("id").primaryKey().default(genId),
-  examId: text("exam_id").notNull(),
-  class: text("class").notNull(),
-  subject: text("subject").notNull(),
-  // 'submit' | 'lock' | 'unlock'
-  action: text("action").notNull(),
-  actorId: text("actor_id").notNull(),
-  actorName: text("actor_name").notNull(),
-  // 'teacher' | 'admin'
-  actorRole: text("actor_role").notNull(),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var feeTypesTable = pgTable("fee_types", {
-  id: text("id").primaryKey().default(genId),
-  name: text("name").notNull(),
-  amount: integer("amount").notNull(),
-  description: text("description").notNull().default(""),
-  category: text("category"),
-  // 'annual' | 'additional' | null
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var feeRecordsTable = pgTable("fee_records", {
-  id: text("id").primaryKey().default(genId),
-  studentId: text("student_id").notNull(),
-  studentName: text("student_name").notNull(),
-  class: text("class").notNull(),
-  amount: integer("amount").notNull(),
-  date: text("date").notNull(),
-  description: text("description").notNull().default(""),
-  feeTypeId: text("fee_type_id"),
-  feeTypeName: text("fee_type_name"),
-  collectedBy: text("collected_by").notNull(),
-  receiptNumber: text("receipt_number"),
-  paymentMethod: text("payment_method"),
-  feeCategory: text("fee_category"),
-  // 'annual' | 'additional' | null
-  discountApplied: integer("discount_applied"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var salaryRecordsTable = pgTable("salary_records", {
-  id: text("id").primaryKey().default(genId),
-  teacherId: text("teacher_id").notNull(),
-  teacherName: text("teacher_name").notNull(),
-  month: text("month").notNull(),
-  year: integer("year").notNull(),
-  amount: integer("amount").notNull(),
-  status: text("status").notNull().default("pending"),
-  // 'paid' | 'pending'
-  paidDate: text("paid_date"),
-  receiptNumber: text("receipt_number"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var expensesTable = pgTable("expenses", {
-  id: text("id").primaryKey().default(genId),
-  description: text("description").notNull(),
-  amount: integer("amount").notNull(),
-  date: text("date").notNull(),
-  category: text("category").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var alumniTable = pgTable("alumni", {
-  id: text("id").primaryKey().default(genId),
-  name: text("name").notNull(),
-  fatherName: text("father_name").notNull().default(""),
-  mobileNumber: text("mobile_number").notNull().default(""),
-  batch: text("batch").notNull(),
-  // e.g. "2023-24"
-  passOutClass: text("pass_out_class").notNull(),
-  // e.g. "Class 10"
-  rollNumber: text("roll_number").notNull().default(""),
-  admissionNo: text("admission_no"),
-  dateOfBirth: text("date_of_birth").notNull().default(""),
-  address: text("address"),
-  photo: text("photo"),
-  achievements: text("achievements"),
-  currentStatus: text("current_status"),
-  // 'Studying' | 'Working' | 'Other'
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
-var promotionRecordsTable = pgTable("promotion_records", {
-  id: text("id").primaryKey().default(genId),
-  studentId: text("student_id").notNull(),
-  studentName: text("student_name").notNull(),
-  fromClass: text("from_class").notNull(),
-  toClass: text("to_class").notNull(),
-  promotedBy: text("promoted_by").notNull(),
-  promotedAt: text("promoted_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
 
 // ../../lib/db/src/index.ts
 var { Pool: Pool3 } = esm_default;
-var connectionString = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
-var pool = connectionString ? new Pool3({ connectionString }) : null;
-var db = pool ? drizzle(pool, { schema: schema_exports }) : null;
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL must be set. Did you forget to provision a database?"
+  );
+}
+var pool = new Pool3({ connectionString: process.env.DATABASE_URL });
+var db = drizzle(pool, { schema: schema_exports });
 
 // src/lib/dbManager.ts
 import fs from "node:fs";
 import path from "node:path";
-import crypto2 from "node:crypto";
+import crypto3 from "node:crypto";
 
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
@@ -45069,69 +43967,69 @@ var logger = (0, import_pino.default)({
 
 // src/lib/pgAdapter.ts
 var {
-  classesTable: classesTable2,
-  sectionsTable: sectionsTable2,
-  studentsTable: studentsTable2,
-  teachersTable: teachersTable2,
-  subjectsTable: subjectsTable2,
-  attendanceRecordsTable: attendanceRecordsTable2,
-  inactivationRequestsTable: inactivationRequestsTable2,
-  examsTable: examsTable2,
-  examResultsTable: examResultsTable2,
-  feeTypesTable: feeTypesTable2,
-  feeRecordsTable: feeRecordsTable2,
-  salaryRecordsTable: salaryRecordsTable2,
-  expensesTable: expensesTable2,
-  promotionRecordsTable: promotionRecordsTable2,
-  appSettingsTable: appSettingsTable2,
-  markSubmissionsTable: markSubmissionsTable2,
-  markAuditLogTable: markAuditLogTable2,
-  alumniTable: alumniTable2
+  classesTable,
+  sectionsTable,
+  studentsTable,
+  teachersTable,
+  subjectsTable,
+  attendanceRecordsTable,
+  inactivationRequestsTable,
+  examsTable,
+  examResultsTable,
+  feeTypesTable,
+  feeRecordsTable,
+  salaryRecordsTable,
+  expensesTable,
+  promotionRecordsTable,
+  appSettingsTable,
+  markSubmissionsTable,
+  markAuditLogTable,
+  alumniTable
 } = src_exports;
 function createPgAdapter(db2) {
   return {
     // ── Classes ───────────────────────────────────────────────────────────────
     classes: {
       async list() {
-        const rows = await db2.select({ name: classesTable2.name }).from(classesTable2).orderBy(asc(classesTable2.name));
+        const rows = await db2.select({ name: classesTable.name }).from(classesTable).orderBy(asc(classesTable.name));
         return rows.map((r) => r.name);
       },
       async create(name) {
-        const [cls] = await db2.insert(classesTable2).values({ name }).returning({ name: classesTable2.name });
+        const [cls] = await db2.insert(classesTable).values({ name }).returning({ name: classesTable.name });
         return cls;
       },
       async rename(oldName, newName) {
-        const [updated] = await db2.update(classesTable2).set({ name: newName }).where(eq(classesTable2.name, oldName)).returning({ name: classesTable2.name });
+        const [updated] = await db2.update(classesTable).set({ name: newName }).where(eq(classesTable.name, oldName)).returning({ name: classesTable.name });
         return updated ?? null;
       },
       async delete(name) {
-        const deleted = await db2.delete(classesTable2).where(eq(classesTable2.name, name)).returning({ name: classesTable2.name });
+        const deleted = await db2.delete(classesTable).where(eq(classesTable.name, name)).returning({ name: classesTable.name });
         return deleted.length > 0;
       }
     },
     // ── Sections ──────────────────────────────────────────────────────────────
     sections: {
       async list() {
-        const rows = await db2.select({ name: sectionsTable2.name }).from(sectionsTable2).orderBy(asc(sectionsTable2.name));
+        const rows = await db2.select({ name: sectionsTable.name }).from(sectionsTable).orderBy(asc(sectionsTable.name));
         return rows.map((r) => r.name);
       },
       async create(name) {
-        const [sec] = await db2.insert(sectionsTable2).values({ name }).returning({ name: sectionsTable2.name });
+        const [sec] = await db2.insert(sectionsTable).values({ name }).returning({ name: sectionsTable.name });
         return sec;
       },
       async rename(oldName, newName) {
-        const [updated] = await db2.update(sectionsTable2).set({ name: newName }).where(eq(sectionsTable2.name, oldName)).returning({ name: sectionsTable2.name });
+        const [updated] = await db2.update(sectionsTable).set({ name: newName }).where(eq(sectionsTable.name, oldName)).returning({ name: sectionsTable.name });
         return updated ?? null;
       },
       async delete(name) {
-        const deleted = await db2.delete(sectionsTable2).where(eq(sectionsTable2.name, name)).returning({ name: sectionsTable2.name });
+        const deleted = await db2.delete(sectionsTable).where(eq(sectionsTable.name, name)).returning({ name: sectionsTable.name });
         return deleted.length > 0;
       }
     },
     // ── Students ──────────────────────────────────────────────────────────────
     students: {
       async list() {
-        return db2.select().from(studentsTable2).orderBy(asc(studentsTable2.createdAt));
+        return db2.select().from(studentsTable).orderBy(asc(studentsTable.createdAt));
       },
       async create(data) {
         const values = {
@@ -45152,7 +44050,7 @@ function createPgAdapter(db2) {
           status: data.status ?? "active"
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(studentsTable2).values(values).returning();
+        const [row] = await db2.insert(studentsTable).values(values).returning();
         return row;
       },
       async update(id, data) {
@@ -45173,21 +44071,21 @@ function createPgAdapter(db2) {
           discountValue: data.discountValue ?? null
         };
         if (data.status !== void 0) setValues.status = data.status;
-        const [row] = await db2.update(studentsTable2).set(setValues).where(eq(studentsTable2.id, id)).returning();
+        const [row] = await db2.update(studentsTable).set(setValues).where(eq(studentsTable.id, id)).returning();
         return row ?? null;
       },
       async delete(id) {
-        await db2.delete(studentsTable2).where(eq(studentsTable2.id, id));
+        await db2.delete(studentsTable).where(eq(studentsTable.id, id));
       },
       async setStatus(id, status) {
-        const [row] = await db2.update(studentsTable2).set({ status }).where(eq(studentsTable2.id, id)).returning();
+        const [row] = await db2.update(studentsTable).set({ status }).where(eq(studentsTable.id, id)).returning();
         return row ?? null;
       }
     },
     // ── Teachers ──────────────────────────────────────────────────────────────
     teachers: {
       async list() {
-        return db2.select().from(teachersTable2).orderBy(asc(teachersTable2.createdAt));
+        return db2.select().from(teachersTable).orderBy(asc(teachersTable.createdAt));
       },
       async create(data) {
         const values = {
@@ -45210,11 +44108,11 @@ function createPgAdapter(db2) {
           }
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(teachersTable2).values(values).returning();
+        const [row] = await db2.insert(teachersTable).values(values).returning();
         return row;
       },
       async update(id, data) {
-        const [row] = await db2.update(teachersTable2).set({
+        const [row] = await db2.update(teachersTable).set({
           name: data.name,
           subject: data.subject,
           mobileNumber: data.mobileNumber,
@@ -45224,22 +44122,22 @@ function createPgAdapter(db2) {
           joinDate: data.joinDate,
           photo: data.photo ?? null,
           permissions: data.permissions
-        }).where(eq(teachersTable2.id, id)).returning();
+        }).where(eq(teachersTable.id, id)).returning();
         return row ?? null;
       },
       async delete(id) {
-        await db2.delete(teachersTable2).where(eq(teachersTable2.id, id));
+        await db2.delete(teachersTable).where(eq(teachersTable.id, id));
       }
     },
     // ── App Settings ───────────────────────────────────────────────────────────
     appSettings: {
       async get(key) {
-        const [row] = await db2.select().from(appSettingsTable2).where(eq(appSettingsTable2.key, key)).limit(1);
+        const [row] = await db2.select().from(appSettingsTable).where(eq(appSettingsTable.key, key)).limit(1);
         return row ?? null;
       },
       async set(key, value) {
-        const [row] = await db2.insert(appSettingsTable2).values({ key, value }).onConflictDoUpdate({
-          target: appSettingsTable2.key,
+        const [row] = await db2.insert(appSettingsTable).values({ key, value }).onConflictDoUpdate({
+          target: appSettingsTable.key,
           set: { value: sql`excluded.value`, updatedAt: /* @__PURE__ */ new Date() }
         }).returning();
         return row;
@@ -45248,27 +44146,27 @@ function createPgAdapter(db2) {
     // ── Subjects ──────────────────────────────────────────────────────────────
     subjects: {
       async list() {
-        const rows = await db2.select({ name: subjectsTable2.name }).from(subjectsTable2).orderBy(asc(subjectsTable2.name));
+        const rows = await db2.select({ name: subjectsTable.name }).from(subjectsTable).orderBy(asc(subjectsTable.name));
         return rows.map((r) => r.name);
       },
       async create(name, id) {
         const values = { name: String(name).trim() };
         if (id) values.id = id;
-        const [row] = await db2.insert(subjectsTable2).values(values).returning({ name: subjectsTable2.name });
+        const [row] = await db2.insert(subjectsTable).values(values).returning({ name: subjectsTable.name });
         return row;
       },
       async delete(name) {
-        await db2.delete(subjectsTable2).where(eq(subjectsTable2.name, name));
+        await db2.delete(subjectsTable).where(eq(subjectsTable.name, name));
       }
     },
     // ── Attendance ────────────────────────────────────────────────────────────
     attendance: {
       async list() {
-        return db2.select().from(attendanceRecordsTable2).orderBy(asc(attendanceRecordsTable2.date));
+        return db2.select().from(attendanceRecordsTable).orderBy(asc(attendanceRecordsTable.date));
       },
-      async bulkUpsert(date2, cls, records) {
-        await db2.delete(attendanceRecordsTable2).where(
-          and(eq(attendanceRecordsTable2.date, date2), eq(attendanceRecordsTable2.class, cls))
+      async bulkUpsert(date, cls, records) {
+        await db2.delete(attendanceRecordsTable).where(
+          and(eq(attendanceRecordsTable.date, date), eq(attendanceRecordsTable.class, cls))
         );
         const values = records.map((r) => ({
           ...r.id ? { id: r.id } : {},
@@ -45279,17 +44177,17 @@ function createPgAdapter(db2) {
           status: r.status,
           takenBy: r.takenBy
         }));
-        return db2.insert(attendanceRecordsTable2).values(values).returning();
+        return db2.insert(attendanceRecordsTable).values(values).returning();
       },
-      async checkAndMarkInactive(date2, cls, absentStudentIds) {
+      async checkAndMarkInactive(date, cls, absentStudentIds) {
         if (!absentStudentIds.length) return [];
-        const settingRow = await db2.select().from(appSettingsTable2).where(eq(appSettingsTable2.key, "class_absent_limits")).limit(1);
+        const settingRow = await db2.select().from(appSettingsTable).where(eq(appSettingsTable.key, "class_absent_limits")).limit(1);
         const limits = settingRow[0]?.value ?? {};
         const limit = limits[cls];
         if (!limit || limit <= 0) return [];
         const inactivated = [];
         for (const studentId of absentStudentIds) {
-          const records = await db2.select({ date: attendanceRecordsTable2.date, status: attendanceRecordsTable2.status }).from(attendanceRecordsTable2).where(eq(attendanceRecordsTable2.studentId, studentId)).orderBy(desc(attendanceRecordsTable2.date));
+          const records = await db2.select({ date: attendanceRecordsTable.date, status: attendanceRecordsTable.status }).from(attendanceRecordsTable).where(eq(attendanceRecordsTable.studentId, studentId)).orderBy(desc(attendanceRecordsTable.date));
           let consecutiveAbsents = 0;
           for (const record of records) {
             if (record.status === "absent") {
@@ -45299,7 +44197,7 @@ function createPgAdapter(db2) {
             }
           }
           if (consecutiveAbsents >= limit) {
-            const [updated] = await db2.update(studentsTable2).set({ status: "inactive" }).where(and(eq(studentsTable2.id, studentId), eq(studentsTable2.status, "active"))).returning({ id: studentsTable2.id });
+            const [updated] = await db2.update(studentsTable).set({ status: "inactive" }).where(and(eq(studentsTable.id, studentId), eq(studentsTable.status, "active"))).returning({ id: studentsTable.id });
             if (updated) {
               inactivated.push(studentId);
             }
@@ -45311,10 +44209,10 @@ function createPgAdapter(db2) {
     // ── Inactivation Requests ─────────────────────────────────────────────────
     inactivationRequests: {
       async list() {
-        return db2.select().from(inactivationRequestsTable2).orderBy(desc(inactivationRequestsTable2.createdAt));
+        return db2.select().from(inactivationRequestsTable).orderBy(desc(inactivationRequestsTable.createdAt));
       },
       async listByStudent(studentId) {
-        return db2.select().from(inactivationRequestsTable2).where(eq(inactivationRequestsTable2.studentId, studentId)).orderBy(desc(inactivationRequestsTable2.createdAt));
+        return db2.select().from(inactivationRequestsTable).where(eq(inactivationRequestsTable.studentId, studentId)).orderBy(desc(inactivationRequestsTable.createdAt));
       },
       async create(data) {
         const values = {
@@ -45330,18 +44228,18 @@ function createPgAdapter(db2) {
           status: "pending"
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(inactivationRequestsTable2).values(values).returning();
+        const [row] = await db2.insert(inactivationRequestsTable).values(values).returning();
         return row;
       },
       async updateStatus(id, status, adminNote) {
-        const [row] = await db2.update(inactivationRequestsTable2).set({
+        const [row] = await db2.update(inactivationRequestsTable).set({
           status,
           adminNote: adminNote ?? null,
           reviewedAt: /* @__PURE__ */ new Date()
-        }).where(eq(inactivationRequestsTable2.id, id)).returning();
+        }).where(eq(inactivationRequestsTable.id, id)).returning();
         if (!row) return null;
         if (status === "approved") {
-          await db2.update(studentsTable2).set({ status: "active" }).where(eq(studentsTable2.id, row.studentId));
+          await db2.update(studentsTable).set({ status: "active" }).where(eq(studentsTable.id, row.studentId));
         }
         return row;
       }
@@ -45349,7 +44247,7 @@ function createPgAdapter(db2) {
     // ── Exams ─────────────────────────────────────────────────────────────────
     exams: {
       async list() {
-        return db2.select().from(examsTable2).orderBy(asc(examsTable2.date));
+        return db2.select().from(examsTable).orderBy(asc(examsTable.date));
       },
       async create(data) {
         const values = {
@@ -45362,11 +44260,11 @@ function createPgAdapter(db2) {
           maxMarks: data.maxMarks ?? 100
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(examsTable2).values(values).returning();
+        const [row] = await db2.insert(examsTable).values(values).returning();
         return row;
       },
       async update(id, data) {
-        const [row] = await db2.update(examsTable2).set({
+        const [row] = await db2.update(examsTable).set({
           name: data.name,
           class: data.class,
           subjects: data.subjects,
@@ -45374,17 +44272,17 @@ function createPgAdapter(db2) {
           classSubjects: data.classSubjects ?? null,
           date: data.date,
           maxMarks: data.maxMarks
-        }).where(eq(examsTable2.id, id)).returning();
+        }).where(eq(examsTable.id, id)).returning();
         return row ?? null;
       },
       async delete(id) {
-        await db2.delete(examsTable2).where(eq(examsTable2.id, id));
+        await db2.delete(examsTable).where(eq(examsTable.id, id));
       }
     },
     // ── Exam Results ──────────────────────────────────────────────────────────
     examResults: {
       async list() {
-        return db2.select().from(examResultsTable2).orderBy(asc(examResultsTable2.createdAt));
+        return db2.select().from(examResultsTable).orderBy(asc(examResultsTable.createdAt));
       },
       async create(data) {
         const values = {
@@ -45396,7 +44294,7 @@ function createPgAdapter(db2) {
           marks: data.marks
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(examResultsTable2).values(values).returning();
+        const [row] = await db2.insert(examResultsTable).values(values).returning();
         return row;
       },
       async bulkUpsert(results) {
@@ -45409,33 +44307,33 @@ function createPgAdapter(db2) {
           rollNumber: r.rollNumber,
           marks: r.marks
         }));
-        return db2.insert(examResultsTable2).values(values).onConflictDoUpdate({
-          target: [examResultsTable2.examId, examResultsTable2.studentId],
+        return db2.insert(examResultsTable).values(values).onConflictDoUpdate({
+          target: [examResultsTable.examId, examResultsTable.studentId],
           set: {
-            marks: examResultsTable2.marks,
-            studentName: examResultsTable2.studentName,
-            rollNumber: examResultsTable2.rollNumber
+            marks: examResultsTable.marks,
+            studentName: examResultsTable.studentName,
+            rollNumber: examResultsTable.rollNumber
           }
         }).returning();
       },
       /** Replace one subject's marks without touching other subjects. */
       async replaceSubjectMarks(examId, cls, subject, rows) {
         const existing = await db2.select({
-          id: examResultsTable2.id,
-          studentId: examResultsTable2.studentId,
-          marks: examResultsTable2.marks
-        }).from(examResultsTable2).where(and(eq(examResultsTable2.examId, examId), eq(examResultsTable2.class, cls)));
+          id: examResultsTable.id,
+          studentId: examResultsTable.studentId,
+          marks: examResultsTable.marks
+        }).from(examResultsTable).where(and(eq(examResultsTable.examId, examId), eq(examResultsTable.class, cls)));
         const byStudentId = new Map(rows.map((row) => [row.studentId, row]));
         for (const result of existing) {
           const nextMarks = { ...result.marks ?? {} };
           delete nextMarks[subject];
           const replacement = byStudentId.get(result.studentId);
           if (replacement) nextMarks[subject] = replacement.mark;
-          await db2.update(examResultsTable2).set({ marks: nextMarks }).where(eq(examResultsTable2.id, result.id));
+          await db2.update(examResultsTable).set({ marks: nextMarks }).where(eq(examResultsTable.id, result.id));
           byStudentId.delete(result.studentId);
         }
         for (const row of byStudentId.values()) {
-          await db2.insert(examResultsTable2).values({
+          await db2.insert(examResultsTable).values({
             examId,
             studentId: row.studentId,
             studentName: row.studentName,
@@ -45449,13 +44347,13 @@ function createPgAdapter(db2) {
     // ── Mark Submissions ──────────────────────────────────────────────────────
     markSubmissions: {
       async list() {
-        return db2.select().from(markSubmissionsTable2).orderBy(asc(markSubmissionsTable2.createdAt));
+        return db2.select().from(markSubmissionsTable).orderBy(asc(markSubmissionsTable.createdAt));
       },
       async get(examId, cls, subject) {
-        const [row] = await db2.select().from(markSubmissionsTable2).where(and(
-          eq(markSubmissionsTable2.examId, examId),
-          eq(markSubmissionsTable2.class, cls),
-          eq(markSubmissionsTable2.subject, subject)
+        const [row] = await db2.select().from(markSubmissionsTable).where(and(
+          eq(markSubmissionsTable.examId, examId),
+          eq(markSubmissionsTable.class, cls),
+          eq(markSubmissionsTable.subject, subject)
         )).limit(1);
         return row ?? null;
       },
@@ -45471,8 +44369,8 @@ function createPgAdapter(db2) {
           lockedBy: data.lockedBy ?? null,
           lockedAt: data.lockedAt ?? null
         };
-        const [row] = await db2.insert(markSubmissionsTable2).values(values).onConflictDoUpdate({
-          target: [markSubmissionsTable2.examId, markSubmissionsTable2.class, markSubmissionsTable2.subject],
+        const [row] = await db2.insert(markSubmissionsTable).values(values).onConflictDoUpdate({
+          target: [markSubmissionsTable.examId, markSubmissionsTable.class, markSubmissionsTable.subject],
           set: {
             status: sql`excluded.status`,
             teacherId: sql`excluded.teacher_id`,
@@ -45488,10 +44386,10 @@ function createPgAdapter(db2) {
     // ── Mark Audit Log ────────────────────────────────────────────────────────
     markAuditLog: {
       async list() {
-        return db2.select().from(markAuditLogTable2).orderBy(asc(markAuditLogTable2.createdAt));
+        return db2.select().from(markAuditLogTable).orderBy(asc(markAuditLogTable.createdAt));
       },
       async create(data) {
-        const [row] = await db2.insert(markAuditLogTable2).values({
+        const [row] = await db2.insert(markAuditLogTable).values({
           examId: data.examId,
           class: data.class,
           subject: data.subject,
@@ -45507,7 +44405,7 @@ function createPgAdapter(db2) {
     // ── Fee Types ─────────────────────────────────────────────────────────────
     feeTypes: {
       async list() {
-        return db2.select().from(feeTypesTable2).orderBy(asc(feeTypesTable2.createdAt));
+        return db2.select().from(feeTypesTable).orderBy(asc(feeTypesTable.createdAt));
       },
       async create(data) {
         const values = {
@@ -45517,26 +44415,26 @@ function createPgAdapter(db2) {
           category: data.category ?? null
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(feeTypesTable2).values(values).returning();
+        const [row] = await db2.insert(feeTypesTable).values(values).returning();
         return row;
       },
       async update(id, data) {
-        const [row] = await db2.update(feeTypesTable2).set({
+        const [row] = await db2.update(feeTypesTable).set({
           name: data.name,
           amount: data.amount,
           description: data.description,
           category: data.category ?? null
-        }).where(eq(feeTypesTable2.id, id)).returning();
+        }).where(eq(feeTypesTable.id, id)).returning();
         return row ?? null;
       },
       async delete(id) {
-        await db2.delete(feeTypesTable2).where(eq(feeTypesTable2.id, id));
+        await db2.delete(feeTypesTable).where(eq(feeTypesTable.id, id));
       }
     },
     // ── Fee Records ───────────────────────────────────────────────────────────
     feeRecords: {
       async list() {
-        return db2.select().from(feeRecordsTable2).orderBy(asc(feeRecordsTable2.date));
+        return db2.select().from(feeRecordsTable).orderBy(asc(feeRecordsTable.date));
       },
       async create(data) {
         const values = {
@@ -45555,17 +44453,17 @@ function createPgAdapter(db2) {
           discountApplied: data.discountApplied ?? null
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(feeRecordsTable2).values(values).returning();
+        const [row] = await db2.insert(feeRecordsTable).values(values).returning();
         return row;
       },
       async delete(id) {
-        await db2.delete(feeRecordsTable2).where(eq(feeRecordsTable2.id, id));
+        await db2.delete(feeRecordsTable).where(eq(feeRecordsTable.id, id));
       }
     },
     // ── Salary Records ────────────────────────────────────────────────────────
     salaryRecords: {
       async list() {
-        return db2.select().from(salaryRecordsTable2).orderBy(asc(salaryRecordsTable2.createdAt));
+        return db2.select().from(salaryRecordsTable).orderBy(asc(salaryRecordsTable.createdAt));
       },
       async create(data) {
         const values = {
@@ -45579,33 +44477,33 @@ function createPgAdapter(db2) {
           receiptNumber: data.receiptNumber ?? null
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(salaryRecordsTable2).values(values).returning();
+        const [row] = await db2.insert(salaryRecordsTable).values(values).returning();
         return row;
       },
       async update(id, data) {
-        const [row] = await db2.update(salaryRecordsTable2).set({
+        const [row] = await db2.update(salaryRecordsTable).set({
           status: data.status,
           paidDate: data.paidDate ?? null,
           receiptNumber: data.receiptNumber ?? null,
           amount: data.amount
-        }).where(eq(salaryRecordsTable2.id, id)).returning();
+        }).where(eq(salaryRecordsTable.id, id)).returning();
         return row ?? null;
       },
       async upsertByTeacher(teacherId, month, year, data) {
-        const existing = await db2.select().from(salaryRecordsTable2).where(and(
-          eq(salaryRecordsTable2.teacherId, teacherId),
-          eq(salaryRecordsTable2.month, month),
-          eq(salaryRecordsTable2.year, year)
+        const existing = await db2.select().from(salaryRecordsTable).where(and(
+          eq(salaryRecordsTable.teacherId, teacherId),
+          eq(salaryRecordsTable.month, month),
+          eq(salaryRecordsTable.year, year)
         )).limit(1);
         if (existing.length > 0) {
-          const [row] = await db2.update(salaryRecordsTable2).set({
+          const [row] = await db2.update(salaryRecordsTable).set({
             status: data.status,
             paidDate: data.paidDate ?? null,
             receiptNumber: data.receiptNumber ?? null
-          }).where(eq(salaryRecordsTable2.id, existing[0].id)).returning();
+          }).where(eq(salaryRecordsTable.id, existing[0].id)).returning();
           return { row, created: false };
         } else {
-          const [row] = await db2.insert(salaryRecordsTable2).values({
+          const [row] = await db2.insert(salaryRecordsTable).values({
             teacherId,
             teacherName: data.teacherName ?? "",
             month,
@@ -45619,13 +44517,13 @@ function createPgAdapter(db2) {
         }
       },
       async delete(id) {
-        await db2.delete(salaryRecordsTable2).where(eq(salaryRecordsTable2.id, id));
+        await db2.delete(salaryRecordsTable).where(eq(salaryRecordsTable.id, id));
       }
     },
     // ── Expenses ──────────────────────────────────────────────────────────────
     expenses: {
       async list() {
-        return db2.select().from(expensesTable2).orderBy(asc(expensesTable2.date));
+        return db2.select().from(expensesTable).orderBy(asc(expensesTable.date));
       },
       async create(data) {
         const values = {
@@ -45635,17 +44533,17 @@ function createPgAdapter(db2) {
           category: data.category ?? ""
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(expensesTable2).values(values).returning();
+        const [row] = await db2.insert(expensesTable).values(values).returning();
         return row;
       },
       async delete(id) {
-        await db2.delete(expensesTable2).where(eq(expensesTable2.id, id));
+        await db2.delete(expensesTable).where(eq(expensesTable.id, id));
       }
     },
     // ── Alumni ────────────────────────────────────────────────────────────────
     alumni: {
       async list() {
-        return db2.select().from(alumniTable2).orderBy(asc(alumniTable2.batch), asc(alumniTable2.name));
+        return db2.select().from(alumniTable).orderBy(asc(alumniTable.batch), asc(alumniTable.name));
       },
       async create(data) {
         const values = {
@@ -45663,11 +44561,11 @@ function createPgAdapter(db2) {
           currentStatus: data.currentStatus ?? null
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(alumniTable2).values(values).returning();
+        const [row] = await db2.insert(alumniTable).values(values).returning();
         return row;
       },
       async update(id, data) {
-        const [row] = await db2.update(alumniTable2).set({
+        const [row] = await db2.update(alumniTable).set({
           name: data.name,
           fatherName: data.fatherName ?? "",
           mobileNumber: data.mobileNumber ?? "",
@@ -45680,7 +44578,7 @@ function createPgAdapter(db2) {
           photo: data.photo ?? null,
           achievements: data.achievements ?? null,
           currentStatus: data.currentStatus ?? null
-        }).where(eq(alumniTable2.id, id)).returning();
+        }).where(eq(alumniTable.id, id)).returning();
         return row ?? null;
       },
       async bulkCreate(records) {
@@ -45702,19 +44600,19 @@ function createPgAdapter(db2) {
           if (data.id) v.id = data.id;
           return v;
         });
-        return db2.insert(alumniTable2).values(values).returning();
+        return db2.insert(alumniTable).values(values).returning();
       },
       async delete(id) {
-        await db2.delete(alumniTable2).where(eq(alumniTable2.id, id));
+        await db2.delete(alumniTable).where(eq(alumniTable.id, id));
       }
     },
     // ── Promotions ────────────────────────────────────────────────────────────
     promotions: {
       async list() {
-        return db2.select().from(promotionRecordsTable2).orderBy(asc(promotionRecordsTable2.promotedAt));
+        return db2.select().from(promotionRecordsTable).orderBy(asc(promotionRecordsTable.promotedAt));
       },
       async promoteStudent(studentId, toClass, record) {
-        await db2.update(studentsTable2).set({ class: toClass }).where(eq(studentsTable2.id, studentId));
+        await db2.update(studentsTable).set({ class: toClass }).where(eq(studentsTable.id, studentId));
         const values = {
           studentId,
           studentName: record.studentName ?? "",
@@ -45724,11 +44622,11 @@ function createPgAdapter(db2) {
           promotedAt: record.promotedAt ?? ""
         };
         if (record.promotionId) values.id = record.promotionId;
-        const [row] = await db2.insert(promotionRecordsTable2).values(values).returning();
+        const [row] = await db2.insert(promotionRecordsTable).values(values).returning();
         return row;
       },
       async bulkPromote(fromClass, toClass, records) {
-        await db2.update(studentsTable2).set({ class: toClass }).where(eq(studentsTable2.class, fromClass));
+        await db2.update(studentsTable).set({ class: toClass }).where(eq(studentsTable.class, fromClass));
         const values = records.map((r) => ({
           ...r.id ? { id: r.id } : {},
           studentId: r.studentId,
@@ -45738,19 +44636,19 @@ function createPgAdapter(db2) {
           promotedBy: r.promotedBy ?? "",
           promotedAt: r.promotedAt ?? ""
         }));
-        return db2.insert(promotionRecordsTable2).values(values).returning();
+        return db2.insert(promotionRecordsTable).values(values).returning();
       }
     }
   };
 }
 
 // src/lib/firebaseAdapter.ts
-import crypto from "node:crypto";
+import crypto2 from "node:crypto";
 function mapDoc(doc) {
   return { id: doc.id, ...doc.data() };
 }
 function newId() {
-  return crypto.randomUUID();
+  return crypto2.randomUUID();
 }
 function now() {
   return (/* @__PURE__ */ new Date()).toISOString();
@@ -45956,8 +44854,8 @@ function createFirebaseAdapter(fs2) {
         const snap = await col("attendance_records").orderBy("date").get();
         return snap.docs.map(mapDoc);
       },
-      async bulkUpsert(date2, cls, records) {
-        const existing = await col("attendance_records").where("date", "==", date2).where("class", "==", cls).get();
+      async bulkUpsert(date, cls, records) {
+        const existing = await col("attendance_records").where("date", "==", date).where("class", "==", cls).get();
         const batch = fs2.batch();
         existing.docs.forEach((d) => batch.delete(d.ref));
         const results = [];
@@ -46591,17 +45489,17 @@ async function initFirebaseSchema(db2) {
 // src/lib/dbManager.ts
 var { Pool: Pool4 } = esm_default;
 var RAW_SECRET = process.env.SESSION_SECRET ?? "school-mgmt-fallback-2026";
-var ENC_KEY = crypto2.createHash("sha256").update(RAW_SECRET).digest();
-function encrypt(text2) {
-  const iv = crypto2.randomBytes(16);
-  const cipher = crypto2.createCipheriv("aes-256-cbc", ENC_KEY, iv);
-  const enc = Buffer.concat([cipher.update(text2, "utf8"), cipher.final()]);
+var ENC_KEY = crypto3.createHash("sha256").update(RAW_SECRET).digest();
+function encrypt(text) {
+  const iv = crypto3.randomBytes(16);
+  const cipher = crypto3.createCipheriv("aes-256-cbc", ENC_KEY, iv);
+  const enc = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
   return iv.toString("hex") + ":" + enc.toString("hex");
 }
-function decrypt(text2) {
-  const [ivHex, encHex] = text2.split(":");
+function decrypt(text) {
+  const [ivHex, encHex] = text.split(":");
   if (!ivHex || !encHex) throw new Error("Invalid encrypted value");
-  const decipher = crypto2.createDecipheriv("aes-256-cbc", ENC_KEY, Buffer.from(ivHex, "hex"));
+  const decipher = crypto3.createDecipheriv("aes-256-cbc", ENC_KEY, Buffer.from(ivHex, "hex"));
   return Buffer.concat([decipher.update(Buffer.from(encHex, "hex")), decipher.final()]).toString("utf8");
 }
 var DATA_DIR = path.join(process.cwd(), "data");
@@ -46684,57 +45582,6 @@ function parseDisplayInfo(url) {
     return { host: "unknown", dbName: "unknown" };
   }
 }
-async function initDbManager() {
-  const store = loadStore();
-  if (store.activeId) {
-    const conn = store.connections.find((c) => c.id === store.activeId);
-    if (conn) {
-      try {
-        await activateConnectionInternal(conn, store, false);
-        logger.info({ id: conn.id, name: conn.name, dbType: conn.dbType }, "DB Manager: restored saved connection");
-        return;
-      } catch (e) {
-        logger.warn({ e, id: store.activeId }, "DB Manager: saved connection failed, trying env var");
-        if (conn.dbType === "postgresql") await destroyPool(conn.id);
-        else await destroyFirebase(conn.id);
-      }
-    }
-  }
-  const envUrl = process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
-  if (envUrl) {
-    try {
-      const pool2 = getOrCreatePool("env", envUrl);
-      await pool2.query("SELECT 1");
-      _activeAdapter = createPgAdapter(buildDrizzle(pool2));
-      _activeId = "env";
-      _activeName = "Environment (APP_DATABASE_URL)";
-      _activeDbType = "postgresql";
-      if (!store.connections.find((c) => c.id === "env")) {
-        const { host, dbName } = parseDisplayInfo(envUrl);
-        store.connections.unshift({
-          id: "env",
-          name: "Environment Database",
-          dbType: "postgresql",
-          encryptedUrl: encrypt(envUrl),
-          host,
-          dbName,
-          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-        });
-        store.activeId = "env";
-        saveStore(store);
-      }
-      logger.info("DB Manager: using APP_DATABASE_URL");
-      await initPostgresSchema(pool2).catch(
-        (e) => logger.warn({ e }, "DB Manager: schema init warning (non-fatal)")
-      );
-    } catch (e) {
-      logger.warn({ e }, "DB Manager: env var connection failed \u2014 running without DB");
-    }
-  } else {
-    logger.warn("DB Manager: no database configured \u2014 add one via the Database Manager UI");
-  }
-}
 async function activateConnectionInternal(conn, store, saveAfter) {
   if (conn.dbType === "firebase") {
     const config = JSON.parse(decrypt(conn.encryptedConfig));
@@ -46785,7 +45632,7 @@ function listConnections() {
 }
 function createConnectionPg(input) {
   const store = loadStore();
-  const id = crypto2.randomUUID();
+  const id = crypto3.randomUUID();
   const { host, dbName } = parseDisplayInfo(input.url);
   const conn = {
     id,
@@ -46803,7 +45650,7 @@ function createConnectionPg(input) {
 }
 function createConnectionFirebase(input) {
   const store = loadStore();
-  const id = crypto2.randomUUID();
+  const id = crypto3.randomUUID();
   const conn = {
     id,
     name: input.name.trim(),
@@ -46918,15 +45765,179 @@ async function activateConnection(id) {
   }
 }
 
-// src/routes/classes.ts
+// src/routes/dbConnections.ts
 var router2 = (0, import_express2.Router)();
+router2.get("/db-connections", (_req, res) => {
+  res.json(listConnections());
+});
+router2.get("/db-connections/active", (_req, res) => {
+  res.json(getActiveConnectionInfo());
+});
+router2.post("/db-connections", (req, res) => {
+  const { name, dbType = "postgresql", url, ...fbFields } = req.body;
+  if (!name) {
+    res.status(400).json({ error: "name is required" });
+    return;
+  }
+  if (dbType === "firebase") {
+    const config = {
+      projectId: fbFields.projectId ?? "",
+      apiKey: fbFields.apiKey ?? "",
+      authDomain: fbFields.authDomain ?? "",
+      storageBucket: fbFields.storageBucket ?? "",
+      messagingSenderId: fbFields.messagingSenderId ?? "",
+      appId: fbFields.appId ?? "",
+      serviceAccountJson: fbFields.serviceAccountJson ?? ""
+    };
+    if (!config.projectId || !config.serviceAccountJson) {
+      res.status(400).json({ error: "projectId and serviceAccountJson are required for Firebase" });
+      return;
+    }
+    try {
+      JSON.parse(config.serviceAccountJson);
+    } catch {
+      res.status(400).json({ error: "serviceAccountJson must be valid JSON" });
+      return;
+    }
+    const conn = createConnectionFirebase({ name, config });
+    res.status(201).json(conn);
+  } else {
+    if (!url) {
+      res.status(400).json({ error: "url is required for PostgreSQL" });
+      return;
+    }
+    try {
+      new URL(url);
+    } catch {
+      res.status(400).json({ error: "Invalid connection URL" });
+      return;
+    }
+    const conn = createConnectionPg({ name, url });
+    res.status(201).json(conn);
+  }
+});
+router2.put("/db-connections/:id", async (req, res) => {
+  const { name, url, config } = req.body;
+  if (url) {
+    try {
+      new URL(url);
+    } catch {
+      res.status(400).json({ error: "Invalid connection URL" });
+      return;
+    }
+  }
+  const conn = await updateConnection(req.params.id, { name, url, config });
+  if (!conn) {
+    res.status(404).json({ error: "Connection not found" });
+    return;
+  }
+  res.json(conn);
+});
+router2.delete("/db-connections/:id", async (req, res) => {
+  const ok = await deleteConnection(req.params.id);
+  if (!ok) {
+    res.status(404).json({ error: "Connection not found" });
+    return;
+  }
+  res.status(204).send();
+});
+router2.post("/db-connections/:id/test", async (req, res) => {
+  const result = await testConnection(req.params.id);
+  res.json(result);
+});
+router2.post("/db-connections/:id/activate", async (req, res) => {
+  const result = await activateConnection(req.params.id);
+  res.status(result.success ? 200 : 400).json(result);
+});
+var dbConnections_default = router2;
+
+// src/routes/students.ts
+var import_express3 = __toESM(require_express2(), 1);
+var router3 = (0, import_express3.Router)();
+router3.get("/students", async (_req, res) => {
+  const rows = await getAdapter().students.list();
+  res.json(rows);
+});
+router3.post("/students", async (req, res) => {
+  const body = req.body;
+  if (!body.name || !body.class || !body.rollNumber) {
+    res.status(400).json({ error: "name, class, and rollNumber are required" });
+    return;
+  }
+  const row = await getAdapter().students.create(body);
+  res.status(201).json(row);
+});
+router3.put("/students/:id", async (req, res) => {
+  const row = await getAdapter().students.update(req.params.id, req.body);
+  if (!row) {
+    res.status(404).json({ error: "Student not found" });
+    return;
+  }
+  res.json(row);
+});
+router3.put("/students/:id/status", async (req, res) => {
+  const { status } = req.body;
+  if (!["active", "inactive"].includes(status)) {
+    res.status(400).json({ error: "status must be 'active' or 'inactive'" });
+    return;
+  }
+  const row = await getAdapter().students.setStatus(req.params.id, status);
+  if (!row) {
+    res.status(404).json({ error: "Student not found" });
+    return;
+  }
+  res.json(row);
+});
+router3.delete("/students/:id", async (req, res) => {
+  await getAdapter().students.delete(req.params.id);
+  res.status(204).send();
+});
+var students_default = router3;
+
+// src/routes/teachers.ts
+var import_express4 = __toESM(require_express2(), 1);
+var router4 = (0, import_express4.Router)();
+router4.get("/teachers", async (_req, res) => {
+  const rows = await getAdapter().teachers.list();
+  res.json(rows);
+});
+router4.post("/teachers", async (req, res) => {
+  const body = req.body;
+  if (!body.name || !body.username || !Number.isInteger(body.salary) || body.salary <= 0) {
+    res.status(400).json({ error: "name, username, and a positive monthly salary are required" });
+    return;
+  }
+  const row = await getAdapter().teachers.create(body);
+  res.status(201).json(row);
+});
+router4.put("/teachers/:id", async (req, res) => {
+  if (req.body.salary !== void 0 && (!Number.isInteger(req.body.salary) || req.body.salary <= 0)) {
+    res.status(400).json({ error: "monthly salary must be a positive integer" });
+    return;
+  }
+  const row = await getAdapter().teachers.update(req.params.id, req.body);
+  if (!row) {
+    res.status(404).json({ error: "Teacher not found" });
+    return;
+  }
+  res.json(row);
+});
+router4.delete("/teachers/:id", async (req, res) => {
+  await getAdapter().teachers.delete(req.params.id);
+  res.status(204).send();
+});
+var teachers_default = router4;
+
+// src/routes/classes.ts
+var import_express5 = __toESM(require_express2(), 1);
+var router5 = (0, import_express5.Router)();
 var NameSchema = external_exports.object({ name: external_exports.string().min(1, "Name is required").max(100).trim() });
 var RenameSchema = external_exports.object({ newName: external_exports.string().min(1, "New name is required").max(100).trim() });
-router2.get("/classes", async (_req, res) => {
+router5.get("/classes", async (_req, res) => {
   const names = await getAdapter().classes.list();
   res.json(names);
 });
-router2.post("/classes", async (req, res) => {
+router5.post("/classes", async (req, res) => {
   const parsed = NameSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten().fieldErrors });
@@ -46943,7 +45954,7 @@ router2.post("/classes", async (req, res) => {
     throw e;
   }
 });
-router2.put("/classes/:name", async (req, res) => {
+router5.put("/classes/:name", async (req, res) => {
   const oldName = decodeURIComponent(req.params.name);
   const parsed = RenameSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -46965,7 +45976,7 @@ router2.put("/classes/:name", async (req, res) => {
     throw e;
   }
 });
-router2.delete("/classes/:name", async (req, res) => {
+router5.delete("/classes/:name", async (req, res) => {
   const deleted = await getAdapter().classes.delete(decodeURIComponent(req.params.name));
   if (!deleted) {
     res.status(404).json({ error: "Class not found" });
@@ -46973,16 +45984,16 @@ router2.delete("/classes/:name", async (req, res) => {
   }
   res.status(204).send();
 });
-var classes_default = router2;
+var classes_default = router5;
 
 // src/routes/sections.ts
-var import_express3 = __toESM(require_express2(), 1);
-var router3 = (0, import_express3.Router)();
-router3.get("/sections", async (_req, res) => {
+var import_express6 = __toESM(require_express2(), 1);
+var router6 = (0, import_express6.Router)();
+router6.get("/sections", async (_req, res) => {
   const rows = await getAdapter().sections.list();
   res.json(rows);
 });
-router3.post("/sections", async (req, res) => {
+router6.post("/sections", async (req, res) => {
   const { name } = req.body;
   if (!name?.trim()) {
     res.status(400).json({ error: "name is required" });
@@ -46999,7 +46010,7 @@ router3.post("/sections", async (req, res) => {
     throw e;
   }
 });
-router3.put("/sections/:name", async (req, res) => {
+router6.put("/sections/:name", async (req, res) => {
   const { newName } = req.body;
   if (!newName?.trim()) {
     res.status(400).json({ error: "newName is required" });
@@ -47020,7 +46031,7 @@ router3.put("/sections/:name", async (req, res) => {
     throw e;
   }
 });
-router3.delete("/sections/:name", async (req, res) => {
+router6.delete("/sections/:name", async (req, res) => {
   const ok = await getAdapter().sections.delete(req.params.name);
   if (!ok) {
     res.status(404).json({ error: "Section not found" });
@@ -47028,93 +46039,16 @@ router3.delete("/sections/:name", async (req, res) => {
   }
   res.status(204).send();
 });
-var sections_default = router3;
-
-// src/routes/students.ts
-var import_express4 = __toESM(require_express2(), 1);
-var router4 = (0, import_express4.Router)();
-router4.get("/students", async (_req, res) => {
-  const rows = await getAdapter().students.list();
-  res.json(rows);
-});
-router4.post("/students", async (req, res) => {
-  const body = req.body;
-  if (!body.name || !body.class || !body.rollNumber) {
-    res.status(400).json({ error: "name, class, and rollNumber are required" });
-    return;
-  }
-  const row = await getAdapter().students.create(body);
-  res.status(201).json(row);
-});
-router4.put("/students/:id", async (req, res) => {
-  const row = await getAdapter().students.update(req.params.id, req.body);
-  if (!row) {
-    res.status(404).json({ error: "Student not found" });
-    return;
-  }
-  res.json(row);
-});
-router4.put("/students/:id/status", async (req, res) => {
-  const { status } = req.body;
-  if (!["active", "inactive"].includes(status)) {
-    res.status(400).json({ error: "status must be 'active' or 'inactive'" });
-    return;
-  }
-  const row = await getAdapter().students.setStatus(req.params.id, status);
-  if (!row) {
-    res.status(404).json({ error: "Student not found" });
-    return;
-  }
-  res.json(row);
-});
-router4.delete("/students/:id", async (req, res) => {
-  await getAdapter().students.delete(req.params.id);
-  res.status(204).send();
-});
-var students_default = router4;
-
-// src/routes/teachers.ts
-var import_express5 = __toESM(require_express2(), 1);
-var router5 = (0, import_express5.Router)();
-router5.get("/teachers", async (_req, res) => {
-  const rows = await getAdapter().teachers.list();
-  res.json(rows);
-});
-router5.post("/teachers", async (req, res) => {
-  const body = req.body;
-  if (!body.name || !body.username || !Number.isInteger(body.salary) || body.salary <= 0) {
-    res.status(400).json({ error: "name, username, and a positive monthly salary are required" });
-    return;
-  }
-  const row = await getAdapter().teachers.create(body);
-  res.status(201).json(row);
-});
-router5.put("/teachers/:id", async (req, res) => {
-  if (req.body.salary !== void 0 && (!Number.isInteger(req.body.salary) || req.body.salary <= 0)) {
-    res.status(400).json({ error: "monthly salary must be a positive integer" });
-    return;
-  }
-  const row = await getAdapter().teachers.update(req.params.id, req.body);
-  if (!row) {
-    res.status(404).json({ error: "Teacher not found" });
-    return;
-  }
-  res.json(row);
-});
-router5.delete("/teachers/:id", async (req, res) => {
-  await getAdapter().teachers.delete(req.params.id);
-  res.status(204).send();
-});
-var teachers_default = router5;
+var sections_default = router6;
 
 // src/routes/subjects.ts
-var import_express6 = __toESM(require_express2(), 1);
-var router6 = (0, import_express6.Router)();
-router6.get("/subjects", async (_req, res) => {
+var import_express7 = __toESM(require_express2(), 1);
+var router7 = (0, import_express7.Router)();
+router7.get("/subjects", async (_req, res) => {
   const names = await getAdapter().subjects.list();
   res.json(names);
 });
-router6.post("/subjects", async (req, res) => {
+router7.post("/subjects", async (req, res) => {
   const { name, id } = req.body;
   if (!name) {
     res.status(400).json({ error: "name is required" });
@@ -47127,41 +46061,11 @@ router6.post("/subjects", async (req, res) => {
     res.status(409).json({ error: "Subject already exists" });
   }
 });
-router6.delete("/subjects/:name", async (req, res) => {
+router7.delete("/subjects/:name", async (req, res) => {
   await getAdapter().subjects.delete(decodeURIComponent(req.params.name));
   res.status(204).send();
 });
-var subjects_default = router6;
-
-// src/routes/feeTypes.ts
-var import_express7 = __toESM(require_express2(), 1);
-var router7 = (0, import_express7.Router)();
-router7.get("/fee-types", async (_req, res) => {
-  const rows = await getAdapter().feeTypes.list();
-  res.json(rows);
-});
-router7.post("/fee-types", async (req, res) => {
-  const body = req.body;
-  if (!body.name) {
-    res.status(400).json({ error: "name is required" });
-    return;
-  }
-  const row = await getAdapter().feeTypes.create(body);
-  res.status(201).json(row);
-});
-router7.put("/fee-types/:id", async (req, res) => {
-  const row = await getAdapter().feeTypes.update(req.params.id, req.body);
-  if (!row) {
-    res.status(404).json({ error: "FeeType not found" });
-    return;
-  }
-  res.json(row);
-});
-router7.delete("/fee-types/:id", async (req, res) => {
-  await getAdapter().feeTypes.delete(req.params.id);
-  res.status(204).send();
-});
-var feeTypes_default = router7;
+var subjects_default = router7;
 
 // src/routes/attendance.ts
 var import_express8 = __toESM(require_express2(), 1);
@@ -47176,12 +46080,12 @@ router8.post("/attendance", async (req, res) => {
     res.status(400).json({ error: "records array is required" });
     return;
   }
-  const { date: date2, class: cls } = records[0];
-  const inserted = await getAdapter().attendance.bulkUpsert(date2, cls, records);
+  const { date, class: cls } = records[0];
+  const inserted = await getAdapter().attendance.bulkUpsert(date, cls, records);
   const absentIds = records.filter((r) => r.status === "absent").map((r) => r.studentId).filter(Boolean);
   let inactivated = [];
   try {
-    inactivated = await getAdapter().attendance.checkAndMarkInactive(date2, cls, absentIds);
+    inactivated = await getAdapter().attendance.checkAndMarkInactive(date, cls, absentIds);
   } catch {
   }
   res.status(201).json({ records: inserted, inactivated });
@@ -47270,212 +46174,14 @@ router10.post("/exam-results", async (req, res) => {
 });
 var examResults_default = router10;
 
-// src/routes/feeRecords.ts
+// src/routes/markSubmissions.ts
 var import_express11 = __toESM(require_express2(), 1);
 var router11 = (0, import_express11.Router)();
-router11.get("/fee-records", async (_req, res) => {
-  const rows = await getAdapter().feeRecords.list();
-  res.json(rows);
-});
-router11.post("/fee-records", async (req, res) => {
-  const body = req.body;
-  if (!body.studentId || body.amount == null) {
-    res.status(400).json({ error: "studentId and amount are required" });
-    return;
-  }
-  const row = await getAdapter().feeRecords.create(body);
-  res.status(201).json(row);
-});
-router11.delete("/fee-records/:id", async (req, res) => {
-  await getAdapter().feeRecords.delete(req.params.id);
-  res.status(204).send();
-});
-var feeRecords_default = router11;
-
-// src/routes/expenses.ts
-var import_express12 = __toESM(require_express2(), 1);
-var router12 = (0, import_express12.Router)();
-router12.get("/expenses", async (_req, res) => {
-  const rows = await getAdapter().expenses.list();
-  res.json(rows);
-});
-router12.post("/expenses", async (req, res) => {
-  const body = req.body;
-  if (!body.description || body.amount == null) {
-    res.status(400).json({ error: "description and amount are required" });
-    return;
-  }
-  const row = await getAdapter().expenses.create(body);
-  res.status(201).json(row);
-});
-router12.delete("/expenses/:id", async (req, res) => {
-  await getAdapter().expenses.delete(req.params.id);
-  res.status(204).send();
-});
-var expenses_default = router12;
-
-// src/routes/salaryRecords.ts
-var import_express13 = __toESM(require_express2(), 1);
-var router13 = (0, import_express13.Router)();
-router13.get("/salary-records", async (_req, res) => {
-  const rows = await getAdapter().salaryRecords.list();
-  res.json(rows);
-});
-router13.post("/salary-records", async (req, res) => {
-  const body = req.body;
-  if (!body.teacherId) {
-    res.status(400).json({ error: "teacherId is required" });
-    return;
-  }
-  const row = await getAdapter().salaryRecords.create(body);
-  res.status(201).json(row);
-});
-router13.put("/salary-records/:id", async (req, res) => {
-  const row = await getAdapter().salaryRecords.update(req.params.id, req.body);
-  if (!row) {
-    res.status(404).json({ error: "SalaryRecord not found" });
-    return;
-  }
-  res.json(row);
-});
-router13.put("/salary-records/teacher/:teacherId/:month/:year", async (req, res) => {
-  const { teacherId, month, year } = req.params;
-  const { row, created } = await getAdapter().salaryRecords.upsertByTeacher(
-    teacherId,
-    month,
-    Number(year),
-    req.body
-  );
-  res.status(created ? 201 : 200).json(row);
-});
-router13.delete("/salary-records/:id", async (req, res) => {
-  await getAdapter().salaryRecords.delete(req.params.id);
-  res.status(204).send();
-});
-var salaryRecords_default = router13;
-
-// src/routes/promotions.ts
-var import_express14 = __toESM(require_express2(), 1);
-var router14 = (0, import_express14.Router)();
-router14.get("/promotion-records", async (_req, res) => {
-  const rows = await getAdapter().promotions.list();
-  res.json(rows);
-});
-router14.post("/promotions/student", async (req, res) => {
-  const { studentId, toClass } = req.body;
-  if (!studentId || !toClass) {
-    res.status(400).json({ error: "studentId and toClass are required" });
-    return;
-  }
-  const record = await getAdapter().promotions.promoteStudent(studentId, toClass, req.body);
-  res.status(201).json(record);
-});
-router14.post("/promotions/bulk", async (req, res) => {
-  const { fromClass, toClass, records } = req.body;
-  if (!fromClass || !toClass || !Array.isArray(records)) {
-    res.status(400).json({ error: "fromClass, toClass, and records[] are required" });
-    return;
-  }
-  const inserted = await getAdapter().promotions.bulkPromote(fromClass, toClass, records);
-  res.status(201).json(inserted);
-});
-var promotions_default = router14;
-
-// src/routes/dbConnections.ts
-var import_express15 = __toESM(require_express2(), 1);
-var router15 = (0, import_express15.Router)();
-router15.get("/db-connections", (_req, res) => {
-  res.json(listConnections());
-});
-router15.get("/db-connections/active", (_req, res) => {
-  res.json(getActiveConnectionInfo());
-});
-router15.post("/db-connections", (req, res) => {
-  const { name, dbType = "postgresql", url, ...fbFields } = req.body;
-  if (!name) {
-    res.status(400).json({ error: "name is required" });
-    return;
-  }
-  if (dbType === "firebase") {
-    const config = {
-      projectId: fbFields.projectId ?? "",
-      apiKey: fbFields.apiKey ?? "",
-      authDomain: fbFields.authDomain ?? "",
-      storageBucket: fbFields.storageBucket ?? "",
-      messagingSenderId: fbFields.messagingSenderId ?? "",
-      appId: fbFields.appId ?? "",
-      serviceAccountJson: fbFields.serviceAccountJson ?? ""
-    };
-    if (!config.projectId || !config.serviceAccountJson) {
-      res.status(400).json({ error: "projectId and serviceAccountJson are required for Firebase" });
-      return;
-    }
-    try {
-      JSON.parse(config.serviceAccountJson);
-    } catch {
-      res.status(400).json({ error: "serviceAccountJson must be valid JSON" });
-      return;
-    }
-    const conn = createConnectionFirebase({ name, config });
-    res.status(201).json(conn);
-  } else {
-    if (!url) {
-      res.status(400).json({ error: "url is required for PostgreSQL" });
-      return;
-    }
-    try {
-      new URL(url);
-    } catch {
-      res.status(400).json({ error: "Invalid connection URL" });
-      return;
-    }
-    const conn = createConnectionPg({ name, url });
-    res.status(201).json(conn);
-  }
-});
-router15.put("/db-connections/:id", async (req, res) => {
-  const { name, url, config } = req.body;
-  if (url) {
-    try {
-      new URL(url);
-    } catch {
-      res.status(400).json({ error: "Invalid connection URL" });
-      return;
-    }
-  }
-  const conn = await updateConnection(req.params.id, { name, url, config });
-  if (!conn) {
-    res.status(404).json({ error: "Connection not found" });
-    return;
-  }
-  res.json(conn);
-});
-router15.delete("/db-connections/:id", async (req, res) => {
-  const ok = await deleteConnection(req.params.id);
-  if (!ok) {
-    res.status(404).json({ error: "Connection not found" });
-    return;
-  }
-  res.status(204).send();
-});
-router15.post("/db-connections/:id/test", async (req, res) => {
-  const result = await testConnection(req.params.id);
-  res.json(result);
-});
-router15.post("/db-connections/:id/activate", async (req, res) => {
-  const result = await activateConnection(req.params.id);
-  res.status(result.success ? 200 : 400).json(result);
-});
-var dbConnections_default = router15;
-
-// src/routes/markSubmissions.ts
-var import_express16 = __toESM(require_express2(), 1);
-var router16 = (0, import_express16.Router)();
-router16.get("/mark-submissions", async (_req, res) => {
+router11.get("/mark-submissions", async (_req, res) => {
   const rows = await getAdapter().markSubmissions.list();
   res.json(rows);
 });
-router16.get("/mark-audit-log", async (_req, res) => {
+router11.get("/mark-audit-log", async (_req, res) => {
   const rows = await getAdapter().markAuditLog.list();
   res.json(rows);
 });
@@ -47550,7 +46256,7 @@ async function subjectHasCompleteMarks(examId, cls, subject) {
   );
   return students.every((student) => isValidMark(marksByStudent.get(student.id)));
 }
-router16.post("/mark-submissions/submit", async (req, res) => {
+router11.post("/mark-submissions/submit", async (req, res) => {
   const { examId, class: cls, subject, teacherId, teacherName, marks } = req.body;
   if (!examId || !cls || !subject || !teacherId || !Array.isArray(marks)) {
     res.status(400).json({ error: "examId, class, subject, teacherId, marks are required" });
@@ -47624,7 +46330,7 @@ router16.post("/mark-submissions/submit", async (req, res) => {
   });
   res.status(200).json(submission);
 });
-router16.post("/mark-submissions/lock", async (req, res) => {
+router11.post("/mark-submissions/lock", async (req, res) => {
   const { examId, class: cls, subject, adminId, adminName } = req.body;
   if (!examId || !cls || !subject) {
     res.status(400).json({ error: "examId, class, subject are required" });
@@ -47686,7 +46392,7 @@ router16.post("/mark-submissions/lock", async (req, res) => {
   });
   res.json(submission);
 });
-router16.post("/mark-submissions/unlock", async (req, res) => {
+router11.post("/mark-submissions/unlock", async (req, res) => {
   const { examId, class: cls, subject, adminId, adminName } = req.body;
   if (!examId || !cls || !subject) {
     res.status(400).json({ error: "examId, class, subject are required" });
@@ -47720,173 +46426,187 @@ router16.post("/mark-submissions/unlock", async (req, res) => {
   });
   res.json(submission);
 });
-var markSubmissions_default = router16;
+var markSubmissions_default = router11;
 
-// src/routes/settings.ts
+// src/routes/feeTypes.ts
+var import_express12 = __toESM(require_express2(), 1);
+var router12 = (0, import_express12.Router)();
+router12.get("/fee-types", async (_req, res) => {
+  const rows = await getAdapter().feeTypes.list();
+  res.json(rows);
+});
+router12.post("/fee-types", async (req, res) => {
+  const body = req.body;
+  if (!body.name) {
+    res.status(400).json({ error: "name is required" });
+    return;
+  }
+  const row = await getAdapter().feeTypes.create(body);
+  res.status(201).json(row);
+});
+router12.put("/fee-types/:id", async (req, res) => {
+  const row = await getAdapter().feeTypes.update(req.params.id, req.body);
+  if (!row) {
+    res.status(404).json({ error: "FeeType not found" });
+    return;
+  }
+  res.json(row);
+});
+router12.delete("/fee-types/:id", async (req, res) => {
+  await getAdapter().feeTypes.delete(req.params.id);
+  res.status(204).send();
+});
+var feeTypes_default = router12;
+
+// src/routes/feeRecords.ts
+var import_express13 = __toESM(require_express2(), 1);
+var router13 = (0, import_express13.Router)();
+router13.get("/fee-records", async (_req, res) => {
+  const rows = await getAdapter().feeRecords.list();
+  res.json(rows);
+});
+router13.post("/fee-records", async (req, res) => {
+  const body = req.body;
+  if (!body.studentId || body.amount == null) {
+    res.status(400).json({ error: "studentId and amount are required" });
+    return;
+  }
+  const row = await getAdapter().feeRecords.create(body);
+  res.status(201).json(row);
+});
+router13.delete("/fee-records/:id", async (req, res) => {
+  await getAdapter().feeRecords.delete(req.params.id);
+  res.status(204).send();
+});
+var feeRecords_default = router13;
+
+// src/routes/expenses.ts
+var import_express14 = __toESM(require_express2(), 1);
+var router14 = (0, import_express14.Router)();
+router14.get("/expenses", async (_req, res) => {
+  const rows = await getAdapter().expenses.list();
+  res.json(rows);
+});
+router14.post("/expenses", async (req, res) => {
+  const body = req.body;
+  if (!body.description || body.amount == null) {
+    res.status(400).json({ error: "description and amount are required" });
+    return;
+  }
+  const row = await getAdapter().expenses.create(body);
+  res.status(201).json(row);
+});
+router14.delete("/expenses/:id", async (req, res) => {
+  await getAdapter().expenses.delete(req.params.id);
+  res.status(204).send();
+});
+var expenses_default = router14;
+
+// src/routes/salaryRecords.ts
+var import_express15 = __toESM(require_express2(), 1);
+var router15 = (0, import_express15.Router)();
+router15.get("/salary-records", async (_req, res) => {
+  const rows = await getAdapter().salaryRecords.list();
+  res.json(rows);
+});
+router15.post("/salary-records", async (req, res) => {
+  const body = req.body;
+  if (!body.teacherId) {
+    res.status(400).json({ error: "teacherId is required" });
+    return;
+  }
+  const row = await getAdapter().salaryRecords.create(body);
+  res.status(201).json(row);
+});
+router15.put("/salary-records/:id", async (req, res) => {
+  const row = await getAdapter().salaryRecords.update(req.params.id, req.body);
+  if (!row) {
+    res.status(404).json({ error: "SalaryRecord not found" });
+    return;
+  }
+  res.json(row);
+});
+router15.put("/salary-records/teacher/:teacherId/:month/:year", async (req, res) => {
+  const { teacherId, month, year } = req.params;
+  const { row, created } = await getAdapter().salaryRecords.upsertByTeacher(
+    teacherId,
+    month,
+    Number(year),
+    req.body
+  );
+  res.status(created ? 201 : 200).json(row);
+});
+router15.delete("/salary-records/:id", async (req, res) => {
+  await getAdapter().salaryRecords.delete(req.params.id);
+  res.status(204).send();
+});
+var salaryRecords_default = router15;
+
+// src/routes/promotions.ts
+var import_express16 = __toESM(require_express2(), 1);
+var router16 = (0, import_express16.Router)();
+router16.get("/promotion-records", async (_req, res) => {
+  const rows = await getAdapter().promotions.list();
+  res.json(rows);
+});
+router16.post("/promotions/student", async (req, res) => {
+  const { studentId, toClass } = req.body;
+  if (!studentId || !toClass) {
+    res.status(400).json({ error: "studentId and toClass are required" });
+    return;
+  }
+  const record = await getAdapter().promotions.promoteStudent(studentId, toClass, req.body);
+  res.status(201).json(record);
+});
+router16.post("/promotions/bulk", async (req, res) => {
+  const { fromClass, toClass, records } = req.body;
+  if (!fromClass || !toClass || !Array.isArray(records)) {
+    res.status(400).json({ error: "fromClass, toClass, and records[] are required" });
+    return;
+  }
+  const inserted = await getAdapter().promotions.bulkPromote(fromClass, toClass, records);
+  res.status(201).json(inserted);
+});
+var promotions_default = router16;
+
+// src/routes/alumni.ts
 var import_express17 = __toESM(require_express2(), 1);
 var router17 = (0, import_express17.Router)();
-var TEACHER_EDIT_KEY = "allow_teacher_edit";
-var CLASS_ABSENT_LIMITS_KEY = "class_absent_limits";
-var DOCUMENT_BRANDING_KEY = "document_branding";
-var ADMIN_CREDENTIALS_KEY = "admin_credentials";
-var DEFAULT_ADMIN = { username: "admin", password: "admin123" };
-async function getAdminCredentials() {
-  const setting = await getAdapter().appSettings.get(ADMIN_CREDENTIALS_KEY);
-  if (!setting?.value) return { ...DEFAULT_ADMIN };
-  const v = setting.value;
-  return { username: v.username ?? DEFAULT_ADMIN.username, password: v.password ?? DEFAULT_ADMIN.password };
-}
-var EMPTY_DOCUMENT_BRANDING = {
-  logoDataUrl: null,
-  signatureDataUrl: null,
-  principalSignatureDataUrl: null,
-  teacherSignatureDataUrl: null,
-  examInChargeSignatureDataUrl: null
-};
-function isImageDataUrl(value) {
-  return typeof value === "string" && /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+$/i.test(value);
-}
-function validateBrandingValue(value, field) {
-  if (value === null || value === void 0 || value === "") return null;
-  if (!isImageDataUrl(value)) throw new Error(`${field} must be a base64 image data URL`);
-  if (value.length > 4e6) throw new Error(`${field} is too large; choose a smaller image`);
-  return value;
-}
-router17.post("/settings/admin-credentials/verify", async (req, res) => {
-  const { username, password } = req.body ?? {};
-  if (!username || !password) {
-    res.status(400).json({ error: "username and password are required" });
-    return;
-  }
-  const creds = await getAdminCredentials();
-  const valid = username === creds.username && password === creds.password;
-  res.json({ valid });
+router17.get("/alumni", async (_req, res) => {
+  const rows = await getAdapter().alumni.list();
+  res.json(rows);
 });
-router17.get("/settings/admin-credentials", async (_req, res) => {
-  const creds = await getAdminCredentials();
-  res.json({ username: creds.username });
+router17.post("/alumni", async (req, res) => {
+  const body = req.body;
+  if (!body.name || !body.batch || !body.passOutClass) {
+    res.status(400).json({ error: "name, batch, and passOutClass are required" });
+    return;
+  }
+  const row = await getAdapter().alumni.create(body);
+  res.status(201).json(row);
 });
-router17.put("/settings/admin-credentials", async (req, res) => {
-  const { currentPassword, newUsername, newPassword } = req.body ?? {};
-  if (!currentPassword) {
-    res.status(400).json({ error: "currentPassword is required" });
+router17.put("/alumni/:id", async (req, res) => {
+  const row = await getAdapter().alumni.update(req.params.id, req.body);
+  if (!row) {
+    res.status(404).json({ error: "Alumni not found" });
     return;
   }
-  const creds = await getAdminCredentials();
-  if (currentPassword !== creds.password) {
-    res.status(403).json({ error: "Current password is incorrect" });
-    return;
-  }
-  if (newUsername !== void 0 && (typeof newUsername !== "string" || newUsername.trim().length < 3)) {
-    res.status(400).json({ error: "Username must be at least 3 characters" });
-    return;
-  }
-  if (newPassword !== void 0 && (typeof newPassword !== "string" || newPassword.length < 6)) {
-    res.status(400).json({ error: "Password must be at least 6 characters" });
-    return;
-  }
-  const updated = {
-    username: newUsername?.trim() ?? creds.username,
-    password: newPassword ?? creds.password
-  };
-  await getAdapter().appSettings.set(ADMIN_CREDENTIALS_KEY, updated);
-  res.json({ username: updated.username });
+  res.json(row);
 });
-router17.get("/settings/document-branding", async (_req, res) => {
-  const setting = await getAdapter().appSettings.get(DOCUMENT_BRANDING_KEY);
-  res.json({ ...EMPTY_DOCUMENT_BRANDING, ...setting?.value ?? {} });
-});
-router17.put("/settings/document-branding", async (req, res) => {
-  const {
-    logoDataUrl,
-    signatureDataUrl,
-    principalSignatureDataUrl,
-    teacherSignatureDataUrl,
-    examInChargeSignatureDataUrl,
-    adminId
-  } = req.body ?? {};
-  if (adminId !== "admin") {
-    res.status(403).json({ error: "Unauthorized: only administrators can change document branding" });
+router17.post("/alumni/bulk", async (req, res) => {
+  const { records } = req.body ?? {};
+  if (!Array.isArray(records) || records.length === 0) {
+    res.status(400).json({ error: "records array is required" });
     return;
   }
-  try {
-    const existing = await getAdapter().appSettings.get(DOCUMENT_BRANDING_KEY);
-    const previous = existing?.value ?? {};
-    const branding = {
-      logoDataUrl: validateBrandingValue(
-        logoDataUrl === void 0 ? previous.logoDataUrl : logoDataUrl,
-        "logoDataUrl"
-      ),
-      signatureDataUrl: validateBrandingValue(
-        signatureDataUrl === void 0 ? previous.signatureDataUrl : signatureDataUrl,
-        "signatureDataUrl"
-      ),
-      principalSignatureDataUrl: validateBrandingValue(
-        principalSignatureDataUrl === void 0 ? previous.principalSignatureDataUrl : principalSignatureDataUrl,
-        "principalSignatureDataUrl"
-      ),
-      teacherSignatureDataUrl: validateBrandingValue(
-        teacherSignatureDataUrl === void 0 ? previous.teacherSignatureDataUrl : teacherSignatureDataUrl,
-        "teacherSignatureDataUrl"
-      ),
-      examInChargeSignatureDataUrl: validateBrandingValue(
-        examInChargeSignatureDataUrl === void 0 ? previous.examInChargeSignatureDataUrl : examInChargeSignatureDataUrl,
-        "examInChargeSignatureDataUrl"
-      )
-    };
-    await getAdapter().appSettings.set(DOCUMENT_BRANDING_KEY, branding);
-    res.json(branding);
-  } catch (e) {
-    res.status(400).json({ error: e?.message ?? "Invalid document branding" });
-  }
+  const rows = await getAdapter().alumni.bulkCreate(records);
+  res.status(201).json(rows);
 });
-router17.get("/settings/teacher-edit", async (_req, res) => {
-  const setting = await getAdapter().appSettings.get(TEACHER_EDIT_KEY);
-  res.json({ allowTeacherEdit: setting?.value === true });
+router17.delete("/alumni/:id", async (req, res) => {
+  await getAdapter().alumni.delete(req.params.id);
+  res.status(204).send();
 });
-router17.put("/settings/teacher-edit", async (req, res) => {
-  const { allowTeacherEdit, adminId } = req.body;
-  if (adminId !== "admin") {
-    res.status(403).json({ error: "Unauthorized: only administrators can change teacher edit settings" });
-    return;
-  }
-  if (typeof allowTeacherEdit !== "boolean") {
-    res.status(400).json({ error: "allowTeacherEdit must be a boolean" });
-    return;
-  }
-  await getAdapter().appSettings.set(TEACHER_EDIT_KEY, allowTeacherEdit);
-  res.json({ allowTeacherEdit });
-});
-router17.get("/settings/class-absent-limits", async (_req, res) => {
-  const setting = await getAdapter().appSettings.get(CLASS_ABSENT_LIMITS_KEY);
-  res.json(setting?.value ?? {});
-});
-router17.put("/settings/class-absent-limits", async (req, res) => {
-  const { className, maxDays, adminId } = req.body;
-  if (adminId !== "admin") {
-    res.status(403).json({ error: "Unauthorized: only administrators can change class absent limits" });
-    return;
-  }
-  if (!className || typeof className !== "string") {
-    res.status(400).json({ error: "className is required" });
-    return;
-  }
-  const days = Number(maxDays);
-  if (!Number.isInteger(days) || days < 0) {
-    res.status(400).json({ error: "maxDays must be a non-negative integer (0 = no limit)" });
-    return;
-  }
-  const current = await getAdapter().appSettings.get(CLASS_ABSENT_LIMITS_KEY);
-  const limits = current?.value ?? {};
-  if (days === 0) {
-    delete limits[className];
-  } else {
-    limits[className] = days;
-  }
-  await getAdapter().appSettings.set(CLASS_ABSENT_LIMITS_KEY, limits);
-  res.json(limits);
-});
-var settings_default = router17;
+var alumni_default = router17;
 
 // src/routes/inactivationRequests.ts
 var import_express18 = __toESM(require_express2(), 1);
@@ -47960,66 +46680,193 @@ router18.put("/inactivation-requests/:id/reject", async (req, res) => {
 });
 var inactivationRequests_default = router18;
 
-// src/routes/alumni.ts
+// src/routes/settings.ts
 var import_express19 = __toESM(require_express2(), 1);
 var router19 = (0, import_express19.Router)();
-router19.get("/alumni", async (_req, res) => {
-  const rows = await getAdapter().alumni.list();
-  res.json(rows);
-});
-router19.post("/alumni", async (req, res) => {
-  const body = req.body;
-  if (!body.name || !body.batch || !body.passOutClass) {
-    res.status(400).json({ error: "name, batch, and passOutClass are required" });
+var TEACHER_EDIT_KEY = "allow_teacher_edit";
+var CLASS_ABSENT_LIMITS_KEY = "class_absent_limits";
+var DOCUMENT_BRANDING_KEY = "document_branding";
+var ADMIN_CREDENTIALS_KEY = "admin_credentials";
+var DEFAULT_ADMIN = { username: "admin", password: "admin123" };
+async function getAdminCredentials() {
+  const setting = await getAdapter().appSettings.get(ADMIN_CREDENTIALS_KEY);
+  if (!setting?.value) return { ...DEFAULT_ADMIN };
+  const v = setting.value;
+  return { username: v.username ?? DEFAULT_ADMIN.username, password: v.password ?? DEFAULT_ADMIN.password };
+}
+var EMPTY_DOCUMENT_BRANDING = {
+  logoDataUrl: null,
+  signatureDataUrl: null,
+  principalSignatureDataUrl: null,
+  teacherSignatureDataUrl: null,
+  examInChargeSignatureDataUrl: null
+};
+function isImageDataUrl(value) {
+  return typeof value === "string" && /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+$/i.test(value);
+}
+function validateBrandingValue(value, field) {
+  if (value === null || value === void 0 || value === "") return null;
+  if (!isImageDataUrl(value)) throw new Error(`${field} must be a base64 image data URL`);
+  if (value.length > 4e6) throw new Error(`${field} is too large; choose a smaller image`);
+  return value;
+}
+router19.post("/settings/admin-credentials/verify", async (req, res) => {
+  const { username, password } = req.body ?? {};
+  if (!username || !password) {
+    res.status(400).json({ error: "username and password are required" });
     return;
   }
-  const row = await getAdapter().alumni.create(body);
-  res.status(201).json(row);
+  const creds = await getAdminCredentials();
+  const valid = username === creds.username && password === creds.password;
+  res.json({ valid });
 });
-router19.put("/alumni/:id", async (req, res) => {
-  const row = await getAdapter().alumni.update(req.params.id, req.body);
-  if (!row) {
-    res.status(404).json({ error: "Alumni not found" });
+router19.get("/settings/admin-credentials", async (_req, res) => {
+  const creds = await getAdminCredentials();
+  res.json({ username: creds.username });
+});
+router19.put("/settings/admin-credentials", async (req, res) => {
+  const { currentPassword, newUsername, newPassword } = req.body ?? {};
+  if (!currentPassword) {
+    res.status(400).json({ error: "currentPassword is required" });
     return;
   }
-  res.json(row);
-});
-router19.post("/alumni/bulk", async (req, res) => {
-  const { records } = req.body ?? {};
-  if (!Array.isArray(records) || records.length === 0) {
-    res.status(400).json({ error: "records array is required" });
+  const creds = await getAdminCredentials();
+  if (currentPassword !== creds.password) {
+    res.status(403).json({ error: "Current password is incorrect" });
     return;
   }
-  const rows = await getAdapter().alumni.bulkCreate(records);
-  res.status(201).json(rows);
+  if (newUsername !== void 0 && (typeof newUsername !== "string" || newUsername.trim().length < 3)) {
+    res.status(400).json({ error: "Username must be at least 3 characters" });
+    return;
+  }
+  if (newPassword !== void 0 && (typeof newPassword !== "string" || newPassword.length < 6)) {
+    res.status(400).json({ error: "Password must be at least 6 characters" });
+    return;
+  }
+  const updated = {
+    username: newUsername?.trim() ?? creds.username,
+    password: newPassword ?? creds.password
+  };
+  await getAdapter().appSettings.set(ADMIN_CREDENTIALS_KEY, updated);
+  res.json({ username: updated.username });
 });
-router19.delete("/alumni/:id", async (req, res) => {
-  await getAdapter().alumni.delete(req.params.id);
-  res.status(204).send();
+router19.get("/settings/document-branding", async (_req, res) => {
+  const setting = await getAdapter().appSettings.get(DOCUMENT_BRANDING_KEY);
+  res.json({ ...EMPTY_DOCUMENT_BRANDING, ...setting?.value ?? {} });
 });
-var alumni_default = router19;
+router19.put("/settings/document-branding", async (req, res) => {
+  const {
+    logoDataUrl,
+    signatureDataUrl,
+    principalSignatureDataUrl,
+    teacherSignatureDataUrl,
+    examInChargeSignatureDataUrl,
+    adminId
+  } = req.body ?? {};
+  if (adminId !== "admin") {
+    res.status(403).json({ error: "Unauthorized: only administrators can change document branding" });
+    return;
+  }
+  try {
+    const existing = await getAdapter().appSettings.get(DOCUMENT_BRANDING_KEY);
+    const previous = existing?.value ?? {};
+    const branding = {
+      logoDataUrl: validateBrandingValue(
+        logoDataUrl === void 0 ? previous.logoDataUrl : logoDataUrl,
+        "logoDataUrl"
+      ),
+      signatureDataUrl: validateBrandingValue(
+        signatureDataUrl === void 0 ? previous.signatureDataUrl : signatureDataUrl,
+        "signatureDataUrl"
+      ),
+      principalSignatureDataUrl: validateBrandingValue(
+        principalSignatureDataUrl === void 0 ? previous.principalSignatureDataUrl : principalSignatureDataUrl,
+        "principalSignatureDataUrl"
+      ),
+      teacherSignatureDataUrl: validateBrandingValue(
+        teacherSignatureDataUrl === void 0 ? previous.teacherSignatureDataUrl : teacherSignatureDataUrl,
+        "teacherSignatureDataUrl"
+      ),
+      examInChargeSignatureDataUrl: validateBrandingValue(
+        examInChargeSignatureDataUrl === void 0 ? previous.examInChargeSignatureDataUrl : examInChargeSignatureDataUrl,
+        "examInChargeSignatureDataUrl"
+      )
+    };
+    await getAdapter().appSettings.set(DOCUMENT_BRANDING_KEY, branding);
+    res.json(branding);
+  } catch (e) {
+    res.status(400).json({ error: e?.message ?? "Invalid document branding" });
+  }
+});
+router19.get("/settings/teacher-edit", async (_req, res) => {
+  const setting = await getAdapter().appSettings.get(TEACHER_EDIT_KEY);
+  res.json({ allowTeacherEdit: setting?.value === true });
+});
+router19.put("/settings/teacher-edit", async (req, res) => {
+  const { allowTeacherEdit, adminId } = req.body;
+  if (adminId !== "admin") {
+    res.status(403).json({ error: "Unauthorized: only administrators can change teacher edit settings" });
+    return;
+  }
+  if (typeof allowTeacherEdit !== "boolean") {
+    res.status(400).json({ error: "allowTeacherEdit must be a boolean" });
+    return;
+  }
+  await getAdapter().appSettings.set(TEACHER_EDIT_KEY, allowTeacherEdit);
+  res.json({ allowTeacherEdit });
+});
+router19.get("/settings/class-absent-limits", async (_req, res) => {
+  const setting = await getAdapter().appSettings.get(CLASS_ABSENT_LIMITS_KEY);
+  res.json(setting?.value ?? {});
+});
+router19.put("/settings/class-absent-limits", async (req, res) => {
+  const { className, maxDays, adminId } = req.body;
+  if (adminId !== "admin") {
+    res.status(403).json({ error: "Unauthorized: only administrators can change class absent limits" });
+    return;
+  }
+  if (!className || typeof className !== "string") {
+    res.status(400).json({ error: "className is required" });
+    return;
+  }
+  const days = Number(maxDays);
+  if (!Number.isInteger(days) || days < 0) {
+    res.status(400).json({ error: "maxDays must be a non-negative integer (0 = no limit)" });
+    return;
+  }
+  const current = await getAdapter().appSettings.get(CLASS_ABSENT_LIMITS_KEY);
+  const limits = current?.value ?? {};
+  if (days === 0) {
+    delete limits[className];
+  } else {
+    limits[className] = days;
+  }
+  await getAdapter().appSettings.set(CLASS_ABSENT_LIMITS_KEY, limits);
+  res.json(limits);
+});
+var settings_default = router19;
 
 // src/routes/index.ts
 var router20 = (0, import_express20.Router)();
 router20.use(health_default);
 router20.use(dbConnections_default);
-router20.use(classes_default);
-router20.use(sections_default);
 router20.use(students_default);
 router20.use(teachers_default);
+router20.use(classes_default);
+router20.use(sections_default);
 router20.use(subjects_default);
-router20.use(feeTypes_default);
 router20.use(attendance_default);
 router20.use(exams_default);
 router20.use(examResults_default);
+router20.use(markSubmissions_default);
+router20.use(feeTypes_default);
 router20.use(feeRecords_default);
 router20.use(expenses_default);
 router20.use(salaryRecords_default);
 router20.use(promotions_default);
-router20.use(markSubmissions_default);
-router20.use(settings_default);
-router20.use(inactivationRequests_default);
 router20.use(alumni_default);
+router20.use(inactivationRequests_default);
+router20.use(settings_default);
 var routes_default = router20;
 
 // src/app.ts
@@ -48044,20 +46891,12 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express21.default.json({ limit: "5mb" }));
+app.use(import_express21.default.json());
 app.use(import_express21.default.urlencoded({ extended: true }));
-app.use("/api", routes_default);
-app.use((err, _req, res, _next) => {
-  if (err?.code === "NO_DB_CONNECTION") {
-    res.status(503).json({
-      error: "No active database connection",
-      detail: "Configure a database in the Database Manager panel."
-    });
-    return;
-  }
-  logger.error({ err }, "Unhandled error");
-  res.status(500).json({ error: "Internal server error" });
+app.get("/", (_req, res) => {
+  res.json({ status: "ok", message: "API server is running" });
 });
+app.use("/api", routes_default);
 var app_default = app;
 
 // src/index.ts
@@ -48071,14 +46910,12 @@ var port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
-initDbManager().catch((e) => logger.error({ e }, "DB Manager init error")).finally(() => {
-  app_default.listen(port, (err) => {
-    if (err) {
-      logger.error({ err }, "Error listening on port");
-      process.exit(1);
-    }
-    logger.info({ port }, "Server listening");
-  });
+app_default.listen(port, (err) => {
+  if (err) {
+    logger.error({ err }, "Error listening on port");
+    process.exit(1);
+  }
+  logger.info({ port }, "Server listening");
 });
 /*! Bundled license information:
 
