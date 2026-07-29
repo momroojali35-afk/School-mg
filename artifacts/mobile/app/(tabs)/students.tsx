@@ -63,7 +63,7 @@ const cardStyles = StyleSheet.create({
 
 const modalStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '92%' as any },
+  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '92%' as any, minHeight: '70%' as any },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
   title: { fontSize: 18, fontWeight: '700' },
   body: { padding: 20 },

@@ -2065,7 +2065,7 @@ const bm = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26,
-    paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 34 : 24, paddingTop: 4, maxHeight: '92%',
+    paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 34 : 24, paddingTop: 4, maxHeight: '92%', minHeight: '70%',
   },
   handle: { width: 38, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2, alignSelf: 'center', marginVertical: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },

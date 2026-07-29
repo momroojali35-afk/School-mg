@@ -763,7 +763,7 @@ const card = StyleSheet.create({
 
 const m = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', minHeight: '70%' },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
     padding: 20, borderBottomWidth: StyleSheet.hairlineWidth,

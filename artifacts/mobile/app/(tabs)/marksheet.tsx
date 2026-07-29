@@ -2235,7 +2235,7 @@ const s = StyleSheet.create({
   downloadReadyClose: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
 
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  previewModal: { backgroundColor: '#F8FAFC', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%' },
+  previewModal: { backgroundColor: '#F8FAFC', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', minHeight: '70%' },
   previewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   previewTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B', flex: 1, marginRight: 8 },
   closeBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },

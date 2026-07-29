@@ -746,7 +746,7 @@ export default function TeacherDashboard() {
       <Modal visible={showMonthBirthdays} animationType="slide" transparent onRequestClose={() => setShowMonthBirthdays(false)}>
         <View style={{ flex:1, backgroundColor:'rgba(10,5,30,0.7)', justifyContent:'flex-end' }}>
           <TouchableOpacity style={{flex:1}} onPress={() => setShowMonthBirthdays(false)} activeOpacity={1} />
-          <View style={{ borderTopLeftRadius:28, borderTopRightRadius:28, overflow:'hidden', maxHeight:'88%' }}>
+          <View style={{ borderTopLeftRadius:28, borderTopRightRadius:28, overflow:'hidden', maxHeight:'88%', minHeight:'70%' }}>
             {/* Gradient header */}
             <LinearGradient colors={['#2D1B69','#1a0533']} style={{ paddingTop:16, paddingBottom:20, paddingHorizontal:20 }} start={{x:0,y:0}} end={{x:1,y:1}}>
               <View style={{ width:38, height:4, backgroundColor:'rgba(255,255,255,0.25)', borderRadius:2, alignSelf:'center', marginBottom:18 }} />
@@ -1603,7 +1603,7 @@ const po = StyleSheet.create({
 // ── Modal styles ──────────────────────────────────────────────────────────────
 const mo = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet:   { borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: '92%' },
+  sheet:   { borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: '92%', minHeight: '70%' },
   mHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     padding: 20, borderBottomWidth: 1,

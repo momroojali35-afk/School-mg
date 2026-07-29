@@ -535,7 +535,7 @@ export default function TeacherFees() {
       {/* ════ Reminder Modal ════ */}
       <Modal visible={showReminderModal} animationType="slide" transparent>
         <View style={s.overlay}>
-          <View style={[s.sheet, { backgroundColor: colors.card, maxHeight: '92%' }]}>
+          <View style={[s.sheet, { backgroundColor: colors.card, maxHeight: '92%', minHeight: '70%' }]}>
             {/* Header */}
             <View style={[s.sheetHeader, { borderBottomColor: colors.border }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

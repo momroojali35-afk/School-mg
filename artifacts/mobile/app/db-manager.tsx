@@ -467,7 +467,7 @@ const fm = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24, paddingBottom: 40, maxHeight: '92%',
+    padding: 24, paddingBottom: 40, maxHeight: '92%', minHeight: '70%',
   },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: 20 },
   title: { fontSize: 22, fontWeight: '800', color: '#1E293B', marginBottom: 4 },
