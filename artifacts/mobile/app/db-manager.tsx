@@ -514,6 +514,8 @@ export default function DbManagerScreen() {
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [formVisible, setFormVisible] = useState(false);
   const [editingConn, setEditingConn] = useState<DbConnection | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DbConnection | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -564,19 +566,23 @@ export default function DbManagerScreen() {
   };
 
   const handleDelete = (conn: DbConnection) => {
-    Alert.alert('Delete Connection', `Remove "${conn.name}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          try {
-            await apiFetch(`/db-connections/${conn.id}`, { method: 'DELETE' });
-            setTestResults((prev) => { const n = { ...prev }; delete n[conn.id]; return n; });
-            await load();
-          } catch (e: any) { Alert.alert('Error', e.message); }
-        },
-      },
-    ]);
+    setDeleteTarget(conn);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await apiFetch(`/db-connections/${deleteTarget.id}`, { method: 'DELETE' });
+      setTestResults((prev) => { const n = { ...prev }; delete n[deleteTarget.id]; return n; });
+      setDeleteTarget(null);
+      await load();
+    } catch (e: any) {
+      setDeleteTarget(null);
+      Alert.alert('Error', e.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSave = async (data: FormState) => {
@@ -751,6 +757,42 @@ export default function DbManagerScreen() {
         onClose={() => { setFormVisible(false); setEditingConn(null); }}
         onSave={handleSave}
       />
+
+      {/* Delete confirmation modal */}
+      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
+        <View style={s.delOverlay}>
+          <View style={s.delCard}>
+            <View style={s.delIconWrap}>
+              <Feather name="trash-2" size={28} color="#EF4444" />
+            </View>
+            <Text style={s.delTitle}>Delete Connection</Text>
+            <Text style={s.delMsg}>
+              Remove <Text style={{ fontWeight: '700' }}>"{deleteTarget?.name}"</Text>?{'\n'}This cannot be undone.
+            </Text>
+            <View style={s.delBtnRow}>
+              <TouchableOpacity
+                style={s.delCancelBtn}
+                onPress={() => setDeleteTarget(null)}
+                activeOpacity={0.8}
+                disabled={deleting}
+              >
+                <Text style={s.delCancelTxt}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.delConfirmBtn}
+                onPress={confirmDelete}
+                activeOpacity={0.8}
+                disabled={deleting}
+              >
+                {deleting
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <><Feather name="trash-2" size={15} color="#fff" /><Text style={s.delConfirmTxt}>Delete</Text></>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -833,4 +875,32 @@ const s = StyleSheet.create({
     borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#BFDBFE',
   },
   infoTxt: { flex: 1, fontSize: 12, color: '#1E40AF', lineHeight: 18 },
+  // Delete confirmation modal
+  delOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  delCard: {
+    backgroundColor: '#fff', borderRadius: 24, padding: 28,
+    width: '100%', maxWidth: 360, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2, shadowRadius: 24, elevation: 16,
+  },
+  delIconWrap: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  delTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', marginBottom: 8 },
+  delMsg: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  delBtnRow: { flexDirection: 'row', gap: 12, width: '100%' },
+  delCancelBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F1F5F9', borderRadius: 14, paddingVertical: 14,
+  },
+  delCancelTxt: { fontSize: 15, fontWeight: '700', color: '#64748B' },
+  delConfirmBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#EF4444', borderRadius: 14, paddingVertical: 14,
+  },
+  delConfirmTxt: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
