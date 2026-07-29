@@ -222,18 +222,6 @@ export default function FinanceScreen() {
         </View>
       </View>
 
-      {/* Fee Type Breakdown Strip */}
-      {monthFeesByType.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', gap: 8 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.mutedForeground, alignSelf: 'center', marginRight: 4 }}>This Month:</Text>
-          {monthFeesByType.map(({ name, total }) => (
-            <View key={name} style={{ backgroundColor: colors.success + '18', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: colors.success + '30' }}>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.success }}>{name}</Text>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.success }}>₹{total.toLocaleString('en-IN')}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      )}
 
       {/* Tabs */}
       <View style={[s.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
