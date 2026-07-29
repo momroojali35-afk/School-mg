@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-# Install pnpm globally
-npm install -g pnpm
+# Install pnpm via corepack (bundled with Node.js, no write to /usr/lib needed)
+corepack enable pnpm 2>/dev/null || npm install -g pnpm --prefix="$HOME"
+export PATH="$HOME/bin:$PATH"
 
 # Install all workspace dependencies (allow postinstall scripts for esbuild etc.)
 pnpm install --no-frozen-lockfile --config.dangerouslyAllowAllBuilds=true
