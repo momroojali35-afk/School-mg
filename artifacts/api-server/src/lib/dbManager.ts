@@ -9,7 +9,7 @@
  */
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import * as schema from "@workspace/db";
+import * as schema from "@workspace/db/schema";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
