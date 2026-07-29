@@ -942,7 +942,7 @@ const ec = StyleSheet.create({
 });
 const mo = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '92%' },
+  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '92%', minHeight: '70%' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
   title: { fontSize: 18, fontWeight: '700' },
   stuBadge: { flexDirection: 'row', alignItems: 'center', padding: 14, marginHorizontal: 20, marginTop: 20, borderRadius: 14, gap: 12 },
