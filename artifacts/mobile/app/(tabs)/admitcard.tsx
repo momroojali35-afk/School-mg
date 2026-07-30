@@ -12,7 +12,7 @@ import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import { useApp, Student, Exam, getExamScheduleForClass, getExamSubjectsForClass } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
-import { downloadHtmlAsPdf } from '@/utils/pdfExport';
+import { downloadHtmlAsPdf, downloadMultipleHtmlsAsPdf } from '@/utils/pdfExport';
 import {
   documentLogoHtml,
   principalSignatureHtml,
@@ -583,8 +583,16 @@ export default function AdmitCardScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      const html = buildBulkHtml(list, selectedExam, template, documentBranding);
-      await downloadHtmlAsPdf(html, `Admit Cards – Class ${selectedClass}`, '.pg', 'img[alt="QR"]', true, (fn, uri) => setPdfSaved({ filename: fn, fileUri: uri }));
+      // Build a separate complete HTML document per student so each is rendered
+      // in its own iframe — eliminates blank pages caused by joining full documents.
+      const htmlPages = list.map(s => buildHtml(s, selectedExam, template, documentBranding));
+      await downloadMultipleHtmlsAsPdf(
+        htmlPages,
+        `Admit Cards – Class ${selectedClass}`,
+        '.pg',
+        true,
+        (fn, uri) => setPdfSaved({ filename: fn, fileUri: uri }),
+      );
     } catch (e: any) {
       if (!e?.message?.includes('cancelled')) Alert.alert('PDF Error', e?.message ?? 'Download failed');
     } finally { setLoading(false); }

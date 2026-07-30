@@ -260,6 +260,7 @@ export async function downloadHtmlAsPdf(
   _qrImgSelector = 'img[alt="QR Code"],img[alt="QR"]',
   triggerDownload = true,
   onSaved?: (filename: string, fileUri: string) => void,
+  marginMm = 0,
 ): Promise<string | null> {
   /* ── Native path ─────────────────────────────────────────────────────── */
   if (Platform.OS !== 'web') {
@@ -442,7 +443,9 @@ export async function downloadHtmlAsPdf(
 
       // PNG preserves colours perfectly; no JPEG compression artefacts on text/borders.
       const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, 0, A4_W, A4_H);
+      // marginMm > 0 adds white space on all sides; content is scaled to fit within margins.
+      const m = marginMm;
+      pdf.addImage(imgData, 'PNG', m, m, A4_W - 2 * m, A4_H - 2 * m);
     }
 
     console.log('[PDF] Saving:', `${safeName}.pdf`);
@@ -486,6 +489,7 @@ export async function downloadMultipleHtmlsAsPdf(
   pageSelector = '.page',
   triggerDownload = true,
   onSaved?: (filename: string, fileUri: string) => void,
+  marginMm = 0,
 ): Promise<string | null> {
   if (htmlPages.length === 0) return null;
 
@@ -672,7 +676,8 @@ export async function downloadMultipleHtmlsAsPdf(
     const canvas       = await capturePageCanvas(preparedHtml, i + 1);
 
     if (i > 0) pdf.addPage();
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, A4_W, A4_H);
+    const m = marginMm;
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', m, m, A4_W - 2 * m, A4_H - 2 * m);
     console.log(`[PDF] Page ${i + 1} added to PDF ✓`);
   }
 

@@ -1274,7 +1274,7 @@ export default function MarksheetScreen() {
     const onSaved = Platform.OS !== 'web'
       ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
       : undefined;
-    const url = await downloadHtmlAsPdf(html, filename, '.page', 'img[alt="QR Code"]', Platform.OS === 'web' ? false : true, onSaved);
+    const url = await downloadHtmlAsPdf(html, filename, '.page', 'img[alt="QR Code"]', Platform.OS === 'web' ? false : true, onSaved, 8);
     if (url && Platform.OS === 'web') {
       setDownloadReady({ url, filename: `${filename}.pdf` });
     }
@@ -1396,6 +1396,7 @@ export default function MarksheetScreen() {
         '.page',
         Platform.OS === 'web' ? false : true,
         onSaved,
+        8,
       );
       if (url && Platform.OS === 'web') {
         setDownloadReady({ url, filename: `Marksheets – ${selectedClass}.pdf` });
@@ -1459,6 +1460,7 @@ export default function MarksheetScreen() {
         '.page',
         Platform.OS === 'web' ? false : true,
         onSaved,
+        8,
       );
       if (url && Platform.OS === 'web') {
         setDownloadReady({ url, filename: `Combined Marksheets – ${combinedClass}.pdf` });
