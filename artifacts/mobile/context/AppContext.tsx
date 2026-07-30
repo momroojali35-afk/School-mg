@@ -629,7 +629,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           apiGet<DocumentBranding>('/settings/document-branding').catch(() => DEFAULT_STATE.documentBranding),
         ]);
         setState({
-          classes: c2, sections: sec2, students: s2.map(mapStudent), teachers: t2.map(mapTeacher),
+          classes: c2.sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })), sections: sec2, students: s2.map(mapStudent), teachers: t2.map(mapTeacher),
           subjects: sub2, feeTypes: ft2.map(mapFeeType), attendanceRecords: att2.map(mapAttendance),
           exams: ex2.map(mapExam), examResults: res2.map(mapExamResult), feeRecords: fee2.map(mapFeeRecord),
           expenses: exp2.map(mapExpense), salaryRecords: sal2.map(mapSalary), promotionRecords: pro2.map(mapPromotion),
@@ -641,7 +641,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       } else {
         setState({
-          classes, sections, students: students.map(mapStudent), teachers: teachers.map(mapTeacher),
+          classes: classes.sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })), sections, students: students.map(mapStudent), teachers: teachers.map(mapTeacher),
           subjects, feeTypes: feeTypes.map(mapFeeType), attendanceRecords: attendance.map(mapAttendance),
           exams: exams.map(mapExam), examResults: results.map(mapExamResult), feeRecords: fees.map(mapFeeRecord),
           expenses: expenses.map(mapExpense), salaryRecords: salaries.map(mapSalary), promotionRecords: promotions.map(mapPromotion),
@@ -765,7 +765,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!res.ok) throw new Error(`POST /api/classes failed: ${res.status}`);
     setState(prev => {
       if (prev.classes.includes(name)) return prev;
-      return { ...prev, classes: [...prev.classes, name].sort() };
+      return { ...prev, classes: [...prev.classes, name].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })) };
     });
   };
 
@@ -777,7 +777,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (res.status === 404) throw new Error('Class not found');
     if (res.status === 409) throw new Error('Class already exists');
     if (!res.ok) throw new Error(`PUT /api/classes failed: ${res.status}`);
-    setState(prev => ({ ...prev, classes: prev.classes.map(c => c === oldName ? trimmed : c).sort() }));
+    setState(prev => ({ ...prev, classes: prev.classes.map(c => c === oldName ? trimmed : c).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })) }));
   };
 
   const deleteClass = async (name: string): Promise<void> => {
