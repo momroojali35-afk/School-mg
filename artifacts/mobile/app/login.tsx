@@ -22,21 +22,29 @@ export default function LoginScreen() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Redirect to DB setup on first launch
+  // If a user is already signed in, send them to the right place.
+  // Admins go to db-setup first if the database hasn't been configured yet.
   useEffect(() => {
-    if (isSetupComplete === false) {
-      router.replace('/db-setup');
+    if (isLoading || !user || isSetupComplete === null) return;
+    if (user.role === 'admin') {
+      router.replace(isSetupComplete ? '/(tabs)' : '/db-setup');
+    } else {
+      if (isSetupComplete) router.replace('/teacher');
+      // If setup not done and a teacher session is somehow persisted, stay on login
     }
-  }, [isSetupComplete]);
-
-  useEffect(() => {
-    if (isLoading || !user) return;
-    router.replace(user.role === 'admin' ? '/(tabs)' : '/teacher');
-  }, [isLoading, user]);
+  }, [isLoading, user, isSetupComplete]);
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
       Alert.alert('Error', 'Please enter username and password');
+      return;
+    }
+    // Teachers cannot log in until an admin has configured the database
+    if (role === 'teacher' && isSetupComplete === false) {
+      Alert.alert(
+        'System Not Ready',
+        'The database has not been set up yet.\nPlease ask your administrator to configure the system first.',
+      );
       return;
     }
     setLoading(true);
@@ -45,8 +53,11 @@ export default function LoginScreen() {
     setLoading(false);
     if (result.success) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (role === 'admin') router.replace('/(tabs)');
-      else router.replace('/teacher');
+      if (role === 'admin') {
+        router.replace(isSetupComplete ? '/(tabs)' : '/db-setup');
+      } else {
+        router.replace('/teacher');
+      }
     } else {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Login Failed', result.error ?? 'Invalid credentials');
