@@ -259,6 +259,7 @@ export async function downloadHtmlAsPdf(
   pageSelector = '.page',
   _qrImgSelector = 'img[alt="QR Code"],img[alt="QR"]',
   triggerDownload = true,
+  onSaved?: (filename: string, fileUri: string) => void,
 ): Promise<string | null> {
   /* ── Native path ─────────────────────────────────────────────────────── */
   if (Platform.OS !== 'web') {
@@ -267,7 +268,11 @@ export async function downloadHtmlAsPdf(
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
     await FileSystem.copyAsync({ from: uri, to: destUri });
-    Alert.alert('PDF Saved', `"${safeName}.pdf" has been saved to your Files app.`);
+    if (onSaved) {
+      onSaved(`${safeName}.pdf`, destUri);
+    } else {
+      Alert.alert('PDF Saved', `"${safeName}.pdf" has been saved to your Files app.`);
+    }
     return destUri;
   }
 
@@ -480,6 +485,7 @@ export async function downloadMultipleHtmlsAsPdf(
   filename: string,
   pageSelector = '.page',
   triggerDownload = true,
+  onSaved?: (filename: string, fileUri: string) => void,
 ): Promise<string | null> {
   if (htmlPages.length === 0) return null;
 
@@ -491,13 +497,17 @@ export async function downloadMultipleHtmlsAsPdf(
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
     await FileSystem.copyAsync({ from: uri, to: destUri });
-    Alert.alert('PDF Saved', `"${safeName}.pdf" has been saved to your Files app.`);
+    if (onSaved) {
+      onSaved(`${safeName}.pdf`, destUri);
+    } else {
+      Alert.alert('PDF Saved', `"${safeName}.pdf" has been saved to your Files app.`);
+    }
     return destUri;
   }
 
   /* ── Single page: reuse the existing single-page pipeline ─────────────── */
   if (htmlPages.length === 1) {
-    return downloadHtmlAsPdf(htmlPages[0], filename, pageSelector, 'img[alt="QR Code"],img[alt="QR"]', triggerDownload);
+    return downloadHtmlAsPdf(htmlPages[0], filename, pageSelector, 'img[alt="QR Code"],img[alt="QR"]', triggerDownload, onSaved);
   }
 
   const safeName = filename.replace(/['"\\<>]/g, '').trim();

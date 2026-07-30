@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
   Modal, Alert, Platform, FlatList, ActivityIndicator, Image,
 } from 'react-native';
+import PDFSavedModal from '@/components/PDFSavedModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -487,6 +488,7 @@ export default function AdmitCardScreen() {
   const [showClassPicker, setShowClassPicker] = useState(false);
   const [previewStudent, setPreviewStudent] = useState<Student | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [pdfSaved, setPdfSaved] = useState<{ filename: string; fileUri: string } | null>(null);
 
   const acYear = getAcademicYear();
   const botPad = insets.bottom + 80;
@@ -554,7 +556,7 @@ export default function AdmitCardScreen() {
     setLoading(true);
     try {
       const html = buildHtml(student, selectedExam, template, documentBranding);
-      await downloadHtmlAsPdf(html, `Admit Card – ${student.name}`, '.pg', 'img[alt="QR"]');
+      await downloadHtmlAsPdf(html, `Admit Card – ${student.name}`, '.pg', 'img[alt="QR"]', true, (fn, uri) => setPdfSaved({ filename: fn, fileUri: uri }));
     } catch (e: any) {
       if (!e?.message?.includes('cancelled')) Alert.alert('PDF Error', e?.message ?? 'Download failed');
     } finally { setLoading(false); }
@@ -582,7 +584,7 @@ export default function AdmitCardScreen() {
     setLoading(true);
     try {
       const html = buildBulkHtml(list, selectedExam, template, documentBranding);
-      await downloadHtmlAsPdf(html, `Admit Cards – Class ${selectedClass}`, '.pg', 'img[alt="QR"]');
+      await downloadHtmlAsPdf(html, `Admit Cards – Class ${selectedClass}`, '.pg', 'img[alt="QR"]', true, (fn, uri) => setPdfSaved({ filename: fn, fileUri: uri }));
     } catch (e: any) {
       if (!e?.message?.includes('cancelled')) Alert.alert('PDF Error', e?.message ?? 'Download failed');
     } finally { setLoading(false); }
@@ -790,6 +792,12 @@ export default function AdmitCardScreen() {
   // ── Main screen ───────────────────────────────────────────────────────────────
   return (
     <View style={st.container}>
+      <PDFSavedModal
+        visible={!!pdfSaved}
+        filename={pdfSaved?.filename ?? ''}
+        fileUri={pdfSaved?.fileUri}
+        onDismiss={() => setPdfSaved(null)}
+      />
       {/* ── Page Header */}
       <LinearGradient colors={['#1e3a8a', '#2563EB']} style={[st.pageHeader, { paddingTop: insets.top + 12 }]}>
         <View style={st.phInner}>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import PDFSavedModal from '@/components/PDFSavedModal';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
   Modal, Alert, Platform, ActivityIndicator,
@@ -1167,6 +1168,7 @@ export default function MarksheetScreen() {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [combinedPreviewData, setCombinedPreviewData]     = useState<CombinedMarksheetData | null>(null);
   const [combinedPreviewVisible, setCombinedPreviewVisible] = useState(false);
+  const [pdfSaved, setPdfSaved] = useState<{ filename: string; fileUri: string } | null>(null);
 
   const botPad = insets.bottom + 86;
 
@@ -1264,7 +1266,10 @@ export default function MarksheetScreen() {
   }
 
   async function downloadHtml(html: string, filename: string) {
-    const url = await downloadHtmlAsPdf(html, filename, '.page', 'img[alt="QR Code"]', false);
+    const onSaved = Platform.OS !== 'web'
+      ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
+      : undefined;
+    const url = await downloadHtmlAsPdf(html, filename, '.page', 'img[alt="QR Code"]', Platform.OS === 'web' ? false : true, onSaved);
     if (url && Platform.OS === 'web') {
       setDownloadReady({ url, filename: `${filename}.pdf` });
     }
@@ -1377,11 +1382,15 @@ export default function MarksheetScreen() {
       const dataList = list.map(s => buildSingleData(s)).filter(Boolean) as MarksheetData[];
       // Render each student's marksheet in its own fresh iframe so that QR codes,
       // the Academic Session badge, logo, and header are fully loaded per page.
+      const onSaved = Platform.OS !== 'web'
+        ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
+        : undefined;
       const url = await downloadMultipleHtmlsAsPdf(
         dataList.map(d => buildSingleMarksheetHtml(d, documentBranding)),
         `Marksheets – ${selectedClass}`,
         '.page',
-        false,
+        Platform.OS === 'web' ? false : true,
+        onSaved,
       );
       if (url && Platform.OS === 'web') {
         setDownloadReady({ url, filename: `Marksheets – ${selectedClass}.pdf` });
@@ -1436,11 +1445,15 @@ export default function MarksheetScreen() {
       const dataList = combinedStudents.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
       // Render each student's marksheet in its own fresh iframe so that QR codes,
       // the Academic Session badge, logo, and header are fully loaded per page.
+      const onSaved = Platform.OS !== 'web'
+        ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
+        : undefined;
       const url = await downloadMultipleHtmlsAsPdf(
         dataList.map(d => buildCombinedMarksheetHtml(d, documentBranding)),
         `Combined Marksheets – ${combinedClass}`,
         '.page',
-        false,
+        Platform.OS === 'web' ? false : true,
+        onSaved,
       );
       if (url && Platform.OS === 'web') {
         setDownloadReady({ url, filename: `Combined Marksheets – ${combinedClass}.pdf` });
@@ -1469,6 +1482,12 @@ export default function MarksheetScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <PDFSavedModal
+        visible={!!pdfSaved}
+        filename={pdfSaved?.filename ?? ''}
+        fileUri={pdfSaved?.fileUri}
+        onDismiss={() => setPdfSaved(null)}
+      />
 
       {/* Header */}
       <LinearGradient
