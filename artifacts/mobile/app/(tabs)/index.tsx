@@ -1033,8 +1033,8 @@ export default function AdminDashboard() {
   // ── Handlers ───────────────────────────────────────────────────────────────
   const doLogout = async () => {
     setLogoutModal(false);
-    await logout();
     router.replace('/login');
+    await logout();
   };
 
   const openCredentialsModal = () => {
