@@ -161,6 +161,18 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
+            {/* Change Database — visible only on Admin tab, no login required */}
+            {role === 'admin' && (
+              <TouchableOpacity
+                style={s.changeDbBtn}
+                onPress={() => router.push('/db-manager' as any)}
+                activeOpacity={0.75}
+              >
+                <Feather name="database" size={14} color={colors.mutedForeground} />
+                <Text style={s.changeDbText}>Change Database</Text>
+              </TouchableOpacity>
+            )}
+
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -190,8 +202,10 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   inputIcon: { paddingLeft: 14 },
   input: { flex: 1, paddingHorizontal: 12, paddingVertical: 14, fontSize: 15, color: c.text },
   eyeBtn: { paddingRight: 14 },
-  loginBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 16, marginTop: 8, marginBottom: 20 },
+  loginBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 16, marginTop: 8, marginBottom: 12 },
   loginBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  changeDbBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 8 },
+  changeDbText: { fontSize: 13, color: c.mutedForeground, fontWeight: '600' },
   demoBox: { backgroundColor: c.secondary, borderRadius: 10, padding: 12 },
   demoTitle: { fontSize: 12, fontWeight: '700', color: c.primary, marginBottom: 4 },
   demoText: { fontSize: 12, color: c.primary, lineHeight: 18 },
