@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import ViewShot from 'react-native-view-shot';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput,
-  Modal, ScrollView, Alert, Platform,
+  Modal, ScrollView, Alert, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
@@ -97,7 +97,9 @@ export default function FinanceScreen() {
   const openCollect = (student: Student) => {
     setCollectStudent(student);
     setCollectFeeTypeId('');
-    setCollectAmount('');
+    // Pre-fill with balance due so the user sees the correct amount immediately
+    const fi = getStudentFeeInfo(student, feeRecords);
+    setCollectAmount(fi.remaining > 0 ? String(fi.remaining) : '');
     setCollectDesc(`Monthly Fee - ${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
     setCollectDate(now.toISOString().split('T')[0]);
     setCollectPaymentMethod('Cash');
@@ -410,9 +412,9 @@ export default function FinanceScreen() {
       )}
 
       {/* ════ Collect Fee Modal — Premium ════ */}
-      <Modal visible={showCollectModal} animationType="slide" transparent>
-        <View style={mo.overlay}>
-          <View style={[mo.sheet, { backgroundColor: colors.background }]}>
+      <Modal visible={showCollectModal} animationType="slide" transparent={false}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={{ flex: 1 }}>
             {/* Gradient header */}
             <View style={{ backgroundColor: colors.primary, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 24 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -537,7 +539,7 @@ export default function FinanceScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ════ Fee Type Picker Modal ════ */}
