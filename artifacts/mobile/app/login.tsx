@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Image,
 } from 'react-native';
+import SystemNotReadyModal from '@/components/SystemNotReadyModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -21,6 +22,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showNotReadyModal, setShowNotReadyModal] = useState(false);
 
   // If a user is already signed in, send them to the right place.
   // Admins go to db-setup first if the database hasn't been configured yet.
@@ -41,10 +43,7 @@ export default function LoginScreen() {
     }
     // Teachers cannot log in until an admin has configured the database
     if (role === 'teacher' && isSetupComplete === false) {
-      Alert.alert(
-        'System Not Ready',
-        'The database has not been set up yet.\nPlease ask your administrator to configure the system first.',
-      );
+      setShowNotReadyModal(true);
       return;
     }
     setLoading(true);
@@ -68,6 +67,10 @@ export default function LoginScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
+      <SystemNotReadyModal
+        visible={showNotReadyModal}
+        onDismiss={() => setShowNotReadyModal(false)}
+      />
       {/* Header */}
       <View style={s.header}>
         <Image
