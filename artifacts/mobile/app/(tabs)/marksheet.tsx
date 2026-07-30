@@ -101,7 +101,7 @@ function getGrade(pct: number): { grade: string; color: string; points: string }
   if (pct >= 70) return { grade: 'B+', color: '#2563EB', points: '8.0'  };
   if (pct >= 60) return { grade: 'B',  color: '#3B82F6', points: '7.0'  };
   if (pct >= 50) return { grade: 'C',  color: '#F59E0B', points: '6.0'  };
-  if (pct >= 33) return { grade: 'D',  color: '#F97316', points: '5.0'  };
+  if (pct >= 30) return { grade: 'D',  color: '#F97316', points: '5.0'  };
   return              { grade: 'F',  color: '#EF4444', points: '0.0'  };
 }
 
@@ -142,8 +142,8 @@ function calcMarksheet(
   const percentage = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
   const { grade, color: gradeColor, points: gradePoints } = getGrade(percentage);
   const passed =
-    percentage >= 33 &&
-    subjects.every(sub => (result.marks[sub] ?? 0) >= Math.ceil(subjectMaxMarks[sub] * 0.33));
+    percentage >= 30 &&
+    subjects.every(sub => (result.marks[sub] ?? 0) >= Math.ceil(subjectMaxMarks[sub] * 0.30));
 
   const classResults = allResults
     .filter(r => r.examId === exam.id && r.class === exam.class)
@@ -214,7 +214,7 @@ function calcCombinedMarksheet(
     });
     const pct = max > 0 ? (total / max) * 100 : 0;
     const grade = getGrade(pct).grade;
-    const passed = pct >= 33;
+    const passed = pct >= 30;
     return { subject: sub, marks, total, max, pct, grade, passed };
   });
 
@@ -297,7 +297,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
     percentage >= 70 ? 'Good performance. Continue to work hard to improve further.' :
     percentage >= 60 ? 'Satisfactory performance. More effort is needed in some subjects.' :
     percentage >= 50 ? 'Average performance. Significant improvement is required.' :
-    percentage >= 33 ? 'Below average. Needs to put in considerably more effort.' :
+    percentage >= 30 ? 'Below average. Needs to put in considerably more effort.' :
     'Failed. Student must appear for supplementary examination.';
 
   // corner SVG helper — rotation handled entirely by CSS on the wrapper div
@@ -618,7 +618,8 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
           <tr><td>70–79%</td><td>B+</td></tr>
           <tr><td>60–69%</td><td>B</td></tr>
           <tr><td>50–59%</td><td>C</td></tr>
-          <tr><td>&lt;50%</td><td>D/F</td></tr>
+          <tr><td>30–49%</td><td>D</td></tr>
+          <tr><td>&lt;30%</td><td>F</td></tr>
         </table>
       </div>
 
@@ -635,10 +636,6 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       <div class="sig-block">
          ${marksheetSignatureHtml('teacher', branding)}
         <div class="role">Class Teacher</div>
-      </div>
-      <div class="sig-block">
-         ${marksheetSignatureHtml('exam', branding)}
-        <div class="role">Exam In-Charge</div>
       </div>
       <div class="sig-block">
          ${marksheetSignatureHtml('principal', branding)}
@@ -772,15 +769,15 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
     percentage >= 70 ? 'Good performance. Continue to work hard to improve further.' :
     percentage >= 60 ? 'Satisfactory performance. More effort is needed in some subjects.' :
     percentage >= 50 ? 'Average performance. Significant improvement is required.' :
-    percentage >= 33 ? 'Below average. Needs to put in considerably more effort.' :
+    percentage >= 30 ? 'Below average. Needs to put in considerably more effort.' :
     'Failed. Student must appear for supplementary examination.';
 
-  const gradeRows = [['90% and above','A+'],['80% to 89%','A'],['70% to 79%','B+'],['60% to 69%','B'],['50% to 59%','C'],['Below 50%','D']]
+  const gradeRows = [['90% and above','A+'],['80% to 89%','A'],['70% to 79%','B+'],['60% to 69%','B'],['50% to 59%','C'],['30% to 49%','D'],['Below 30%','F']]
     .map(([r,g], i) => `<tr style="background:${i%2===0?'#fff':'#f5f7fd'}"><td style="padding:5px 10px;font-size:12px;color:#475569;border-bottom:1px solid #eef1f8">${r}</td><td style="padding:5px 10px;font-size:14px;font-weight:900;color:#0c1f4a;text-align:center;border-bottom:1px solid #eef1f8">${g}</td></tr>`).join('');
 
   // Auto-scale .inner if subject count would overflow A4.
   // Available inner height = 1123px(A4) - 10px(border) - 18px(padding) - 22px(inner-padding) = 1073px
-  const _innerContentH = 660 + subjectRows.length * 30;
+  const _innerContentH = 580 + subjectRows.length * 30;
   const _innerZoom = _innerContentH > 1073 ? (_innerContentH > 0 ? (1073 / _innerContentH).toFixed(3) : '') : '';
   const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
 
@@ -842,14 +839,14 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   table.mt th.sh { text-align:left; padding-left:12px; }
   table.mt th.sub { background:#122d60; font-size:9.5px; color:rgba(255,255,255,0.85); font-weight:600; }
   table.mt th.total-h { color:#e8c96a; border-left:2px solid rgba(255,255,255,0.28); }
-  table.mt tr.tr td { background:#e8edf8; font-weight:800; font-size:13px; border-top:2px solid #0c1f4a; border-bottom:none; }
+  table.mt tr.tr td { background:#0c1f4a; font-weight:800; font-size:13px; border-top:2px solid #0c1f4a; border-bottom:none; }
   table.mt tr.tr td:first-child { font-size:12px; }
   /* summary cards */
-  .summary { display:grid; grid-template-columns:repeat(6,1fr); gap:7px; margin-top:9px; page-break-inside:avoid; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .sc { border:1.5px solid #e2e8f0; border-radius:14px; padding:9px 5px 7px; text-align:center; background:#fff; box-shadow:0 6px 20px rgba(12,31,74,0.10), 0 1px 5px rgba(12,31,74,0.06); display:flex; flex-direction:column; align-items:center; }
-  .sc .si { display:flex; justify-content:center; align-items:center; margin-bottom:5px; width:40px; height:40px; border-radius:50%; flex-shrink:0; }
+  .summary { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:8px; margin-bottom:0; page-break-inside:avoid; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .sc { border:1.5px solid #e2e8f0; border-radius:14px; padding:6px 5px 5px; text-align:center; background:#fff; box-shadow:0 6px 20px rgba(12,31,74,0.10), 0 1px 5px rgba(12,31,74,0.06); display:flex; flex-direction:column; align-items:center; }
+  .sc .si { display:flex; justify-content:center; align-items:center; margin-bottom:4px; width:32px; height:32px; border-radius:50%; flex-shrink:0; }
   .sc .sl { font-size:8.5px; font-weight:700; color:#0c1f4a; letter-spacing:0.4px; line-height:1.5; text-transform:uppercase; }
-  .sc .sv { font-family:'Archivo Black',sans-serif; font-size:19px; color:#0c1f4a; margin-top:3px; line-height:1.1; }
+  .sc .sv { font-family:'Archivo Black',sans-serif; font-size:17px; color:#0c1f4a; margin-top:2px; line-height:1.1; }
   .sc .ss { font-size:8px; color:#64748b; margin-top:1px; line-height:1.3; }
   .sc .result { display:inline-block; margin-top:3px; padding:2px 8px; border-radius:20px; font-size:9.5px; font-weight:700; }
   .sc .pass { background:#d4edda; color:#1a7a40; }
@@ -967,7 +964,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <tbody>
         ${subjectRowsHtml}
         <tr class="tr">
-          <td style="padding:6px 12px;border-right:1px solid rgba(255,255,255,0.15);color:#fff">TOTAL (ALL SUBJECTS)</td>
+          <td style="padding:9px 12px;border-right:1px solid rgba(255,255,255,0.15);color:#fff;font-size:11px">TOTAL (ALL SUBJECTS)</td>
           ${examTotalCells}
           <td style="text-align:center;border-left:2px solid rgba(255,255,255,0.28);color:#e8c96a;font-size:15px">${grandTotal}</td>
           <td style="text-align:center;border-left:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.65);font-size:11px">/${grandMax}</td>
@@ -983,7 +980,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 1: Total Marks -->
       <div class="sc" style="border-color:#bfdbfe;border-top:3px solid #1e40af">
         <div class="si" style="background:#dbeafe">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <rect x="8" y="2" width="8" height="4" rx="1"/>
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
             <path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
@@ -996,7 +993,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 2: Total Obtained Marks -->
       <div class="sc" style="border-color:#a7f3d0;border-top:3px solid #059669">
         <div class="si" style="background:#dcfce7">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <path d="m9 12 2 2 4-4"/>
           </svg>
@@ -1008,33 +1005,33 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 3: Percentage -->
       <div class="sc" style="border-color:#bfdbfe;border-top:3px solid #2563eb">
         <div class="si" style="background:#eff6ff">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="5" x2="5" y2="19"/>
             <circle cx="6.5" cy="6.5" r="2.5"/>
             <circle cx="17.5" cy="17.5" r="2.5"/>
           </svg>
         </div>
         <div class="sl">PERCENTAGE</div>
-        <div class="sv" style="color:#2563eb;font-size:17px">${pctFmt}%</div>
+        <div class="sv" style="color:#2563eb;font-size:15px">${pctFmt}%</div>
       </div>
 
       <!-- Card 4: Overall Grade -->
       <div class="sc" style="border-color:#fcd34d;border-top:3px solid #d97706">
         <div class="si" style="background:#fef3c7">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="8" r="6"/>
             <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
           </svg>
         </div>
         <div class="sl">OVERALL GRADE</div>
-        <div class="sv" style="color:#d97706;font-size:24px">${grade}</div>
+        <div class="sv" style="color:#d97706;font-size:20px">${grade}</div>
         <span class="result ${passed?'pass':'fail'}">${passed?'PASS':'FAIL'}</span>
       </div>
 
       <!-- Card 5: Position / Rank -->
       <div class="sc" style="border-color:#fed7aa;border-top:3px solid #ea580c">
         <div class="si" style="background:#ffedd5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
             <path d="M4 22h16"/>
@@ -1044,14 +1041,14 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
           </svg>
         </div>
         <div class="sl">POSITION / RANK</div>
-        <div class="sv" style="color:#ea580c;font-size:21px">${rank}<sup style="font-size:10px">${rankSuffix(rank)}</sup></div>
+        <div class="sv" style="color:#ea580c;font-size:18px">${rank}<sup style="font-size:10px">${rankSuffix(rank)}</sup></div>
         <div class="ss">Out of ${totalStudents} Students</div>
       </div>
 
       <!-- Card 6: Grade Scale -->
       <div class="sc" style="border-color:#ddd6fe;border-top:3px solid #7c3aed">
         <div class="si" style="background:#f3e8ff">
-          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 3v18h18"/>
             <path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
           </svg>
@@ -1063,7 +1060,8 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
           <tr><td>70–79%</td><td>B+</td></tr>
           <tr><td>60–69%</td><td>B</td></tr>
           <tr><td>50–59%</td><td>C</td></tr>
-          <tr><td>&lt;50%</td><td>D/F</td></tr>
+          <tr><td>30–49%</td><td>D</td></tr>
+          <tr><td>&lt;30%</td><td>F</td></tr>
         </table>
       </div>
 
@@ -1080,10 +1078,6 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
        <div class="sig-block">
         ${marksheetSignatureHtml('teacher', branding)}
         <div class="role">Class Teacher</div>
-      </div>
-      <div class="sig-block">
-        ${marksheetSignatureHtml('exam', branding)}
-        <div class="role">Exam In-Charge</div>
       </div>
       <div class="sig-block">
         ${marksheetSignatureHtml('principal', branding)}
