@@ -1662,7 +1662,7 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   subjectMgrText: { fontWeight: '600', fontSize: 13 },
   createBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20 },
   createBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  backBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, gap: 12 },
+  backBar: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 20, paddingVertical: 12, borderBottomWidth: 1, gap: 10 },
   backBtn: { padding: 4 },
   backTitle: { fontSize: 18, fontWeight: '700' },
   enterMarksBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
@@ -1696,5 +1696,5 @@ const fr = StyleSheet.create({
   td: { fontSize: 12, fontWeight: '500', textAlign: 'center' },
   resultBadge: { paddingHorizontal: 5, paddingVertical: 3, borderRadius: 6 },
   tableFooter: { borderRadius: 10, borderWidth: 1, padding: 12, marginTop: 4 },
-  dlBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
+  dlBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, flexShrink: 0 },
 });
