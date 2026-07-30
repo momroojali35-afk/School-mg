@@ -615,19 +615,19 @@ function FinanceDetailPanel({
     return [...fees, ...exps].sort((a, b) => b.date.localeCompare(a.date));
   }, [filteredFees, filteredExp, tab]);
 
+  const fpInsets = useSafeAreaInsets();
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={fp.overlay}>
-        <TouchableOpacity style={{ flex: 1 }} onPress={onClose} activeOpacity={1} />
-        <View style={fp.sheet}>
-          <View style={fp.handle} />
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+      <View style={[fp.sheet, { paddingTop: fpInsets.top, paddingBottom: fpInsets.bottom + 12 }]}>
 
           {/* Header */}
           <View style={fp.header}>
-            <Text style={fp.headerTitle}>Financial Overview</Text>
-            <TouchableOpacity onPress={onClose} style={fp.closeBtn} activeOpacity={0.7}>
-              <Feather name="x" size={18} color="#64748B" />
+            <TouchableOpacity onPress={onClose} style={fp.backBtn} activeOpacity={0.7}>
+              <Feather name="arrow-left" size={20} color="#0C1F4A" />
             </TouchableOpacity>
+            <Text style={fp.headerTitle}>Financial Overview</Text>
+            <View style={{ width: 36 }} />
           </View>
 
           {/* Period pills */}
@@ -748,7 +748,6 @@ function FinanceDetailPanel({
               ))}
             </View>
           </ScrollView>
-        </View>
       </View>
     </Modal>
   );
@@ -2270,23 +2269,24 @@ const bc = StyleSheet.create({
 
 // ─── Finance Detail Panel styles ───────────────────────────────────────────────
 const fp = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: '#F8FAFC' },
   sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 26, borderTopRightRadius: 26,
-    maxHeight: '92%', minHeight: '60%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    flex: 1,
+    backgroundColor: '#F8FAFC',
   },
-  handle: {
-    width: 38, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2,
-    alignSelf: 'center', marginTop: 12, marginBottom: 4,
-  },
+  handle: { display: 'none' as any },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 13,
+    backgroundColor: '#fff',
     borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+    gap: 10,
   },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: '#0C1F4A', letterSpacing: -0.3 },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: '#0C1F4A', letterSpacing: -0.3, textAlign: 'center' },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center',
+  },
   closeBtn: {
     width: 30, height: 30, borderRadius: 15,
     backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center',
