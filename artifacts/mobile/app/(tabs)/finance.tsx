@@ -1,9 +1,11 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import ViewShot from 'react-native-view-shot';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput,
   Modal, ScrollView, Alert, Platform, KeyboardAvoidingView,
+  Animated, Easing,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -14,7 +16,9 @@ import { printFeeReceipt, shareReceiptWhatsApp } from '@/utils/receipt';
 import { buildReminderMessage, sendReminderSMS, shareReminderImage } from '@/utils/reminder';
 import ReminderCard from '@/components/ReminderCard';
 
-type Tab = 'fees' | 'feeTypes' | 'expenses';
+type Tab = 'overview' | 'fees' | 'feeTypes' | 'expenses';
+type Period = 'today' | 'week' | 'month' | 'year' | 'all';
+
 const EXPENSE_CATEGORIES = ['Supplies', 'Utilities', 'Salaries', 'Maintenance', 'Events', 'Other'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const PAYMENT_METHODS = [
@@ -23,13 +27,91 @@ const PAYMENT_METHODS = [
   { value: 'Card', icon: 'credit-card' as const },
   { value: 'Check', icon: 'file-text' as const },
 ];
+const PERIODS: { key: Period; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'week', label: 'This Week' },
+  { key: 'month', label: 'This Month' },
+  { key: 'year', label: 'This Year' },
+  { key: 'all', label: 'All Time' },
+];
+const TABS: { key: Tab; icon: string; label: string }[] = [
+  { key: 'overview', icon: 'bar-chart-2', label: 'Overview' },
+  { key: 'fees', icon: 'users', label: 'Collect' },
+  { key: 'feeTypes', icon: 'tag', label: 'Types' },
+  { key: 'expenses', icon: 'trending-down', label: 'Expenses' },
+];
+
+// ── Number formatter ─────────────────────────────────────────────────────────
+function fmt(n: number) {
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000)   return `₹${(n / 1000).toFixed(1)}k`;
+  return `₹${n.toLocaleString('en-IN')}`;
+}
+
+// ── Animated horizontal progress bar ─────────────────────────────────────────
+function ProgressBar({ pct, color }: { pct: number; color: string }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: pct,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [pct]);
+  const w = anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  return (
+    <View style={{ height: 6, backgroundColor: color + '22', borderRadius: 3, overflow: 'hidden', marginTop: 7 }}>
+      <Animated.View style={{ height: 6, width: w, backgroundColor: color, borderRadius: 3 }} />
+    </View>
+  );
+}
+
+// ── Weekly bar chart ──────────────────────────────────────────────────────────
+function WeeklyChart({ data, feeColor, expColor }: {
+  data: { label: string; fees: number; expenses: number }[];
+  feeColor: string; expColor: string;
+}) {
+  const maxVal = Math.max(...data.flatMap(d => [d.fees, d.expenses]), 1);
+  const MAX_H = 84;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 8 }}>
+      {data.map((d, i) => (
+        <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: MAX_H, gap: 4 }}>
+            <View style={{
+              width: 13,
+              height: Math.max(d.fees > 0 ? 8 : 2, (d.fees / maxVal) * MAX_H),
+              backgroundColor: feeColor,
+              borderRadius: 4,
+            }} />
+            <View style={{
+              width: 13,
+              height: Math.max(d.expenses > 0 ? 6 : 2, (d.expenses / maxVal) * MAX_H),
+              backgroundColor: expColor,
+              borderRadius: 4,
+              opacity: d.expenses > 0 ? 1 : 0.25,
+            }} />
+          </View>
+          <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '700' }}>{d.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function FinanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { students, feeRecords, addFeeRecord, deleteFeeRecord, feeTypes, addFeeType, updateFeeType, deleteFeeType, expenses, addExpense, deleteExpense } = useApp();
+  const {
+    students, feeRecords, addFeeRecord, deleteFeeRecord,
+    feeTypes, addFeeType, updateFeeType, deleteFeeType,
+    expenses, addExpense, deleteExpense,
+  } = useApp();
 
-  const [tab, setTab] = useState<Tab>('fees');
+  const [tab, setTab] = useState<Tab>('overview');
+  const [period, setPeriod] = useState<Period>('month');
+  const [activeMetric, setActiveMetric] = useState<'fees' | 'expenses' | 'net'>('fees');
 
   // ── Fee collection state ──
   const [showCollectModal, setShowCollectModal] = useState(false);
@@ -68,36 +150,97 @@ export default function FinanceScreen() {
   // ── Post-collect receipt modal ──
   const [receiptModal, setReceiptModal] = useState<{ record: any; student: Student } | null>(null);
 
+  // ── Date helpers ─────────────────────────────────────────────────────────
   const now = new Date();
-  const monthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const monthFees = useMemo(() => feeRecords.filter(f => f.date.startsWith(monthStr)).reduce((s, f) => s + f.amount, 0), [feeRecords, monthStr]);
-  const monthExpenses = useMemo(() => expenses.filter(e => e.date.startsWith(monthStr)).reduce((s, e) => s + e.amount, 0), [expenses, monthStr]);
-  const monthFeesByType = useMemo(() => {
+  const todayStr = now.toISOString().split('T')[0];
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const yearStr = `${now.getFullYear()}`;
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6);
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+
+  // ── Period-filtered records ───────────────────────────────────────────────
+  const periodFees = useMemo(() => {
+    switch (period) {
+      case 'today': return feeRecords.filter(f => f.date === todayStr);
+      case 'week':  return feeRecords.filter(f => f.date >= weekStartStr && f.date <= todayStr);
+      case 'month': return feeRecords.filter(f => f.date.startsWith(monthStr));
+      case 'year':  return feeRecords.filter(f => f.date.startsWith(yearStr));
+      default:      return feeRecords;
+    }
+  }, [feeRecords, period, todayStr, weekStartStr, monthStr, yearStr]);
+
+  const periodExpenses = useMemo(() => {
+    switch (period) {
+      case 'today': return expenses.filter(e => e.date === todayStr);
+      case 'week':  return expenses.filter(e => e.date >= weekStartStr && e.date <= todayStr);
+      case 'month': return expenses.filter(e => e.date.startsWith(monthStr));
+      case 'year':  return expenses.filter(e => e.date.startsWith(yearStr));
+      default:      return expenses;
+    }
+  }, [expenses, period, todayStr, weekStartStr, monthStr, yearStr]);
+
+  const totalFees     = useMemo(() => periodFees.reduce((s, f) => s + f.amount, 0), [periodFees]);
+  const totalExpenses = useMemo(() => periodExpenses.reduce((s, e) => s + e.amount, 0), [periodExpenses]);
+  const netBalance    = totalFees - totalExpenses;
+
+  // ── Weekly chart data (always current month) ─────────────────────────────
+  const weeklyChartData = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const weeks = Array.from({ length: 4 }, (_, w) => ({
+      label: `W${w + 1}`,
+      start: `${monthStr}-${pad(w * 7 + 1)}`,
+      end:   `${monthStr}-${pad(Math.min((w + 1) * 7, 31))}`,
+    }));
+    return weeks.map(({ label, start, end }) => ({
+      label,
+      fees:     feeRecords.filter(f => f.date >= start && f.date <= end).reduce((s, f) => s + f.amount, 0),
+      expenses: expenses.filter(e => e.date >= start && e.date <= end).reduce((s, e) => s + e.amount, 0),
+    }));
+  }, [feeRecords, expenses, monthStr]);
+
+  // ── Fee type breakdown for period ────────────────────────────────────────
+  const feesByType = useMemo(() => {
     const map: Record<string, number> = {};
-    feeRecords.filter(f => f.date.startsWith(monthStr)).forEach(f => {
+    periodFees.forEach(f => {
       const key = f.feeTypeName ?? f.description ?? 'Other';
       map[key] = (map[key] ?? 0) + f.amount;
     });
-    return Object.entries(map).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total);
-  }, [feeRecords, monthStr]);
+    return Object.entries(map)
+      .map(([name, amount]) => ({ name, amount, pct: totalFees > 0 ? amount / totalFees : 0 }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 6);
+  }, [periodFees, totalFees]);
 
-  const getStudentLastFee = (studentId: string) =>
-    feeRecords.filter(f => f.studentId === studentId).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
-  const getStudentTotal = (studentId: string) =>
-    feeRecords.filter(f => f.studentId === studentId).reduce((s, f) => s + f.amount, 0);
+  // ── Recent combined transactions ─────────────────────────────────────────
+  const recentTxns = useMemo(() => {
+    const fees = periodFees.map(f => ({
+      id: f.id, name: f.studentName ?? 'Student',
+      sub: f.feeTypeName ?? f.description, amount: f.amount, date: f.date, type: 'fee' as const,
+    }));
+    const exps = periodExpenses.map(e => ({
+      id: e.id, name: e.description,
+      sub: e.category, amount: -e.amount, date: e.date, type: 'expense' as const,
+    }));
+    return [...fees, ...exps].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
+  }, [periodFees, periodExpenses]);
 
-  const uniqueClasses = useMemo(() => ['All', ...Array.from(new Set(students.map(s => s.class))).sort()], [students]);
-  const filteredStudents = useMemo(() => students.filter(s => {
+  // ── Legacy month-based values (used in student fee cards) ────────────────
+  const monthFees     = useMemo(() => feeRecords.filter(f => f.date.startsWith(monthStr)).reduce((s, f) => s + f.amount, 0), [feeRecords, monthStr]);
+  const monthExpenses = useMemo(() => expenses.filter(e => e.date.startsWith(monthStr)).reduce((s, e) => s + e.amount, 0), [expenses, monthStr]);
+
+  const getStudentLastFee  = (id: string) => feeRecords.filter(f => f.studentId === id).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+  const getStudentTotal    = (id: string) => feeRecords.filter(f => f.studentId === id).reduce((s, f) => s + f.amount, 0);
+  const uniqueClasses      = useMemo(() => ['All', ...Array.from(new Set(students.map(s => s.class))).sort()], [students]);
+  const filteredStudents   = useMemo(() => students.filter(s => {
     const matchSearch = feeSearch === '' || s.name.toLowerCase().includes(feeSearch.toLowerCase());
-    const matchClass = feeClassFilter === 'All' || s.class === feeClassFilter;
+    const matchClass  = feeClassFilter === 'All' || s.class === feeClassFilter;
     return matchSearch && matchClass;
   }), [students, feeSearch, feeClassFilter]);
 
-  // ── Collect fee handlers ──
+  // ── Collect fee handlers ──────────────────────────────────────────────────
   const openCollect = (student: Student) => {
     setCollectStudent(student);
     setCollectFeeTypeId('');
-    // Pre-fill with balance due so the user sees the correct amount immediately
     const fi = getStudentFeeInfo(student, feeRecords);
     setCollectAmount(fi.remaining > 0 ? String(fi.remaining) : '');
     setCollectDesc(`Monthly Fee - ${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
@@ -116,14 +259,9 @@ export default function FinanceScreen() {
     if (!collectAmount || Number(collectAmount) <= 0) { Alert.alert('Validation', 'Enter a valid amount'); return; }
     if (!collectDesc.trim()) { Alert.alert('Validation', 'Enter a description'); return; }
     if (!collectStudent) return;
-
     const finalAmt = Number(collectAmount);
-
     const selectedFt = feeTypes.find(f => f.id === collectFeeTypeId);
-    const isAnnualFee = selectedFt?.category === 'annual' ||
-      (selectedFt?.name.toLowerCase().includes('annual fee') ?? false);
-
-    // Overpayment check — only for Annual Fee
+    const isAnnualFee = selectedFt?.category === 'annual' || (selectedFt?.name.toLowerCase().includes('annual fee') ?? false);
     if (isAnnualFee) {
       const fi = getStudentFeeInfo(collectStudent, feeRecords);
       if (fi.annualFee > 0 && finalAmt > fi.remaining) {
@@ -131,39 +269,24 @@ export default function FinanceScreen() {
         return;
       }
     }
-
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const feeTypeName = selectedFt?.name;
     const record = addFeeRecord({
-      studentId: collectStudent.id,
-      studentName: collectStudent.name,
-      class: collectStudent.class,
-      amount: finalAmt,
-      date: collectDate || now.toISOString().split('T')[0],
-      description: collectDesc.trim(),
-      feeTypeId: collectFeeTypeId,
-      feeTypeName: feeTypeName,
-      collectedBy: 'Admin',
-      paymentMethod: collectPaymentMethod,
+      studentId: collectStudent.id, studentName: collectStudent.name, class: collectStudent.class,
+      amount: finalAmt, date: collectDate || now.toISOString().split('T')[0],
+      description: collectDesc.trim(), feeTypeId: collectFeeTypeId, feeTypeName,
+      collectedBy: 'Admin', paymentMethod: collectPaymentMethod,
       feeCategory: isAnnualFee ? 'annual' : 'additional',
     });
     setShowCollectModal(false);
     setReceiptModal({ record, student: collectStudent });
   };
-
   const confirmDeleteFee = (id: string, desc: string) => {
-    setConfirmModal({
-      title: 'Delete Fee Record',
-      message: `Delete "${desc}"?`,
-      onConfirm: async () => {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        deleteFeeRecord(id);
-      },
-    });
+    setConfirmModal({ title: 'Delete Fee Record', message: `Delete "${desc}"?`, onConfirm: async () => { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); deleteFeeRecord(id); } });
   };
 
-  // ── Fee type handlers ──
-  const openAddFeeType = () => { setEditingFeeType(null); setFtForm({ name: '', amount: '', description: '' }); setShowFeeTypeModal(true); };
+  // ── Fee type handlers ────────────────────────────────────────────────────
+  const openAddFeeType  = () => { setEditingFeeType(null); setFtForm({ name: '', amount: '', description: '' }); setShowFeeTypeModal(true); };
   const openEditFeeType = (ft: FeeType) => { setEditingFeeType(ft); setFtForm({ name: ft.name, amount: String(ft.amount), description: ft.description }); setShowFeeTypeModal(true); };
   const handleSaveFeeType = async () => {
     if (!ftForm.name.trim()) { Alert.alert('Validation', 'Enter a fee name'); return; }
@@ -174,17 +297,10 @@ export default function FinanceScreen() {
     setShowFeeTypeModal(false);
   };
   const confirmDeleteFeeType = (ft: FeeType) => {
-    setConfirmModal({
-      title: 'Delete Fee Type',
-      message: `Delete "${ft.name}"?`,
-      onConfirm: async () => {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        deleteFeeType(ft.id);
-      },
-    });
+    setConfirmModal({ title: 'Delete Fee Type', message: `Delete "${ft.name}"?`, onConfirm: async () => { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); deleteFeeType(ft.id); } });
   };
 
-  // ── Expense handlers ──
+  // ── Expense handlers ─────────────────────────────────────────────────────
   const handleAddExpense = async () => {
     if (!expForm.description.trim() || !expForm.amount || Number(expForm.amount) <= 0) { Alert.alert('Validation', 'Fill all fields'); return; }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -193,48 +309,184 @@ export default function FinanceScreen() {
     setShowExpenseModal(false);
   };
   const confirmDeleteExpense = (id: string, desc: string) => {
-    setConfirmModal({
-      title: 'Delete Expense',
-      message: `Delete "${desc}"?`,
-      onConfirm: async () => {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        deleteExpense(id);
-      },
-    });
+    setConfirmModal({ title: 'Delete Expense', message: `Delete "${desc}"?`, onConfirm: async () => { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); deleteExpense(id); } });
   };
 
-  const s = styles(colors);
   const botPad = Platform.OS === 'web' ? 84 : insets.bottom + 80;
+  const METRIC_COLORS = { fees: colors.success, expenses: colors.destructive, net: colors.primary };
+
+  // ── Stat card config ──────────────────────────────────────────────────────
+  const METRICS = [
+    { key: 'fees' as const,     label: 'Fees Collected', value: totalFees,     icon: 'arrow-down-circle', color: colors.success },
+    { key: 'expenses' as const, label: 'Total Expenses',  value: totalExpenses, icon: 'trending-down',     color: colors.destructive },
+    { key: 'net' as const,      label: 'Net Balance',     value: netBalance,    icon: 'briefcase',         color: colors.primary },
+  ];
 
   return (
-    <View style={[s.root, { backgroundColor: colors.background }]}>
-      {/* Summary Strip */}
-      <View style={[s.summary, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={[s.sumCard, { backgroundColor: colors.success + '15' }]}>
-          <Text style={[s.sumVal, { color: colors.success }]}>₹{monthFees.toLocaleString('en-IN')}</Text>
-          <Text style={[s.sumLabel, { color: colors.success }]}>Fees This Month</Text>
+    <View style={[s.root, { backgroundColor: '#F1F5F9' }]}>
+
+      {/* ── Premium Gradient Header ─────────────────────────────────────── */}
+      <LinearGradient
+        colors={['#0F2460', '#1E3A8A', '#2952B3']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={[s.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={s.headerTop}>
+          <View>
+            <Text style={s.headerEyebrow}>School Finance</Text>
+            <Text style={s.headerTitle}>Financial Overview</Text>
+          </View>
+          <View style={[s.headerBadge, { backgroundColor: 'rgba(200,160,64,0.22)', borderColor: 'rgba(200,160,64,0.45)' }]}>
+            <Feather name="shield" size={12} color="#C8A040" />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#C8A040', marginLeft: 4 }}>Admin</Text>
+          </View>
         </View>
-        <View style={[s.sumCard, { backgroundColor: colors.destructive + '15' }]}>
-          <Text style={[s.sumVal, { color: colors.destructive }]}>₹{monthExpenses.toLocaleString('en-IN')}</Text>
-          <Text style={[s.sumLabel, { color: colors.destructive }]}>Expenses</Text>
-        </View>
-        <View style={[s.sumCard, { backgroundColor: colors.primary + '15' }]}>
-          <Text style={[s.sumVal, { color: colors.primary }]}>₹{(monthFees - monthExpenses).toLocaleString('en-IN')}</Text>
-          <Text style={[s.sumLabel, { color: colors.primary }]}>Net</Text>
-        </View>
+
+        {/* Period pills */}
+        <ScrollView
+          horizontal showsHorizontalScrollIndicator={false}
+          style={{ marginTop: 16 }}
+          contentContainerStyle={{ paddingHorizontal: 2, gap: 8, paddingBottom: 4 }}
+        >
+          {PERIODS.map(p => (
+            <TouchableOpacity
+              key={p.key}
+              onPress={() => setPeriod(p.key)}
+              style={[s.periodPill, period === p.key && s.periodPillActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.periodPillText, period === p.key && s.periodPillTextActive]}>{p.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </LinearGradient>
+
+      {/* ── Tab Bar ────────────────────────────────────────────────────────── */}
+      <View style={[s.tabBar, { backgroundColor: '#fff', borderBottomColor: '#E2E8F0' }]}>
+        {TABS.map(t => {
+          const active = tab === t.key;
+          return (
+            <TouchableOpacity key={t.key} style={s.tabBtn} onPress={() => setTab(t.key)} activeOpacity={0.8}>
+              <Feather name={t.icon as any} size={17} color={active ? colors.primary : '#94A3B8'} />
+              <Text style={[s.tabLabel, { color: active ? colors.primary : '#94A3B8' }]}>{t.label}</Text>
+              {active && <View style={[s.tabIndicator, { backgroundColor: colors.primary }]} />}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
+      {/* ══════════════════════════════════════════════════════════════════════
+          OVERVIEW TAB
+         ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 'overview' && (
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: botPad }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── Stat Cards ────────────────────────────────────────────────── */}
+          <View style={s.statRow}>
+            {METRICS.map(m => {
+              const active = activeMetric === m.key;
+              return (
+                <TouchableOpacity
+                  key={m.key}
+                  style={[s.statCard, active && { borderColor: m.color, borderWidth: 1.5 }]}
+                  onPress={() => setActiveMetric(m.key)}
+                  activeOpacity={0.85}
+                >
+                  <View style={[s.statIconWrap, { backgroundColor: m.color + '18' }]}>
+                    <Feather name={m.icon as any} size={18} color={m.color} />
+                  </View>
+                  <Text style={[s.statValue, { color: m.color }]}>{fmt(m.value)}</Text>
+                  <Text style={s.statLabel}>{m.label}</Text>
+                  {active && <View style={[s.statActiveDot, { backgroundColor: m.color }]} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-      {/* Tabs */}
-      <View style={[s.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {([['fees','Fee Collection'],['feeTypes','Fee Types'],['expenses','Expenses']] as [Tab,string][]).map(([t, label]) => (
-          <TouchableOpacity key={t} style={[s.tabBtn, tab === t && { borderBottomColor: colors.primary }]} onPress={() => setTab(t)}>
-            <Text style={[s.tabText, { color: tab === t ? colors.primary : colors.mutedForeground }]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+          {/* ── Bar Chart ────────────────────────────────────────────────── */}
+          <View style={s.section}>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Monthly Breakdown</Text>
+              <View style={s.legend}>
+                <View style={[s.legendDot, { backgroundColor: colors.success }]} />
+                <Text style={s.legendText}>Fees</Text>
+                <View style={[s.legendDot, { backgroundColor: colors.destructive, marginLeft: 10 }]} />
+                <Text style={s.legendText}>Expenses</Text>
+              </View>
+            </View>
+            <WeeklyChart data={weeklyChartData} feeColor={colors.success} expColor={colors.destructive} />
+          </View>
 
-      {/* ── Fee Collection Tab ── */}
+          {/* ── Collected by Fee Type ─────────────────────────────────────── */}
+          <View style={s.section}>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Collected by Fee Type</Text>
+              <Text style={s.sectionSub}>{fmt(totalFees)} total</Text>
+            </View>
+            {feesByType.length === 0 ? (
+              <Text style={s.emptyMsg}>No fee collections for this period</Text>
+            ) : (
+              feesByType.map((ft, i) => {
+                const DOT_COLORS = [colors.primary, colors.success, colors.warning, '#8B5CF6', '#06B6D4', '#C8A040'];
+                const dotColor = DOT_COLORS[i % DOT_COLORS.length];
+                return (
+                  <View key={ft.name} style={s.feeTypeRow}>
+                    <View style={s.feeTypeLeft}>
+                      <View style={[s.feeTypeDot, { backgroundColor: dotColor }]} />
+                      <Text style={s.feeTypeName} numberOfLines={1}>{ft.name}</Text>
+                    </View>
+                    <View style={s.feeTypeRight}>
+                      <Text style={[s.feeTypeAmount, { color: colors.text }]}>₹{ft.amount.toLocaleString('en-IN')}</Text>
+                      <Text style={s.feeTypePct}>{(ft.pct * 100).toFixed(1)}%</Text>
+                    </View>
+                    <ProgressBar pct={ft.pct} color={dotColor} />
+                  </View>
+                );
+              })
+            )}
+          </View>
+
+          {/* ── Recent Transactions ───────────────────────────────────────── */}
+          <View style={[s.section, { marginBottom: 8 }]}>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Transactions ({recentTxns.length})</Text>
+              {recentTxns.length > 0 && (
+                <TouchableOpacity onPress={() => setTab('fees')} activeOpacity={0.8}>
+                  <Text style={[s.sectionSub, { color: colors.primary, fontWeight: '700' }]}>Manage →</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {recentTxns.length === 0 ? (
+              <Text style={s.emptyMsg}>No transactions for this period</Text>
+            ) : (
+              recentTxns.map(txn => (
+                <View key={txn.id} style={s.txnRow}>
+                  <View style={[s.txnAvatar, {
+                    backgroundColor: txn.type === 'fee' ? colors.success + '18' : colors.destructive + '18',
+                  }]}>
+                    <Text style={[s.txnAvatarText, { color: txn.type === 'fee' ? colors.success : colors.destructive }]}>
+                      {txn.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.txnName} numberOfLines={1}>{txn.name}</Text>
+                    <Text style={s.txnSub} numberOfLines={1}>{txn.sub} • {txn.date}</Text>
+                  </View>
+                  <Text style={[s.txnAmount, { color: txn.amount > 0 ? colors.success : colors.destructive }]}>
+                    {txn.amount > 0 ? '+' : ''}₹{Math.abs(txn.amount).toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          FEE COLLECTION TAB
+         ══════════════════════════════════════════════════════════════════════ */}
       {tab === 'fees' && (
         <FlatList
           data={filteredStudents}
@@ -242,10 +494,10 @@ export default function FinanceScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
           ListHeaderComponent={() => (
             <View style={{ marginBottom: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 10 }}>
+              <View style={[fc.searchBar, { backgroundColor: '#fff', borderColor: '#E2E8F0' }]}>
                 <Feather name="search" size={16} color={colors.mutedForeground} />
                 <TextInput
-                  style={{ flex: 1, color: colors.text, fontSize: 15 }}
+                  style={{ flex: 1, color: colors.text, fontSize: 15, marginLeft: 8 }}
                   placeholder="Search students..."
                   placeholderTextColor={colors.mutedForeground}
                   value={feeSearch}
@@ -261,10 +513,10 @@ export default function FinanceScreen() {
                 {uniqueClasses.map(cls => (
                   <TouchableOpacity
                     key={cls}
-                    style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, backgroundColor: feeClassFilter === cls ? colors.primary : colors.muted, borderWidth: 1, borderColor: feeClassFilter === cls ? colors.primary : colors.border }}
+                    style={[fc.classPill, feeClassFilter === cls && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                     onPress={() => setFeeClassFilter(cls)}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: feeClassFilter === cls ? '#fff' : colors.mutedForeground }}>{cls}</Text>
+                    <Text style={[fc.classPillText, feeClassFilter === cls && { color: '#fff' }]}>{cls}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -277,23 +529,22 @@ export default function FinanceScreen() {
             const STATUS_COLORS: Record<string, string> = { paid: colors.success, partial: colors.warning, pending: colors.destructive, 'no-fee': colors.mutedForeground };
             const STATUS_LABELS: Record<string, string> = { paid: 'Paid', partial: 'Partial', pending: 'Pending', 'no-fee': 'No Fee Set' };
             const statusColor = STATUS_COLORS[fi.status];
-            const isPaid = fi.status === 'paid';
             return (
-              <View style={[fc.card, { backgroundColor: colors.card }]}>
+              <View style={fc.card}>
                 <View style={fc.row}>
-                  <View style={[fc.avatar, { backgroundColor: colors.secondary }]}>
+                  <View style={[fc.avatar, { backgroundColor: colors.primary + '18' }]}>
                     <Text style={[fc.avatarText, { color: colors.primary }]}>{st.name.charAt(0)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[fc.name, { color: colors.text }]}>{st.name}</Text>
                     <Text style={[fc.sub, { color: colors.mutedForeground }]}>{st.class} • Roll {st.rollNumber}</Text>
-                    {last && <Text style={[fc.sub, { color: colors.mutedForeground }]}>Last payment: {last.date}</Text>}
+                    {last && <Text style={[fc.sub, { color: colors.mutedForeground }]}>Last: {last.date}</Text>}
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
                     <View style={[fc.statusBadge, { backgroundColor: statusColor + '20' }]}>
                       <Text style={{ fontSize: 10, fontWeight: '700', color: statusColor }}>{STATUS_LABELS[fi.status]}</Text>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
                       <TouchableOpacity
                         style={[fc.remindBtn, { backgroundColor: '#FF980015', borderWidth: 1, borderColor: '#FF9800' }]}
                         onPress={() => { setReminderStudent(st); setReminderMessage(buildReminderMessage(st)); setShowReminderModal(true); }}
@@ -306,16 +557,13 @@ export default function FinanceScreen() {
                         onPress={() => openCollect(st)}
                         activeOpacity={0.8}
                       >
-                        <Text style={[fc.collectText, { color: '#fff' }]}>
-                          {isPaid ? '+ More' : '+ Collect'}
-                        </Text>
+                        <Text style={fc.collectText}>{fi.status === 'paid' ? '+ More' : '+ Collect'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 </View>
-                {/* Fee summary strip */}
                 {fi.annualFee > 0 && (
-                  <View style={[fc.feeStrip, { borderTopColor: colors.border, backgroundColor: colors.muted + '60' }]}>
+                  <View style={[fc.feeStrip, { borderTopColor: '#F1F5F9', backgroundColor: '#F8FAFC' }]}>
                     {[
                       { label: 'Annual', value: `₹${fi.annualFee.toLocaleString('en-IN')}`, color: colors.text },
                       { label: 'Payable', value: `₹${fi.finalPayable.toLocaleString('en-IN')}`, color: colors.text },
@@ -323,13 +571,13 @@ export default function FinanceScreen() {
                       { label: 'Balance', value: `₹${fi.remaining.toLocaleString('en-IN')}`, color: fi.remaining > 0 ? colors.destructive : colors.success },
                     ].map(item => (
                       <View key={item.label} style={{ alignItems: 'center' }}>
-                        <Text style={{ fontSize: 10, color: colors.mutedForeground, fontWeight: '600', marginBottom: 2 }}>{item.label}</Text>
+                        <Text style={{ fontSize: 9, color: colors.mutedForeground, fontWeight: '600', marginBottom: 2 }}>{item.label}</Text>
                         <Text style={{ fontSize: 12, fontWeight: '700', color: item.color }}>{item.value}</Text>
                       </View>
                     ))}
                   </View>
                 )}
-                <TouchableOpacity style={[fc.histBtn, { borderTopColor: colors.border }]} onPress={() => setShowFeeHistory(st)} activeOpacity={0.8}>
+                <TouchableOpacity style={[fc.histBtn, { borderTopColor: '#F1F5F9' }]} onPress={() => setShowFeeHistory(st)} activeOpacity={0.8}>
                   <Feather name="clock" size={13} color={colors.mutedForeground} />
                   <Text style={[fc.histText, { color: colors.mutedForeground }]}>View payment history</Text>
                   <Feather name="chevron-right" size={13} color={colors.mutedForeground} style={{ marginLeft: 'auto' }} />
@@ -340,7 +588,9 @@ export default function FinanceScreen() {
         />
       )}
 
-      {/* ── Fee Types Tab ── */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          FEE TYPES TAB
+         ══════════════════════════════════════════════════════════════════════ */}
       {tab === 'feeTypes' && (
         <>
           <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
@@ -355,7 +605,7 @@ export default function FinanceScreen() {
             contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
             ListEmptyComponent={<EmptyState icon="tag" title="No Fee Types" subtitle="Create fee types like Monthly Fee, Exam Fee, etc." />}
             renderItem={({ item: ft }) => (
-              <View style={[ftc.card, { backgroundColor: colors.card }]}>
+              <View style={ftc.card}>
                 <View style={[ftc.icon, { backgroundColor: colors.primary + '15' }]}>
                   <Feather name="tag" size={20} color={colors.primary} />
                 </View>
@@ -365,12 +615,8 @@ export default function FinanceScreen() {
                 </View>
                 <Text style={[ftc.amount, { color: ft.amount > 0 ? colors.success : colors.mutedForeground }]}>{ft.amount > 0 ? `₹${ft.amount.toLocaleString('en-IN')}` : 'Variable'}</Text>
                 <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
-                  <TouchableOpacity onPress={() => openEditFeeType(ft)} style={ftc.iconBtn}>
-                    <Feather name="edit-2" size={16} color={colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => confirmDeleteFeeType(ft)} style={ftc.iconBtn}>
-                    <Feather name="trash-2" size={16} color={colors.destructive} />
-                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => openEditFeeType(ft)} style={ftc.iconBtn}><Feather name="edit-2" size={16} color={colors.primary} /></TouchableOpacity>
+                  <TouchableOpacity onPress={() => confirmDeleteFeeType(ft)} style={ftc.iconBtn}><Feather name="trash-2" size={16} color={colors.destructive} /></TouchableOpacity>
                 </View>
               </View>
             )}
@@ -378,7 +624,9 @@ export default function FinanceScreen() {
         </>
       )}
 
-      {/* ── Expenses Tab ── */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          EXPENSES TAB
+         ══════════════════════════════════════════════════════════════════════ */}
       {tab === 'expenses' && (
         <>
           <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
@@ -393,7 +641,7 @@ export default function FinanceScreen() {
             contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
             ListEmptyComponent={<EmptyState icon="trending-down" title="No Expenses" subtitle="Track school expenses here" />}
             renderItem={({ item: exp }) => (
-              <View style={[ec.card, { backgroundColor: colors.card }]}>
+              <View style={ec.card}>
                 <View style={[ec.icon, { backgroundColor: colors.destructive + '15' }]}>
                   <Feather name="tag" size={18} color={colors.destructive} />
                 </View>
@@ -411,11 +659,14 @@ export default function FinanceScreen() {
         </>
       )}
 
-      {/* ════ Collect Fee Modal — Premium ════ */}
+      {/* ════════════════════════════════════════════════════════════════════
+          ALL MODALS (unchanged)
+         ════════════════════════════════════════════════════════════════════ */}
+
+      {/* Collect Fee Modal */}
       <Modal visible={showCollectModal} animationType="slide" transparent={false}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: colors.background }}>
           <View style={{ flex: 1 }}>
-            {/* Gradient header */}
             <View style={{ backgroundColor: colors.primary, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 24 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                 <View>
@@ -446,9 +697,7 @@ export default function FinanceScreen() {
                 );
               })()}
             </View>
-
             <ScrollView style={{ flex: 1, padding: 20 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              {/* Fee Type */}
               <Text style={[mo.label, { color: colors.text }]}>Fee Type *</Text>
               <TouchableOpacity
                 style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.card, borderWidth: 1.5, borderColor: collectFeeTypeId ? colors.primary + '60' : colors.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 }}
@@ -464,42 +713,27 @@ export default function FinanceScreen() {
                 </View>
                 <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
               </TouchableOpacity>
-
-              {/* Amount */}
               <Text style={[mo.label, { color: colors.text }]}>Amount (₹) *</Text>
               <View style={{ backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border, borderRadius: 14, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 }}>
                 <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary, marginRight: 8 }}>₹</Text>
                 <TextInput
                   style={{ flex: 1, color: colors.text, fontSize: 18, fontWeight: '700', paddingVertical: 14 }}
-                  value={collectAmount}
-                  onChangeText={setCollectAmount}
-                  placeholder="0"
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="number-pad"
+                  value={collectAmount} onChangeText={setCollectAmount}
+                  placeholder="0" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad"
                 />
               </View>
-
-              {/* Description */}
               <Text style={[mo.label, { color: colors.text }]}>Description *</Text>
               <TextInput
                 style={{ backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.text, marginBottom: 16 }}
-                value={collectDesc}
-                onChangeText={setCollectDesc}
-                placeholder="e.g. Monthly Fee July 2026"
-                placeholderTextColor={colors.mutedForeground}
+                value={collectDesc} onChangeText={setCollectDesc}
+                placeholder="e.g. Monthly Fee July 2026" placeholderTextColor={colors.mutedForeground}
               />
-
-              {/* Date */}
               <Text style={[mo.label, { color: colors.text }]}>Date</Text>
               <TextInput
                 style={{ backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.text, marginBottom: 16 }}
-                value={collectDate}
-                onChangeText={setCollectDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.mutedForeground}
+                value={collectDate} onChangeText={setCollectDate}
+                placeholder="YYYY-MM-DD" placeholderTextColor={colors.mutedForeground}
               />
-
-              {/* Payment Method */}
               <Text style={[mo.label, { color: colors.text }]}>Payment Method</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
                 {PAYMENT_METHODS.map(pm => (
@@ -513,19 +747,14 @@ export default function FinanceScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-
             </ScrollView>
-
-            {/* Footer */}
             <View style={{ padding: 16, paddingBottom: 20, borderTopWidth: 1, borderTopColor: colors.border, gap: 10, backgroundColor: colors.card }}>
               {(() => {
                 const amt = Number(collectAmount) || 0;
                 return (
                   <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: collectFeeTypeId && amt > 0 ? colors.success : colors.muted, borderRadius: 16, paddingVertical: 16, shadowColor: colors.success, shadowOffset: { width: 0, height: 4 }, shadowOpacity: collectFeeTypeId && amt > 0 ? 0.3 : 0, shadowRadius: 12, elevation: collectFeeTypeId && amt > 0 ? 4 : 0 }}
-                    onPress={handleCollect}
-                    disabled={!collectFeeTypeId || amt <= 0}
-                    activeOpacity={0.85}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: collectFeeTypeId && amt > 0 ? colors.success : colors.muted, borderRadius: 16, paddingVertical: 16 }}
+                    onPress={handleCollect} disabled={!collectFeeTypeId || amt <= 0} activeOpacity={0.85}
                   >
                     <Feather name="check-circle" size={18} color={collectFeeTypeId && amt > 0 ? '#fff' : colors.mutedForeground} />
                     <Text style={{ color: collectFeeTypeId && amt > 0 ? '#fff' : colors.mutedForeground, fontSize: 16, fontWeight: '800' }}>
@@ -542,7 +771,7 @@ export default function FinanceScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ════ Fee Type Picker Modal ════ */}
+      {/* Fee Type Picker */}
       <Modal visible={showFeeTypePicker} animationType="slide" transparent>
         <View style={mo.overlay}>
           <View style={[mo.sheet, { backgroundColor: colors.card, maxHeight: 420 }]}>
@@ -567,7 +796,7 @@ export default function FinanceScreen() {
         </View>
       </Modal>
 
-      {/* ════ Fee History Modal ════ */}
+      {/* Fee History Modal */}
       <Modal visible={!!showFeeHistory} animationType="slide" transparent>
         <View style={mo.overlay}>
           <View style={[mo.sheet, { backgroundColor: colors.card }]}>
@@ -589,7 +818,7 @@ export default function FinanceScreen() {
                     <View style={{ backgroundColor: colors.muted, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                       {[
                         { label: 'Annual Fee', value: `₹${fi.annualFee.toLocaleString('en-IN')}`, color: colors.text },
-                        { label: `Discount`, value: `− ₹${fi.discountAmount.toLocaleString('en-IN')}`, color: colors.warning },
+                        { label: 'Discount', value: `− ₹${fi.discountAmount.toLocaleString('en-IN')}`, color: colors.warning },
                         { label: 'Final Payable', value: `₹${fi.finalPayable.toLocaleString('en-IN')}`, color: colors.text, bold: true },
                         { label: 'Total Paid', value: `₹${fi.totalPaid.toLocaleString('en-IN')}`, color: colors.success, bold: true },
                         { label: 'Balance', value: `₹${fi.remaining.toLocaleString('en-IN')}`, color: fi.remaining > 0 ? colors.destructive : colors.success, bold: true },
@@ -607,10 +836,10 @@ export default function FinanceScreen() {
                       </View>
                     </View>
                   ) : (
-                  <View style={[hist.totalRow, { backgroundColor: colors.success + '15', borderBottomColor: colors.border }]}>
-                    <Text style={[hist.totalLabel, { color: colors.mutedForeground }]}>Total Collected</Text>
-                    <Text style={[hist.totalVal, { color: colors.success }]}>₹{fi.totalPaid.toLocaleString('en-IN')}</Text>
-                  </View>
+                    <View style={[hist.totalRow, { backgroundColor: colors.success + '15', borderBottomColor: colors.border }]}>
+                      <Text style={[hist.totalLabel, { color: colors.mutedForeground }]}>Total Collected</Text>
+                      <Text style={[hist.totalVal, { color: colors.success }]}>₹{fi.totalPaid.toLocaleString('en-IN')}</Text>
+                    </View>
                   )}
                   <ScrollView style={{ padding: 16 }} contentContainerStyle={{ paddingBottom: 20 }}>
                     {records.length === 0 && <Text style={{ color: colors.mutedForeground, textAlign: 'center', padding: 20 }}>No fee records found</Text>}
@@ -648,7 +877,7 @@ export default function FinanceScreen() {
         </View>
       </Modal>
 
-      {/* ════ Fee Type Add/Edit Modal ════ */}
+      {/* Fee Type Add/Edit Modal */}
       <Modal visible={showFeeTypeModal} animationType="slide" transparent>
         <View style={mo.overlay}>
           <View style={[mo.sheet, { backgroundColor: colors.card }]}>
@@ -680,7 +909,7 @@ export default function FinanceScreen() {
         </View>
       </Modal>
 
-      {/* ════ Add Expense Modal ════ */}
+      {/* Add Expense Modal */}
       <Modal visible={showExpenseModal} animationType="slide" transparent>
         <View style={mo.overlay}>
           <View style={[mo.sheet, { backgroundColor: colors.card }]}>
@@ -737,7 +966,7 @@ export default function FinanceScreen() {
         </View>
       </Modal>
 
-      {/* ════ Confirm Delete Modal ════ */}
+      {/* Confirm Delete Modal */}
       <Modal visible={!!confirmModal} animationType="fade" transparent>
         <View style={cd.overlay}>
           <View style={[cd.box, { backgroundColor: colors.card }]}>
@@ -747,18 +976,10 @@ export default function FinanceScreen() {
             <Text style={[cd.title, { color: colors.text }]}>{confirmModal?.title}</Text>
             <Text style={[cd.message, { color: colors.mutedForeground }]}>{confirmModal?.message}</Text>
             <View style={cd.btnRow}>
-              <TouchableOpacity
-                style={[cd.btn, { borderColor: colors.border, borderWidth: 1 }]}
-                onPress={() => setConfirmModal(null)}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[cd.btn, { borderColor: colors.border, borderWidth: 1 }]} onPress={() => setConfirmModal(null)} activeOpacity={0.8}>
                 <Text style={[cd.btnTxt, { color: colors.text }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[cd.btn, { backgroundColor: colors.destructive }]}
-                onPress={() => { confirmModal?.onConfirm(); setConfirmModal(null); }}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[cd.btn, { backgroundColor: colors.destructive }]} onPress={() => { confirmModal?.onConfirm(); setConfirmModal(null); }} activeOpacity={0.8}>
                 <Feather name="trash-2" size={15} color="#fff" />
                 <Text style={[cd.btnTxt, { color: '#fff' }]}>Delete</Text>
               </TouchableOpacity>
@@ -767,11 +988,10 @@ export default function FinanceScreen() {
         </View>
       </Modal>
 
-      {/* ════ Fee Reminder Modal ════ */}
+      {/* Fee Reminder Modal */}
       <Modal visible={showReminderModal} animationType="slide" transparent>
         <View style={mo.overlay}>
           <View style={[mo.sheet, { backgroundColor: colors.card }]}>
-            {/* Header */}
             <View style={[mo.header, { borderBottomColor: colors.border }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#FF980020', alignItems: 'center', justifyContent: 'center' }}>
@@ -784,8 +1004,6 @@ export default function FinanceScreen() {
               </View>
               <TouchableOpacity onPress={() => setShowReminderModal(false)}><Feather name="x" size={24} color={colors.mutedForeground} /></TouchableOpacity>
             </View>
-
-            {/* Card preview */}
             <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {reminderStudent && (
                 <>
@@ -805,14 +1023,10 @@ export default function FinanceScreen() {
                       dueAmount={getStudentFeeInfo(reminderStudent, feeRecords).remaining}
                     />
                   </ViewShot>
-                  <Text style={{ fontSize: 11, color: colors.mutedForeground, textAlign: 'center', marginTop: 8, fontStyle: 'italic' }}>
-                    This card will be shared as an image on WhatsApp
-                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.mutedForeground, textAlign: 'center', marginTop: 8, fontStyle: 'italic' }}>This card will be shared as an image on WhatsApp</Text>
                 </>
               )}
             </ScrollView>
-
-            {/* Action buttons */}
             <View style={[mo.footer, { borderTopColor: colors.border, flexDirection: 'column', gap: 10, alignItems: 'stretch' }]}>
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity
@@ -822,9 +1036,7 @@ export default function FinanceScreen() {
                     try {
                       const uri: string = await viewShotRef.current.capture();
                       await shareReminderImage(uri, reminderStudent);
-                    } catch {
-                      Alert.alert('Error', 'Could not generate reminder card. Please try SMS.');
-                    }
+                    } catch { Alert.alert('Error', 'Could not generate reminder card. Please try SMS.'); }
                   }}
                   activeOpacity={0.8}
                 >
@@ -848,7 +1060,7 @@ export default function FinanceScreen() {
         </View>
       </Modal>
 
-      {/* ════ Receipt Prompt Modal ════ */}
+      {/* Receipt Prompt Modal */}
       <Modal visible={!!receiptModal} animationType="fade" transparent>
         <View style={cd.overlay}>
           <View style={[cd.box, { backgroundColor: colors.card }]}>
@@ -861,34 +1073,16 @@ export default function FinanceScreen() {
             </Text>
             <View style={[cd.btnRow, { flexDirection: 'column', gap: 10 }]}>
               <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
-                <TouchableOpacity
-                  style={[cd.btn, { flex: 1, backgroundColor: '#25D366' }]}
-                  onPress={() => {
-                    if (receiptModal) shareReceiptWhatsApp(receiptModal.record, receiptModal.student);
-                    setReceiptModal(null);
-                  }}
-                  activeOpacity={0.8}
-                >
+                <TouchableOpacity style={[cd.btn, { flex: 1, backgroundColor: '#25D366' }]} onPress={() => { if (receiptModal) shareReceiptWhatsApp(receiptModal.record, receiptModal.student); setReceiptModal(null); }} activeOpacity={0.8}>
                   <FontAwesome5 name="whatsapp" size={20} color="#fff" />
                   <Text style={[cd.btnTxt, { color: '#fff' }]}>WhatsApp</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[cd.btn, { flex: 1, backgroundColor: colors.primary }]}
-                  onPress={() => {
-                    if (receiptModal) printFeeReceipt(receiptModal.record, receiptModal.student);
-                    setReceiptModal(null);
-                  }}
-                  activeOpacity={0.8}
-                >
+                <TouchableOpacity style={[cd.btn, { flex: 1, backgroundColor: colors.primary }]} onPress={() => { if (receiptModal) printFeeReceipt(receiptModal.record, receiptModal.student); setReceiptModal(null); }} activeOpacity={0.8}>
                   <Feather name="printer" size={15} color="#fff" />
                   <Text style={[cd.btnTxt, { color: '#fff' }]}>Print PDF</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={[cd.btn, { width: '100%', borderColor: colors.border, borderWidth: 1 }]}
-                onPress={() => setReceiptModal(null)}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={[cd.btn, { width: '100%', borderColor: colors.border, borderWidth: 1 }]} onPress={() => setReceiptModal(null)} activeOpacity={0.8}>
                 <Text style={[cd.btnTxt, { color: colors.mutedForeground }]}>Later</Text>
               </TouchableOpacity>
             </View>
@@ -899,37 +1093,107 @@ export default function FinanceScreen() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// StyleSheets
+// ─────────────────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  root: { flex: 1 },
+
+  // Header
+  header: { paddingHorizontal: 20, paddingBottom: 16 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerEyebrow: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.6)', letterSpacing: 1, textTransform: 'uppercase' },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginTop: 2 },
+  headerBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
+
+  // Period pills
+  periodPill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', marginRight: 8 },
+  periodPillActive: { backgroundColor: '#C8A040', borderColor: '#C8A040' },
+  periodPillText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
+  periodPillTextActive: { color: '#fff' },
+
+  // Tab bar
+  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
+  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 11, gap: 3, position: 'relative' },
+  tabLabel: { fontSize: 11, fontWeight: '700' },
+  tabIndicator: { position: 'absolute', bottom: 0, left: '15%', right: '15%', height: 2.5, borderRadius: 2 },
+
+  // Overview sections
+  statRow: { flexDirection: 'row', gap: 10, padding: 16, paddingBottom: 8 },
+  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 14, alignItems: 'flex-start', shadowColor: '#0C1F4A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: 'transparent' },
+  statIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  statValue: { fontSize: 16, fontWeight: '800', marginBottom: 3 },
+  statLabel: { fontSize: 10, color: '#64748B', fontWeight: '600', lineHeight: 14 },
+  statActiveDot: { width: 6, height: 6, borderRadius: 3, marginTop: 8 },
+
+  section: { backgroundColor: '#fff', borderRadius: 18, marginHorizontal: 16, marginTop: 12, padding: 18, shadowColor: '#0C1F4A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#0C1F4A' },
+  sectionSub: { fontSize: 12, color: '#64748B', fontWeight: '600' },
+
+  legend: { flexDirection: 'row', alignItems: 'center' },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontSize: 11, color: '#64748B', fontWeight: '600', marginLeft: 4 },
+
+  feeTypeRow: { marginBottom: 14 },
+  feeTypeLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  feeTypeDot: { width: 9, height: 9, borderRadius: 5 },
+  feeTypeName: { fontSize: 13, fontWeight: '600', color: '#0C1F4A', flex: 1 },
+  feeTypeRight: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingLeft: 17 },
+  feeTypeAmount: { fontSize: 14, fontWeight: '700' },
+  feeTypePct: { fontSize: 12, color: '#64748B', fontWeight: '600' },
+
+  txnRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  txnAvatar: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  txnAvatarText: { fontSize: 15, fontWeight: '800' },
+  txnName: { fontSize: 14, fontWeight: '700', color: '#0C1F4A' },
+  txnSub: { fontSize: 11, color: '#64748B', marginTop: 1 },
+  txnAmount: { fontSize: 14, fontWeight: '800', minWidth: 72, textAlign: 'right' },
+
+  emptyMsg: { fontSize: 13, color: '#94A3B8', textAlign: 'center', paddingVertical: 16 },
+
+  // Fee types & expenses tabs
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderRadius: 12, paddingVertical: 14, borderStyle: 'dashed' },
+  addBtnText: { fontWeight: '600', fontSize: 14 },
+});
+
 const fc = StyleSheet.create({
-  card: { borderRadius: 14, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2 },
+  card: { backgroundColor: '#fff', borderRadius: 14, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, marginBottom: 10 },
+  classPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
+  classPillText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
   row: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 18, fontWeight: '700' },
   name: { fontSize: 15, fontWeight: '700' },
   sub: { fontSize: 12, marginTop: 2 },
-  total: { fontSize: 16, fontWeight: '700' },
   collectBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  collectText: { fontSize: 12, fontWeight: '600' },
+  collectText: { fontSize: 12, fontWeight: '600', color: '#fff' },
   remindBtn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 16 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   feeStrip: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10, paddingHorizontal: 14, borderTopWidth: 1 },
   histBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1 },
   histText: { fontSize: 13, fontWeight: '500' },
 });
+
 const ftc = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderRadius: 14, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   icon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   name: { fontSize: 15, fontWeight: '600' },
   desc: { fontSize: 12, marginTop: 2 },
   amount: { fontSize: 16, fontWeight: '700' },
   iconBtn: { padding: 6 },
 });
+
 const ec = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderRadius: 14, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   icon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   desc: { fontSize: 15, fontWeight: '600' },
   meta: { fontSize: 12, marginTop: 2 },
   amount: { fontSize: 16, fontWeight: '700' },
 });
+
 const mo = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '92%', minHeight: '70%' },
@@ -942,12 +1206,14 @@ const mo = StyleSheet.create({
   footer: { flexDirection: 'row', gap: 12, padding: 20, borderTopWidth: 1 },
   btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingVertical: 14 },
 });
+
 const picker = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
   name: { fontSize: 15, fontWeight: '500' },
   desc: { fontSize: 12, marginTop: 2 },
   amount: { fontSize: 15, fontWeight: '700' },
 });
+
 const hist = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
   totalLabel: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase' },
@@ -958,35 +1224,14 @@ const hist = StyleSheet.create({
   meta: { fontSize: 12, marginTop: 2 },
   amount: { fontSize: 15, fontWeight: '700' },
 });
+
 const cd = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 32 },
-  box: {
-    width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
-  },
-  iconWrap: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-  },
+  box: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+  iconWrap: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   title: { fontSize: 18, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
   message: { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   btnRow: { flexDirection: 'row', gap: 12, width: '100%' },
-  btn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, borderRadius: 12, paddingVertical: 13,
-  },
+  btn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, paddingVertical: 13 },
   btnTxt: { fontSize: 14, fontWeight: '700' },
-});
-
-const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
-  root: { flex: 1 },
-  summary: { flexDirection: 'row', padding: 16, gap: 10, borderBottomWidth: 1 },
-  sumCard: { flex: 1, borderRadius: 12, padding: 12, alignItems: 'center' },
-  sumVal: { fontSize: 16, fontWeight: '700' },
-  sumLabel: { fontSize: 11, fontWeight: '600', marginTop: 4 },
-  tabRow: { flexDirection: 'row', borderBottomWidth: 1 },
-  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabText: { fontSize: 13, fontWeight: '600' },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderRadius: 12, paddingVertical: 14, borderStyle: 'dashed' },
-  addBtnText: { fontWeight: '600', fontSize: 14 },
 });
