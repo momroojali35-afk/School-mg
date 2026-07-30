@@ -387,10 +387,10 @@ function buildPremiumHtml(student: Student, exam: Exam, branding: DocumentBrandi
   @page{size:A4;margin:0}
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Segoe UI',Arial,sans-serif;background:#DFE7F1;color:#10213F}
-  .pg{width:210mm;min-height:297mm;background:#fff;margin:0 auto;position:relative;overflow:hidden;border:1px solid #CCD7E5;padding-bottom:7mm}
+  .pg{width:210mm;height:297mm;background:#fff;margin:0 auto;position:relative;overflow:hidden;border:1px solid #CCD7E5;padding-top:17mm;padding-bottom:7mm;box-sizing:border-box}
   .inner{position:absolute;inset:4mm;border:1px solid #D8C28B;pointer-events:none}
   .section{margin:0 40px 20px;border:1px solid #CBD7E5;border-radius:4px;overflow:hidden}
-  @media print{body{background:#fff;margin:0;padding:0}.pg{border:0;zoom:0.97;overflow:hidden}.section{break-inside:avoid}}
+  @media print{body{background:#fff;margin:0;padding:0}.pg{border:0;overflow:hidden;page-break-after:always;break-after:page}.section{break-inside:avoid}}
 </style></head><body><div class="pg"><div class="inner"></div>
   <header style="background:#102C55;color:#fff;padding:28px 40px 24px;position:relative">
     <div style="position:absolute;right:36px;top:26px;width:90px;height:90px;border:1px solid rgba(221,195,119,.4);border-radius:50%"></div>

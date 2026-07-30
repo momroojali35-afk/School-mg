@@ -304,6 +304,12 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
   const cornerSvg = () =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><polyline points="2,36 2,6 6,2 36,2" fill="none" stroke="#c8a040" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polygon points="6,2 10,6 6,10 2,6" fill="#c8a040"/><line x1="8" y1="2" x2="22" y2="2" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/><line x1="2" y1="8" x2="2" y2="22" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/></svg>`;
 
+  // Auto-scale .inner if subject count would overflow A4.
+  // Available inner height = 1123px(A4) - 10px(border) - 18px(padding) - 24px(inner-padding) = 1071px
+  const _innerContentH = 690 + exam.subjects.length * 27;
+  const _innerZoom = _innerContentH > 1071 ? (_innerContentH > 0 ? (1071 / _innerContentH).toFixed(3) : '') : '';
+  const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -315,22 +321,23 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Poppins', Arial, sans-serif;
-    background: #d4d9e3;
-    padding: 14px 0 4px;
+    background: #fff;
+    padding: 0;
+    margin: 0;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   @page { size: A4 portrait; margin: 0; }
-  @media print { body { background: #fff; padding: 0; margin: 0; } .page { zoom: 0.97; margin-top: 5mm; } }
+  @media print { body { background: #fff; padding: 0; margin: 0; } .page { page-break-after: always; break-after: page; } }
   /* ---------- page shell ---------- */
-  /* 794 px = A4 width at 96 dpi — ensures 1-to-1 mapping in html2pdf */
-  .page { width:794px; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; }
+  /* 794 px = A4 width at 96 dpi; 297mm = exact A4 height — guarantees one-page output */
+  .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; }
   .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
   .corner.tl { top:4px; left:4px; }
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:14px 22px 10px; }
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:14px 22px 10px; ${_innerZoomCss} }
 
   /* ---------- header ---------- */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:10px; border-bottom:3px solid #0c1f4a; }
@@ -677,17 +684,13 @@ function buildBulkSingleHtml(dataList: MarksheetData[], branding: DocumentBrandi
 ${headContent}
 <style>
   .page-wrap {
-    margin-bottom: 25px;
+    margin-bottom: 0;
     page-break-after: always;
     break-after: page;
   }
   .page-wrap-last {
-    margin-bottom: 0;
     page-break-after: auto;
     break-after: auto;
-  }
-  @media print {
-    .page-wrap { margin-bottom: 0; height: 297mm; overflow: hidden; }
   }
 </style>
 </head>
@@ -775,6 +778,12 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   const gradeRows = [['90% and above','A+'],['80% to 89%','A'],['70% to 79%','B+'],['60% to 69%','B'],['50% to 59%','C'],['Below 50%','D']]
     .map(([r,g], i) => `<tr style="background:${i%2===0?'#fff':'#f5f7fd'}"><td style="padding:5px 10px;font-size:12px;color:#475569;border-bottom:1px solid #eef1f8">${r}</td><td style="padding:5px 10px;font-size:14px;font-weight:900;color:#0c1f4a;text-align:center;border-bottom:1px solid #eef1f8">${g}</td></tr>`).join('');
 
+  // Auto-scale .inner if subject count would overflow A4.
+  // Available inner height = 1123px(A4) - 10px(border) - 18px(padding) - 22px(inner-padding) = 1073px
+  const _innerContentH = 660 + subjectRows.length * 30;
+  const _innerZoom = _innerContentH > 1073 ? (_innerContentH > 0 ? (1073 / _innerContentH).toFixed(3) : '') : '';
+  const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -784,17 +793,17 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Archivo+Black&display=swap" rel="stylesheet">
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Poppins',Arial,sans-serif; background:#d4d9e3; padding:14px 0 4px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { font-family:'Poppins',Arial,sans-serif; background:#fff; padding:0; margin:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   @page { size:A4 portrait; margin:0; }
-  @media print { body { background:#fff; padding:0; margin:0; } .page { zoom:0.97; margin-top:5mm; } }
-  /* 794 px = A4 width at 96 dpi */
-  .page { width:794px; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; }
+  @media print { body { background:#fff; padding:0; margin:0; } .page { page-break-after:always; break-after:page; } }
+  /* 794 px = A4 width at 96 dpi; 297mm = exact A4 height */
+  .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; }
   .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
   .corner.tl { top:4px; left:4px; }
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px 20px 10px; }
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px 20px 10px; ${_innerZoomCss} }
   /* header */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:8px; border-bottom:3px solid #0c1f4a; }
   .hdr-center { flex:1; text-align:center; }
@@ -1120,17 +1129,13 @@ function buildBulkCombinedHtml(dataList: CombinedMarksheetData[], branding: Docu
 ${headContent}
 <style>
   .page-wrap {
-    margin-bottom: 25px;
+    margin-bottom: 0;
     page-break-after: always;
     break-after: page;
   }
   .page-wrap-last {
-    margin-bottom: 0;
     page-break-after: auto;
     break-after: auto;
-  }
-  @media print {
-    .page-wrap { margin-bottom: 0; height: 297mm; overflow: hidden; }
   }
 </style>
 </head>
