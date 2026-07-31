@@ -69,30 +69,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     try {
-      const res = await fetch(`${getApiBase()}/api/teachers`);
-      if (!res.ok) throw new Error('Failed to fetch teachers');
-      const teachers: any[] = await res.json();
-      const t = teachers.find((t) => t.username === username.trim() && t.password === password);
-      if (t) {
-        const u: AuthUser = {
-          id: t.id, name: t.name, username: t.username, role: 'teacher',
-          permissions: {
-            addStudent: false,
-            feeCollection: false,
-            manageClasses: false,
-            manageExams: false,
-            manageResults: false,
-            promoteStudents: false,
-            sendFeeReminder: false,
-            allowMarkEdit: false,
-            ...(t.permissions ?? {}),
-          },
-        };
-        await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(u));
-        setUser(u);
-        return { success: true };
-      }
-      return { success: false, error: 'Invalid teacher credentials' };
+      // Use server-side login — avoids exposing all teacher credentials to the client.
+      const res = await fetch(`${getApiBase()}/api/teachers/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      if (res.status === 401) return { success: false, error: 'Invalid teacher credentials' };
+      if (!res.ok) throw new Error('Server error');
+      const t: any = await res.json();
+      const u: AuthUser = {
+        id: t.id, name: t.name, username: t.username, role: 'teacher',
+        permissions: {
+          addStudent: false,
+          feeCollection: false,
+          manageClasses: false,
+          manageExams: false,
+          manageResults: false,
+          promoteStudents: false,
+          sendFeeReminder: false,
+          allowMarkEdit: false,
+          ...(t.permissions ?? {}),
+        },
+      };
+      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(u));
+      setUser(u);
+      return { success: true };
     } catch {
       return { success: false, error: 'Could not connect to server. Please try again.' };
     }

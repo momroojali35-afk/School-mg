@@ -8,6 +8,24 @@ router.get("/teachers", async (_req, res) => {
   res.json(rows);
 });
 
+/** POST /api/teachers/login  { username, password } → teacher (without password) */
+router.post("/teachers/login", async (req, res) => {
+  const { username, password } = req.body ?? {};
+  if (!username || !password) {
+    res.status(400).json({ error: "username and password are required" });
+    return;
+  }
+  const teachers = await getAdapter().teachers.list() as any[];
+  const teacher = teachers.find((t) => t.username === username && t.password === password);
+  if (!teacher) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  // Never send the password back to the client
+  const { password: _pw, ...safeTeacher } = teacher;
+  res.json(safeTeacher);
+});
+
 router.post("/teachers", async (req, res) => {
   const body = req.body;
   if (!body.name || !body.username || !Number.isInteger(body.salary) || body.salary <= 0) {

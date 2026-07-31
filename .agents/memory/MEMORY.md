@@ -1,0 +1,1 @@
+- [School Management App bug fixes](bug-fixes-school-mgmt.md) — 4 critical bugs fixed: attendance transaction, exam results conflict update no-op, teacher credentials leak, promotion transaction.

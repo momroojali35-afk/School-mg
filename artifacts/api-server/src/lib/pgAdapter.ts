@@ -199,15 +199,19 @@ export function createPgAdapter(db: DB): DataAdapter {
         return db.select().from(attendanceRecordsTable).orderBy(asc(attendanceRecordsTable.date));
       },
       async bulkUpsert(date, cls, records) {
-        await db.delete(attendanceRecordsTable).where(
-          and(eq(attendanceRecordsTable.date, date), eq(attendanceRecordsTable.class, cls)),
-        );
-        const values = records.map((r: any) => ({
-          ...(r.id ? { id: r.id } : {}),
-          studentId: r.studentId, studentName: r.studentName, class: r.class,
-          date: r.date, status: r.status, takenBy: r.takenBy,
-        }));
-        return db.insert(attendanceRecordsTable).values(values).returning();
+        // Wrapped in a transaction so a crash between delete and insert
+        // cannot leave attendance for this date/class partially wiped.
+        return db.transaction(async (tx) => {
+          await tx.delete(attendanceRecordsTable).where(
+            and(eq(attendanceRecordsTable.date, date), eq(attendanceRecordsTable.class, cls)),
+          );
+          const values = records.map((r: any) => ({
+            ...(r.id ? { id: r.id } : {}),
+            studentId: r.studentId, studentName: r.studentName, class: r.class,
+            date: r.date, status: r.status, takenBy: r.takenBy,
+          }));
+          return tx.insert(attendanceRecordsTable).values(values).returning();
+        });
       },
       async checkAndMarkInactive(date, cls, absentStudentIds) {
         if (!absentStudentIds.length) return [];
@@ -371,9 +375,12 @@ export function createPgAdapter(db: DB): DataAdapter {
           .onConflictDoUpdate({
             target: [examResultsTable.examId, examResultsTable.studentId],
             set: {
-              marks: examResultsTable.marks,
-              studentName: examResultsTable.studentName,
-              rollNumber: examResultsTable.rollNumber,
+              // Use excluded.* so the incoming values actually replace the stored ones.
+              // Previously this referenced the table columns directly, making every
+              // conflict update a no-op that left old marks in place.
+              marks: drizzleSql`excluded.marks`,
+              studentName: drizzleSql`excluded.student_name`,
+              rollNumber: drizzleSql`excluded.roll_number`,
             },
           })
           .returning();
@@ -683,13 +690,17 @@ export function createPgAdapter(db: DB): DataAdapter {
         return row;
       },
       async bulkPromote(fromClass, toClass, records) {
-        await db.update(studentsTable).set({ class: toClass }).where(eq(studentsTable.class, fromClass));
-        const values = records.map((r: any) => ({
-          ...(r.id ? { id: r.id } : {}),
-          studentId: r.studentId, studentName: r.studentName,
-          fromClass, toClass, promotedBy: r.promotedBy ?? "", promotedAt: r.promotedAt ?? "",
-        }));
-        return db.insert(promotionRecordsTable).values(values).returning();
+        // Wrapped in a transaction so the student class update and the
+        // promotion log insert are always in sync — no partial promotions.
+        return db.transaction(async (tx) => {
+          await tx.update(studentsTable).set({ class: toClass }).where(eq(studentsTable.class, fromClass));
+          const values = records.map((r: any) => ({
+            ...(r.id ? { id: r.id } : {}),
+            studentId: r.studentId, studentName: r.studentName,
+            fromClass, toClass, promotedBy: r.promotedBy ?? "", promotedAt: r.promotedAt ?? "",
+          }));
+          return tx.insert(promotionRecordsTable).values(values).returning();
+        });
       },
     },
   };
