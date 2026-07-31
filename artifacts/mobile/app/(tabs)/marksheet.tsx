@@ -306,7 +306,8 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
 
   // Auto-scale .inner if subject count would overflow A4.
   // Available inner height = 1123px(A4) - 10px(border) - 18px(padding) - 24px(inner-padding) = 1071px
-  const _innerContentH = 690 + exam.subjects.length * 27;
+  // Base 760 = header~220 + info~130 + table-header~50 + summary~130 + remarks~40 + sigs~60 + footer~40 + gaps~90
+  const _innerContentH = 760 + exam.subjects.length * 27;
   const _innerZoom = _innerContentH > 1071 ? (_innerContentH > 0 ? (1071 / _innerContentH).toFixed(3) : '') : '';
   const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
 
@@ -643,11 +644,12 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       </div>
     </div>
 
+    <div class="footer">
+      <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
+    </div>
+
   </div><!-- /inner -->
 
-  <div class="footer">
-    <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
-  </div>
 </div><!-- /page -->
 </body>
 </html>`;
@@ -777,7 +779,8 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
 
   // Auto-scale .inner if subject count would overflow A4.
   // Available inner height = 1123px(A4) - 10px(border) - 18px(padding) - 22px(inner-padding) = 1073px
-  const _innerContentH = 580 + subjectRows.length * 30;
+  // Base 690 = header~240 + info~125 + table-header~55 + summary~130 + remarks~40 + sigs~60 + footer~40
+  const _innerContentH = 690 + subjectRows.length * 30;
   const _innerZoom = _innerContentH > 1073 ? (_innerContentH > 0 ? (1073 / _innerContentH).toFixed(3) : '') : '';
   const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
 
@@ -1075,7 +1078,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
 
     <!-- ══ SIGNATURES ══ -->
     <div class="sigs">
-       <div class="sig-block">
+      <div class="sig-block">
         ${marksheetSignatureHtml('teacher', branding)}
         <div class="role">Class Teacher</div>
       </div>
@@ -1085,11 +1088,12 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       </div>
     </div>
 
+    <div class="footer">
+      <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
+    </div>
+
   </div><!-- /inner -->
 
-  <div class="footer">
-    <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
-  </div>
 </div><!-- /page -->
 </body>
 </html>`;
