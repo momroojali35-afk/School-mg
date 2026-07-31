@@ -329,7 +329,8 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
     print-color-adjust: exact;
   }
   @page { size: A4 portrait; margin: 0; }
-  @media print { body { background: #fff; padding: 0; margin: 0; } .page { page-break-after: always; break-after: page; } }
+  html, body { height: 297mm; overflow: hidden; }
+  @media print { html, body { background: #fff; padding: 0; margin: 0; height: 297mm; overflow: hidden; } .page { page-break-after: avoid; break-after: avoid; } }
   /* ---------- page shell ---------- */
   /* 794 px = A4 width at 96 dpi; 297mm = exact A4 height — guarantees one-page output */
   .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; }
@@ -795,7 +796,8 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:'Poppins',Arial,sans-serif; background:#fff; padding:0; margin:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   @page { size:A4 portrait; margin:0; }
-  @media print { body { background:#fff; padding:0; margin:0; } .page { page-break-after:always; break-after:page; } }
+  html, body { height:297mm; overflow:hidden; }
+  @media print { html, body { background:#fff; padding:0; margin:0; height:297mm; overflow:hidden; } .page { page-break-after:avoid; break-after:avoid; } }
   /* 794 px = A4 width at 96 dpi; 297mm = exact A4 height */
   .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; }
   .corner { position:absolute; width:56px; height:56px; pointer-events:none; }

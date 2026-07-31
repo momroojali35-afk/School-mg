@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput,
-  Modal, ScrollView, Alert, Platform,
+  Modal, ScrollView, Alert, Platform, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -34,7 +34,7 @@ const getGrade = (pct: number) => {
 export default function ExamsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { exams, students, classes, subjects, addExam, updateExam, deleteExam, examResults, saveExamResults, addSubject, deleteSubject } = useApp();
+  const { exams, students, classes, subjects, addExam, updateExam, deleteExam, examResults, saveExamResults, addSubject, deleteSubject, documentBranding } = useApp();
 
   const [screen, setScreen] = useState<Screen>('list');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
@@ -1062,15 +1062,18 @@ export default function ExamsScreen() {
             <View style={[mk.sigSection, { borderTopColor: colors.border }]}>
               <Text style={[mk.sigSectionTitle, { color: colors.mutedForeground }]}>AUTHORISED SIGNATURES</Text>
               <View style={mk.sigRow}>
-                {[
-                  { label: 'Class Teacher', icon: 'user' as const },
-                  { label: 'Principal', icon: 'award' as const },
-                  { label: 'Parent / Guardian', icon: 'users' as const },
-                ].map(({ label, icon }) => (
+                {([
+                  { label: 'Class Teacher', icon: 'user' as const, imgUrl: documentBranding.teacherSignatureDataUrl },
+                  { label: 'Principal',     icon: 'award' as const, imgUrl: documentBranding.principalSignatureDataUrl || documentBranding.signatureDataUrl },
+                ] as { label: string; icon: React.ComponentProps<typeof Feather>['name']; imgUrl: string | null | undefined }[]).map(({ label, icon, imgUrl }) => (
                   <View key={label} style={mk.sigBox}>
-                    <View style={[mk.sigIconWrap, { backgroundColor: colors.primary + '12' }]}>
-                      <Feather name={icon} size={18} color={colors.primary} />
-                    </View>
+                    {imgUrl ? (
+                      <Image source={{ uri: imgUrl }} style={mk.sigImg} resizeMode="contain" />
+                    ) : (
+                      <View style={[mk.sigIconWrap, { backgroundColor: colors.primary + '12' }]}>
+                        <Feather name={icon} size={18} color={colors.primary} />
+                      </View>
+                    )}
                     <View style={[mk.sigLine, { borderBottomColor: colors.border }]} />
                     <Text style={[mk.sigLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   </View>
@@ -1668,7 +1671,8 @@ const mk = StyleSheet.create({
   sigRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   sigBox: { flex: 1, alignItems: 'center', gap: 8 },
   sigIconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  sigLine: { width: '100%', borderBottomWidth: 1.5, marginTop: 16, marginBottom: 4 },
+  sigImg: { width: 110, height: 38, marginBottom: 2 },
+  sigLine: { width: '100%', borderBottomWidth: 1.5, marginTop: 4, marginBottom: 4 },
   sigLabel: { fontSize: 10, fontWeight: '600', textAlign: 'center' },
   // footer
   footer: { padding: 20, borderTopWidth: 1, alignItems: 'center', gap: 4 },
