@@ -37,10 +37,8 @@
       "reactCompiler": true
     },
     "extra": {
-      "eas": {
-        "projectId": "66263b58-1ee9-446a-b11d-a52e1665e033"
-      }
+      "eas": {}
     },
-    "owner": "momrooj1"
+    "owner": "Momrooj23"
   }
 }
