@@ -1385,22 +1385,16 @@ export default function MarksheetScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
       const dataList = list.map(s => buildSingleData(s)).filter(Boolean) as MarksheetData[];
-      // Render each student's marksheet in its own fresh iframe so that QR codes,
-      // the Academic Session badge, logo, and header are fully loaded per page.
-      const onSaved = Platform.OS !== 'web'
-        ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
-        : undefined;
-      const url = await downloadMultipleHtmlsAsPdf(
-        dataList.map(d => buildSingleMarksheetHtml(d, documentBranding)),
+      if (dataList.length === 0) { Alert.alert('No Data', 'No marksheet data available.'); return; }
+      // Build one merged HTML document so that downloadHtmlAsPdf can use
+      // querySelectorAll('.page') to find every student's page and render them
+      // all into the PDF. Using downloadMultipleHtmlsAsPdf with separate HTML
+      // strings only ever captured the first .page element per iframe, producing
+      // a single-student PDF regardless of how many students were selected.
+      await downloadHtml(
+        buildBulkSingleHtml(dataList, documentBranding),
         `Marksheets – ${selectedClass}`,
-        '.page',
-        Platform.OS === 'web' ? false : true,
-        onSaved,
-        8,
       );
-      if (url && Platform.OS === 'web') {
-        setDownloadReady({ url, filename: `Marksheets – ${selectedClass}.pdf` });
-      }
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
   }, [bulkStudents, bulkSelected, buildSingleData, selectedClass, documentBranding]);
