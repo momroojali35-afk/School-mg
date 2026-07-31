@@ -99,16 +99,25 @@ export function createPgAdapter(db: DB): DataAdapter {
         return row;
       },
       async update(id, data: any) {
-        const setValues: any = {
-          name: data.name, fatherName: data.fatherName, motherName: data.motherName,
-          mobileNumber: data.mobileNumber, class: data.class, section: data.section ?? null,
-          admissionNo: data.admissionNo ?? null, rollNumber: data.rollNumber,
-          dateOfBirth: data.dateOfBirth, address: data.address ?? null, photo: data.photo ?? null,
-          annualFee: data.annualFee ?? null, discountType: data.discountType ?? null,
-          discountValue: data.discountValue ?? null,
-        };
-        // Only update status if explicitly provided
+        // Build setValues from only the fields that are explicitly provided so
+        // a partial update (e.g. only { class }) never nulls out other columns.
+        const setValues: any = {};
+        if (data.name !== undefined) setValues.name = data.name;
+        if (data.fatherName !== undefined) setValues.fatherName = data.fatherName;
+        if (data.motherName !== undefined) setValues.motherName = data.motherName;
+        if (data.mobileNumber !== undefined) setValues.mobileNumber = data.mobileNumber;
+        if (data.class !== undefined) setValues.class = data.class;
+        if ("section" in data) setValues.section = data.section ?? null;
+        if ("admissionNo" in data) setValues.admissionNo = data.admissionNo ?? null;
+        if (data.rollNumber !== undefined) setValues.rollNumber = data.rollNumber;
+        if (data.dateOfBirth !== undefined) setValues.dateOfBirth = data.dateOfBirth;
+        if ("address" in data) setValues.address = data.address ?? null;
+        if ("photo" in data) setValues.photo = data.photo ?? null;
+        if ("annualFee" in data) setValues.annualFee = data.annualFee ?? null;
+        if ("discountType" in data) setValues.discountType = data.discountType ?? null;
+        if ("discountValue" in data) setValues.discountValue = data.discountValue ?? null;
         if (data.status !== undefined) setValues.status = data.status;
+        if (Object.keys(setValues).length === 0) return null;
         const [row] = await db.update(studentsTable).set(setValues).where(eq(studentsTable.id, id)).returning();
         return row ?? null;
       },
@@ -138,6 +147,7 @@ export function createPgAdapter(db: DB): DataAdapter {
           permissions: data.permissions ?? {
             addStudent: false, feeCollection: false, manageClasses: false,
             manageExams: false, manageResults: false, promoteStudents: false, sendFeeReminder: false,
+            allowMarkEdit: false,
           },
         };
         if (data.id) values.id = data.id;
@@ -145,11 +155,20 @@ export function createPgAdapter(db: DB): DataAdapter {
         return row;
       },
       async update(id, data: any) {
-        const [row] = await db.update(teachersTable).set({
-          name: data.name, subject: data.subject, mobileNumber: data.mobileNumber,
-          salary: data.salary, username: data.username, password: data.password,
-          joinDate: data.joinDate, photo: data.photo ?? null, permissions: data.permissions,
-        }).where(eq(teachersTable.id, id)).returning();
+        // Only update fields that are explicitly provided — a partial update
+        // (e.g. only permissions) must not overwrite unrelated columns with null.
+        const setValues: any = {};
+        if (data.name !== undefined) setValues.name = data.name;
+        if (data.subject !== undefined) setValues.subject = data.subject;
+        if (data.mobileNumber !== undefined) setValues.mobileNumber = data.mobileNumber;
+        if (data.salary !== undefined) setValues.salary = data.salary;
+        if (data.username !== undefined) setValues.username = data.username;
+        if (data.password !== undefined) setValues.password = data.password;
+        if (data.joinDate !== undefined) setValues.joinDate = data.joinDate;
+        if ("photo" in data) setValues.photo = data.photo ?? null;
+        if (data.permissions !== undefined) setValues.permissions = data.permissions;
+        if (Object.keys(setValues).length === 0) return null;
+        const [row] = await db.update(teachersTable).set(setValues).where(eq(teachersTable.id, id)).returning();
         return row ?? null;
       },
       async delete(id) {
@@ -336,12 +355,17 @@ export function createPgAdapter(db: DB): DataAdapter {
         return row;
       },
       async update(id, data: any) {
-        const [row] = await db.update(examsTable).set({
-          name: data.name, class: data.class, subjects: data.subjects,
-          subjectSchedule: data.subjectSchedule ?? null,
-          classSubjects: data.classSubjects ?? null,
-          date: data.date, maxMarks: data.maxMarks,
-        }).where(eq(examsTable.id, id)).returning();
+        // Only update fields that are explicitly provided.
+        const setValues: any = {};
+        if (data.name !== undefined) setValues.name = data.name;
+        if (data.class !== undefined) setValues.class = data.class;
+        if (data.subjects !== undefined) setValues.subjects = data.subjects;
+        if ("subjectSchedule" in data) setValues.subjectSchedule = data.subjectSchedule ?? null;
+        if ("classSubjects" in data) setValues.classSubjects = data.classSubjects ?? null;
+        if (data.date !== undefined) setValues.date = data.date;
+        if (data.maxMarks !== undefined) setValues.maxMarks = data.maxMarks;
+        if (Object.keys(setValues).length === 0) return null;
+        const [row] = await db.update(examsTable).set(setValues).where(eq(examsTable.id, id)).returning();
         return row ?? null;
       },
       async delete(id) {
@@ -504,9 +528,13 @@ export function createPgAdapter(db: DB): DataAdapter {
         return row;
       },
       async update(id, data: any) {
-        const [row] = await db.update(feeTypesTable).set({
-          name: data.name, amount: data.amount, description: data.description, category: data.category ?? null,
-        }).where(eq(feeTypesTable.id, id)).returning();
+        const setValues: any = {};
+        if (data.name !== undefined) setValues.name = data.name;
+        if (data.amount !== undefined) setValues.amount = data.amount;
+        if (data.description !== undefined) setValues.description = data.description;
+        if ("category" in data) setValues.category = data.category ?? null;
+        if (Object.keys(setValues).length === 0) return null;
+        const [row] = await db.update(feeTypesTable).set(setValues).where(eq(feeTypesTable.id, id)).returning();
         return row ?? null;
       },
       async delete(id) {
@@ -553,10 +581,13 @@ export function createPgAdapter(db: DB): DataAdapter {
         return row;
       },
       async update(id, data: any) {
-        const [row] = await db.update(salaryRecordsTable).set({
-          status: data.status, paidDate: data.paidDate ?? null,
-          receiptNumber: data.receiptNumber ?? null, amount: data.amount,
-        }).where(eq(salaryRecordsTable.id, id)).returning();
+        const setValues: any = {};
+        if (data.status !== undefined) setValues.status = data.status;
+        if ("paidDate" in data) setValues.paidDate = data.paidDate ?? null;
+        if ("receiptNumber" in data) setValues.receiptNumber = data.receiptNumber ?? null;
+        if (data.amount !== undefined) setValues.amount = data.amount;
+        if (Object.keys(setValues).length === 0) return null;
+        const [row] = await db.update(salaryRecordsTable).set(setValues).where(eq(salaryRecordsTable.id, id)).returning();
         return row ?? null;
       },
       async upsertByTeacher(teacherId, month, year, data) {
@@ -632,20 +663,22 @@ export function createPgAdapter(db: DB): DataAdapter {
         return row;
       },
       async update(id, data: any) {
-        const [row] = await db.update(alumniTable).set({
-          name: data.name,
-          fatherName: data.fatherName ?? "",
-          mobileNumber: data.mobileNumber ?? "",
-          batch: data.batch,
-          passOutClass: data.passOutClass,
-          rollNumber: data.rollNumber ?? "",
-          admissionNo: data.admissionNo ?? null,
-          dateOfBirth: data.dateOfBirth ?? "",
-          address: data.address ?? null,
-          photo: data.photo ?? null,
-          achievements: data.achievements ?? null,
-          currentStatus: data.currentStatus ?? null,
-        }).where(eq(alumniTable.id, id)).returning();
+        // Only update fields that are explicitly provided.
+        const setValues: any = {};
+        if (data.name !== undefined) setValues.name = data.name;
+        if (data.fatherName !== undefined) setValues.fatherName = data.fatherName ?? "";
+        if (data.mobileNumber !== undefined) setValues.mobileNumber = data.mobileNumber ?? "";
+        if (data.batch !== undefined) setValues.batch = data.batch;
+        if (data.passOutClass !== undefined) setValues.passOutClass = data.passOutClass;
+        if (data.rollNumber !== undefined) setValues.rollNumber = data.rollNumber ?? "";
+        if ("admissionNo" in data) setValues.admissionNo = data.admissionNo ?? null;
+        if (data.dateOfBirth !== undefined) setValues.dateOfBirth = data.dateOfBirth ?? "";
+        if ("address" in data) setValues.address = data.address ?? null;
+        if ("photo" in data) setValues.photo = data.photo ?? null;
+        if ("achievements" in data) setValues.achievements = data.achievements ?? null;
+        if ("currentStatus" in data) setValues.currentStatus = data.currentStatus ?? null;
+        if (Object.keys(setValues).length === 0) return null;
+        const [row] = await db.update(alumniTable).set(setValues).where(eq(alumniTable.id, id)).returning();
         return row ?? null;
       },
       async bulkCreate(records: any[]) {

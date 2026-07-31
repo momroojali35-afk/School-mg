@@ -616,7 +616,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (isEmpty) {
         await seedAllData();
-        const [c2, sec2, s2, t2, sub2, ft2, att2, ex2, res2, fee2, exp2, sal2, pro2, ms2, al2, ir2, cal2, branding2] = await Promise.all([
+        const [c2, sec2, s2, t2, sub2, ft2, att2, ex2, res2, fee2, exp2, sal2, pro2, ms2, auditLog2, ir2, cal2, branding2, alumni2] = await Promise.all([
           apiGet<string[]>('/classes'), apiGet<string[]>('/sections').catch(() => [] as string[]),
           apiGet<any[]>('/students'), apiGet<any[]>('/teachers'),
           apiGet<string[]>('/subjects'), apiGet<any[]>('/fee-types'), apiGet<any[]>('/attendance'),
@@ -627,17 +627,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           apiGet<any[]>('/inactivation-requests').catch(() => [] as any[]),
           apiGet<Record<string, number>>('/settings/class-absent-limits').catch(() => ({} as Record<string, number>)),
           apiGet<DocumentBranding>('/settings/document-branding').catch(() => DEFAULT_STATE.documentBranding),
+          apiGet<any[]>('/alumni').catch(() => [] as any[]),
         ]);
         setState({
           classes: c2.sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })), sections: sec2, students: s2.map(mapStudent), teachers: t2.map(mapTeacher),
           subjects: sub2, feeTypes: ft2.map(mapFeeType), attendanceRecords: att2.map(mapAttendance),
           exams: ex2.map(mapExam), examResults: res2.map(mapExamResult), feeRecords: fee2.map(mapFeeRecord),
           expenses: exp2.map(mapExpense), salaryRecords: sal2.map(mapSalary), promotionRecords: pro2.map(mapPromotion),
-          markSubmissions: ms2, markAuditLog: al2,
+          markSubmissions: ms2, markAuditLog: auditLog2,
           inactivationRequests: ir2.map(mapInactivationRequest),
           classAbsentLimits: cal2,
           documentBranding: branding2,
-          alumni: [],
+          alumni: alumni2,
         });
       } else {
         setState({

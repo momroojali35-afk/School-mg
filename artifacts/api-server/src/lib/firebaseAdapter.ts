@@ -100,13 +100,25 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
         const ref = col("students").doc(id);
         const existing = await ref.get();
         if (!existing.exists) return null;
-        const updates = {
-          name: data.name, fatherName: data.fatherName, motherName: data.motherName,
-          mobileNumber: data.mobileNumber, class: data.class, section: data.section ?? null,
-          admissionNo: data.admissionNo ?? null, rollNumber: data.rollNumber,
-          dateOfBirth: data.dateOfBirth, address: data.address ?? null, photo: data.photo ?? null,
-          annualFee: data.annualFee ?? null, discountType: data.discountType ?? null, discountValue: data.discountValue ?? null,
-        };
+        // Only include fields that are explicitly provided so partial updates
+        // don't overwrite existing data with undefined/null.
+        const updates: any = {};
+        if (data.name !== undefined) updates.name = data.name;
+        if (data.fatherName !== undefined) updates.fatherName = data.fatherName;
+        if (data.motherName !== undefined) updates.motherName = data.motherName;
+        if (data.mobileNumber !== undefined) updates.mobileNumber = data.mobileNumber;
+        if (data.class !== undefined) updates.class = data.class;
+        if ("section" in data) updates.section = data.section ?? null;
+        if ("admissionNo" in data) updates.admissionNo = data.admissionNo ?? null;
+        if (data.rollNumber !== undefined) updates.rollNumber = data.rollNumber;
+        if (data.dateOfBirth !== undefined) updates.dateOfBirth = data.dateOfBirth;
+        if ("address" in data) updates.address = data.address ?? null;
+        if ("photo" in data) updates.photo = data.photo ?? null;
+        if ("annualFee" in data) updates.annualFee = data.annualFee ?? null;
+        if ("discountType" in data) updates.discountType = data.discountType ?? null;
+        if ("discountValue" in data) updates.discountValue = data.discountValue ?? null;
+        if (data.status !== undefined) updates.status = data.status;
+        if (Object.keys(updates).length === 0) return { id, ...existing.data() };
         await ref.update(updates);
         return { id, ...existing.data(), ...updates };
       },
@@ -137,6 +149,7 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
           permissions: data.permissions ?? {
             addStudent: false, feeCollection: false, manageClasses: false,
             manageExams: false, manageResults: false, promoteStudents: false, sendFeeReminder: false,
+            allowMarkEdit: false,
           },
         });
         await col("teachers").doc(id).set(doc);
@@ -146,11 +159,17 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
         const ref = col("teachers").doc(id);
         const existing = await ref.get();
         if (!existing.exists) return null;
-        const updates = {
-          name: data.name, subject: data.subject, mobileNumber: data.mobileNumber,
-          salary: data.salary, username: data.username, password: data.password,
-          joinDate: data.joinDate, photo: data.photo ?? null, permissions: data.permissions,
-        };
+        const updates: any = {};
+        if (data.name !== undefined) updates.name = data.name;
+        if (data.subject !== undefined) updates.subject = data.subject;
+        if (data.mobileNumber !== undefined) updates.mobileNumber = data.mobileNumber;
+        if (data.salary !== undefined) updates.salary = data.salary;
+        if (data.username !== undefined) updates.username = data.username;
+        if (data.password !== undefined) updates.password = data.password;
+        if (data.joinDate !== undefined) updates.joinDate = data.joinDate;
+        if ("photo" in data) updates.photo = data.photo ?? null;
+        if (data.permissions !== undefined) updates.permissions = data.permissions;
+        if (Object.keys(updates).length === 0) return { id, ...existing.data() };
         await ref.update(updates);
         return { id, ...existing.data(), ...updates };
       },
@@ -287,12 +306,15 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
         const ref = col("exams").doc(id);
         const existing = await ref.get();
         if (!existing.exists) return null;
-        const updates = {
-          name: data.name, class: data.class, subjects: data.subjects,
-          subjectSchedule: data.subjectSchedule ?? null,
-          classSubjects: data.classSubjects ?? null,
-          date: data.date, maxMarks: data.maxMarks,
-        };
+        const updates: any = {};
+        if (data.name !== undefined) updates.name = data.name;
+        if (data.class !== undefined) updates.class = data.class;
+        if (data.subjects !== undefined) updates.subjects = data.subjects;
+        if ("subjectSchedule" in data) updates.subjectSchedule = data.subjectSchedule ?? null;
+        if ("classSubjects" in data) updates.classSubjects = data.classSubjects ?? null;
+        if (data.date !== undefined) updates.date = data.date;
+        if (data.maxMarks !== undefined) updates.maxMarks = data.maxMarks;
+        if (Object.keys(updates).length === 0) return { id, ...existing.data() };
         await ref.update(updates);
         return { id, ...existing.data(), ...updates };
       },

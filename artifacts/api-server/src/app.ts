@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -34,5 +34,21 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api", router);
+
+// ── Global JSON error handler ─────────────────────────────────────────────────
+// Express 5 forwards rejected async-route promises here automatically.
+// Without this, unhandled errors produce an HTML page instead of JSON.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = typeof err?.status === "number" ? err.status
+    : typeof err?.statusCode === "number" ? err.statusCode
+    : err?.code === "NO_DB_CONNECTION" ? 503
+    : 500;
+  const message = err?.message ?? "Internal server error";
+  logger.error({ err, status }, message);
+  if (!res.headersSent) {
+    res.status(status).json({ error: message });
+  }
+});
 
 export default app;
