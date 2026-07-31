@@ -496,8 +496,48 @@ export async function downloadMultipleHtmlsAsPdf(
   /* ── Native path: delegate to expo-print ──────────────────────────────── */
   if (Platform.OS !== 'web') {
     console.log('[PDF] Native bulk path — expo-print');
-    const combined = htmlPages.join('\n');
-    const { uri } = await Print.printToFileAsync({ html: combined });
+
+    // Build a single valid HTML document from all pages.
+    // Naively joining complete HTML documents (each with its own <!DOCTYPE>,
+    // <html>, <head>, <body>) means the print engine only sees the first
+    // document and silently discards the rest — producing a single-page PDF
+    // regardless of how many students were selected.
+    let combinedHtml: string;
+    if (htmlPages.length === 1) {
+      combinedHtml = htmlPages[0];
+    } else {
+      // Extract <head> from the first document (styles are identical for all)
+      const headMatch = htmlPages[0].match(/<head>([\s\S]*?)<\/head>/);
+      const headContent = headMatch ? headMatch[1] : '';
+
+      // Extract the body content from each document
+      const bodyContents = htmlPages.map(html => {
+        const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
+        return m ? m[1].trim() : '';
+      });
+
+      // Wrap each page with a print page-break container
+      const pages = bodyContents.map((content, i) => {
+        const isLast = i === bodyContents.length - 1;
+        return `<div class="page-wrap${isLast ? ' page-wrap-last' : ''}">\n${content}\n</div>`;
+      }).join('\n');
+
+      combinedHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+${headContent}
+<style>
+  .page-wrap { margin-bottom: 0; page-break-after: always; break-after: page; }
+  .page-wrap-last { page-break-after: auto; break-after: auto; }
+</style>
+</head>
+<body>
+${pages}
+</body>
+</html>`;
+    }
+
+    const { uri } = await Print.printToFileAsync({ html: combinedHtml });
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
     await FileSystem.copyAsync({ from: uri, to: destUri });
