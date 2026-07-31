@@ -340,7 +340,8 @@ export async function downloadHtmlAsPdf(
        no gap, and foreignObjectRendering clips nothing from the header.        */
     const resetStyle = iDoc.createElement('style');
     resetStyle.textContent =
-      'html,body{padding:0!important;margin:0!important;background:#ffffff!important;}' +
+      'html,body{padding:0!important;margin:0!important;background:#ffffff!important;' +
+      'height:auto!important;min-height:0!important;overflow:visible!important;}' +
       '.page-wrap{margin-bottom:0!important;}';
     iDoc.head.appendChild(resetStyle);
 
@@ -628,7 +629,8 @@ ${pages}
       /* Remove body padding so .page sits at y=0 with no gap above the header */
       const resetStyle = iDoc.createElement('style');
       resetStyle.textContent =
-        'html,body{padding:0!important;margin:0!important;background:#ffffff!important;}' +
+        'html,body{padding:0!important;margin:0!important;background:#ffffff!important;' +
+        'height:auto!important;min-height:0!important;overflow:visible!important;}' +
         '.page-wrap{margin-bottom:0!important;}';
       iDoc.head.appendChild(resetStyle);
 

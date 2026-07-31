@@ -683,6 +683,12 @@ function buildBulkSingleHtml(dataList: MarksheetData[], branding: DocumentBrandi
 <head>
 ${headContent}
 <style>
+  /* ── Bulk-mode override: unlock body height so all pages are reachable ──
+     Each individual marksheet injects "html,body{height:297mm;overflow:hidden}"
+     which clips everything after page 1 when merged into one document.
+     The !important rules below cancel those constraints so querySelectorAll('.page')
+     finds every student and html2canvas can scroll to each one. */
+  html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }
   .page-wrap {
     margin-bottom: 0;
     page-break-after: always;
@@ -1128,6 +1134,12 @@ function buildBulkCombinedHtml(dataList: CombinedMarksheetData[], branding: Docu
 <head>
 ${headContent}
 <style>
+  /* ── Bulk-mode override: unlock body height so all pages are reachable ──
+     Each individual marksheet injects "html,body{height:297mm;overflow:hidden}"
+     which clips everything after page 1 when pages are merged into one document.
+     The !important rules below cancel those constraints so querySelectorAll('.page')
+     finds every student and html2canvas can scroll to each one. */
+  html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }
   .page-wrap {
     margin-bottom: 0;
     page-break-after: always;
