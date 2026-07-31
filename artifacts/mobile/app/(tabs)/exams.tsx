@@ -1057,8 +1057,34 @@ export default function ExamsScreen() {
               <Feather name={pass ? 'award' : 'x-circle'} size={24} color={pass ? colors.success : colors.destructive} />
               <Text style={[mk.resultText, { color: pass ? colors.success : colors.destructive }]}>{pass ? 'PASS' : 'FAIL'}</Text>
             </View>
-            <View style={[mk.footer, { borderTopColor: colors.border }]}>
-              <Text style={{ fontSize: 11, color: colors.mutedForeground, textAlign: 'center' }}>{SCHOOL_INFO.name} • {SCHOOL_INFO.contact}</Text>
+
+            {/* ── Signature Section ── */}
+            <View style={[mk.sigSection, { borderTopColor: colors.border }]}>
+              <Text style={[mk.sigSectionTitle, { color: colors.mutedForeground }]}>AUTHORISED SIGNATURES</Text>
+              <View style={mk.sigRow}>
+                {[
+                  { label: 'Class Teacher', icon: 'user' as const },
+                  { label: 'Principal', icon: 'award' as const },
+                  { label: 'Parent / Guardian', icon: 'users' as const },
+                ].map(({ label, icon }) => (
+                  <View key={label} style={mk.sigBox}>
+                    <View style={[mk.sigIconWrap, { backgroundColor: colors.primary + '12' }]}>
+                      <Feather name={icon} size={18} color={colors.primary} />
+                    </View>
+                    <View style={[mk.sigLine, { borderBottomColor: colors.border }]} />
+                    <Text style={[mk.sigLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* ── Footer ── */}
+            <View style={[mk.footer, { borderTopColor: colors.border, backgroundColor: colors.primary + '08' }]}>
+              <Text style={[mk.footerSchool, { color: colors.primary }]}>{SCHOOL_INFO.name}</Text>
+              <View style={mk.footerDivider} />
+              <Text style={[mk.footerContact, { color: colors.mutedForeground }]}>{SCHOOL_INFO.address}</Text>
+              <Text style={[mk.footerContact, { color: colors.mutedForeground }]}>📞 {SCHOOL_INFO.contact}</Text>
+              <Text style={[mk.footerNote, { color: colors.mutedForeground }]}>This is a computer-generated marksheet. No signature required if digitally stamped.</Text>
             </View>
           </View>
         </ScrollView>
@@ -1636,7 +1662,20 @@ const mk = StyleSheet.create({
   totalLabel: { fontSize: 14, fontWeight: '700' },
   resultBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 16, marginHorizontal: 20, marginBottom: 20, borderRadius: 12 },
   resultText: { fontSize: 24, fontWeight: '900', letterSpacing: 2 },
-  footer: { padding: 16, borderTopWidth: 1 },
+  // signature section
+  sigSection: { borderTopWidth: 1, paddingTop: 20, paddingHorizontal: 20, paddingBottom: 8 },
+  sigSectionTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, textAlign: 'center', marginBottom: 20 },
+  sigRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  sigBox: { flex: 1, alignItems: 'center', gap: 8 },
+  sigIconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  sigLine: { width: '100%', borderBottomWidth: 1.5, marginTop: 16, marginBottom: 4 },
+  sigLabel: { fontSize: 10, fontWeight: '600', textAlign: 'center' },
+  // footer
+  footer: { padding: 20, borderTopWidth: 1, alignItems: 'center', gap: 4 },
+  footerSchool: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5, textAlign: 'center' },
+  footerDivider: { width: 40, height: 2, backgroundColor: '#C8A040', borderRadius: 1, marginVertical: 4 },
+  footerContact: { fontSize: 11, textAlign: 'center' },
+  footerNote: { fontSize: 9, textAlign: 'center', marginTop: 6, opacity: 0.7, lineHeight: 13 },
 });
 const cmo = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
