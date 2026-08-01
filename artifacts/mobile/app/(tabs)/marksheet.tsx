@@ -342,7 +342,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
   /* flex:1 lets .inner fill remaining space; overflow:hidden clips table rows if too tall */
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; flex:1; min-height:0; overflow:hidden; ${_innerZoomCss} }
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
 
   /* ---------- header ---------- */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:10px; border-bottom:3px solid #0c1f4a; }
@@ -638,8 +638,6 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
     </div>
 
 
-  </div><!-- /inner — signatures and footer live outside inner so they are never clipped by zoom -->
-
   <!-- ══ SIGNATURES ══ -->
   <div class="sigs">
     <div class="sig-block">
@@ -653,8 +651,10 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
   </div>
 
   <div class="footer">
-    <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
+    <div class="footer-quote">Education is the most powerful weapon which you can use to change the world.</div>
   </div>
+
+  </div><!-- /inner -->
 
 </div><!-- /page -->
 </body>
@@ -819,7 +819,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
   /* flex:1 lets .inner fill remaining space; overflow:hidden clips table rows if too tall */
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; flex:1; min-height:0; overflow:hidden; ${_innerZoomCss} }
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
   /* header */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:8px; border-bottom:3px solid #0c1f4a; }
   .hdr-center { flex:1; text-align:center; }
@@ -1094,8 +1094,6 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
     </div>
 
 
-  </div><!-- /inner — signatures and footer live outside inner so they are never clipped by zoom -->
-
   <!-- ══ SIGNATURES ══ -->
   <div class="sigs">
     <div class="sig-block">
@@ -1109,8 +1107,10 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   </div>
 
   <div class="footer">
-    <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
+    <div class="footer-quote">Education is the most powerful weapon which you can use to change the world.</div>
   </div>
+
+  </div><!-- /inner -->
 
 </div><!-- /page -->
 </body>
