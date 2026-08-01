@@ -756,13 +756,13 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
         return `<td style="padding:6px 4px;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0;color:#c0c9d8">—</td>`
              + `<td style="padding:6px 4px;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0;color:#c0c9d8">—</td>`;
       return `<td style="padding:6px 4px;font-size:13px;font-weight:800;color:#0c1f4a;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0">${v}</td>`
-           + `<td style="padding:6px 4px;font-size:11px;color:#7a8caa;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0">${getSubjectMaxMarks(ex, row.subject)}</td>`;
+           + `<td style="padding:6px 4px;font-size:11px;color:#0c1f4a;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0">${getSubjectMaxMarks(ex, row.subject)}</td>`;
     }).join('');
     return `<tr style="background:${bg}">
       <td style="padding:6px 12px;font-size:12px;font-weight:700;color:#0c1f4a;text-transform:uppercase;border-bottom:1px solid #dde4f0;border-right:1px solid #dde4f0;white-space:nowrap">${icon}&nbsp;${row.subject}</td>
       ${examCells}
       <td style="padding:6px 6px;font-size:13px;font-weight:800;color:#0c1f4a;text-align:center;border-left:2px solid #b0bcd4;border-bottom:1px solid #dde4f0">${row.total}</td>
-      <td style="padding:6px 4px;font-size:11px;color:#7a8caa;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0">${row.max}</td>
+       <td style="padding:6px 4px;font-size:11px;color:#0c1f4a;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0">${row.max}</td>
       <td style="padding:6px 6px;font-size:12px;font-weight:600;color:#1a1a2e;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0">${row.pct.toFixed(2)}</td>
       <td style="padding:6px 6px;font-size:14px;font-weight:900;color:${sg.color};text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0">${row.grade}</td>
     </tr>`;
