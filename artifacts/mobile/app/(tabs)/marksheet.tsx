@@ -334,13 +334,15 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
   @media print { html, body { background: #fff; padding: 0; margin: 0; height: 297mm; overflow: hidden; } .page { page-break-after: avoid; break-after: avoid; } }
   /* ---------- page shell ---------- */
   /* 794 px = A4 width at 96 dpi; 297mm = exact A4 height — guarantees one-page output */
-  .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; }
+  /* flex-column so .sigs and .footer are always pinned at the bottom, never clipped */
+  .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; display:flex; flex-direction:column; }
   .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
   .corner.tl { top:4px; left:4px; }
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; ${_innerZoomCss} }
+  /* flex:1 lets .inner fill remaining space; overflow:hidden clips table rows if too tall */
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; flex:1; min-height:0; overflow:hidden; ${_innerZoomCss} }
 
   /* ---------- header ---------- */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:10px; border-bottom:3px solid #0c1f4a; }
@@ -407,13 +409,13 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
   .rem-tag { background:#0c1f4a; color:#fff; padding:9px 20px 9px 14px; font-size:12.5px; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; clip-path:polygon(0 0,100% 0,90% 100%,0 100%); padding-right:36px; }
   .rem-txt { padding:9px 16px; font-size:13px; color:#222; display:flex; align-items:center; font-weight:500; flex:1; }
 
-  /* ---------- signatures ---------- */
-  .sigs { display:flex; justify-content:space-around; margin-top:14px; text-align:center; }
+  /* ---------- signatures — flex-shrink:0 keeps them out of the scrolling inner area --- */
+  .sigs { display:flex; justify-content:space-around; margin-top:6px; text-align:center; flex-shrink:0; }
   .sig-block .cursive { font-family:'Brush Script MT','Segoe Script',cursive; font-size:30px; color:#0c1f4a; display:block; border-bottom:1.5px solid #333; padding-bottom:4px; margin-bottom:6px; min-width:160px; line-height:1.4; }
   .sig-block .role { font-size:12px; font-weight:700; color:#0c1f4a; letter-spacing:0.3px; }
 
-  /* ---------- footer ---------- */
-  .footer { background:#0c1f4a; border-radius:0 0 6px 6px; margin-top:8px; padding:8px 22px; text-align:center; }
+  /* ---------- footer — flex-shrink:0 always pins it at page bottom ------------------- */
+  .footer { background:#0c1f4a; border-radius:0 0 6px 6px; margin-top:6px; padding:8px 22px; text-align:center; flex-shrink:0; }
   .footer-quote { font-size:10px; color:#c8a040; letter-spacing:2.5px; font-weight:700; font-family:'Poppins',Arial,sans-serif; text-transform:uppercase; }
 </style>
 </head>
@@ -634,23 +636,24 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       <div class="rem-txt">${remark}</div>
     </div>
 
-    <!-- ══ SIGNATURES ══ -->
-    <div class="sigs">
-      <div class="sig-block">
-         ${marksheetSignatureHtml('teacher', branding)}
-        <div class="role">Class Teacher</div>
-      </div>
-      <div class="sig-block">
-         ${marksheetSignatureHtml('principal', branding)}
-        <div class="role">Principal</div>
-      </div>
-    </div>
 
-    <div class="footer">
-      <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
-    </div>
+  </div><!-- /inner — signatures and footer live outside inner so they are never clipped by zoom -->
 
-  </div><!-- /inner -->
+  <!-- ══ SIGNATURES ══ -->
+  <div class="sigs">
+    <div class="sig-block">
+       ${marksheetSignatureHtml('teacher', branding)}
+      <div class="role">Class Teacher</div>
+    </div>
+    <div class="sig-block">
+       ${marksheetSignatureHtml('principal', branding)}
+      <div class="role">Principal</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
+  </div>
 
 </div><!-- /page -->
 </body>
@@ -807,13 +810,15 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   html, body { height:297mm; overflow:hidden; }
   @media print { html, body { background:#fff; padding:0; margin:0; height:297mm; overflow:hidden; } .page { page-break-after:avoid; break-after:avoid; } }
   /* 794 px = A4 width at 96 dpi; 297mm = exact A4 height */
-  .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; }
+  /* flex-column so .sigs and .footer are always pinned at the bottom, never clipped */
+  .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; display:flex; flex-direction:column; }
   .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
   .corner.tl { top:4px; left:4px; }
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; ${_innerZoomCss} }
+  /* flex:1 lets .inner fill remaining space; overflow:hidden clips table rows if too tall */
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; flex:1; min-height:0; overflow:hidden; ${_innerZoomCss} }
   /* header */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:8px; border-bottom:3px solid #0c1f4a; }
   .hdr-center { flex:1; text-align:center; }
@@ -872,12 +877,12 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   .rem { display:flex; align-items:stretch; margin-top:7px; border-radius:6px; overflow:hidden; border:1.5px solid #d0d8ea; }
   .rem-tag { background:#0c1f4a; color:#fff; padding:8px 18px 8px 12px; font-size:12px; font-weight:700; letter-spacing:0.5px; display:flex; align-items:center; clip-path:polygon(0 0,100% 0,90% 100%,0 100%); padding-right:32px; }
   .rem-txt { padding:8px 14px; font-size:12.5px; color:#222; display:flex; align-items:center; font-weight:500; flex:1; }
-  /* signatures */
-  .sigs { display:flex; justify-content:space-around; margin-top:12px; text-align:center; }
+  /* signatures — flex-shrink:0 keeps them out of the scrolling inner area */
+  .sigs { display:flex; justify-content:space-around; margin-top:6px; text-align:center; flex-shrink:0; }
   .sig-block .cursive { font-family:'Brush Script MT','Segoe Script',cursive; font-size:28px; color:#0c1f4a; display:block; border-bottom:1.5px solid #333; padding-bottom:4px; margin-bottom:6px; min-width:160px; line-height:1.4; }
   .sig-block .role { font-size:11.5px; font-weight:700; color:#0c1f4a; letter-spacing:0.3px; }
-  /* footer */
-  .footer { background:#0c1f4a; border-radius:0 0 6px 6px; margin-top:7px; padding:8px 22px; text-align:center; }
+  /* footer — flex-shrink:0 always pins it at page bottom */
+  .footer { background:#0c1f4a; border-radius:0 0 6px 6px; margin-top:6px; padding:8px 22px; text-align:center; flex-shrink:0; }
   .footer-quote { font-size:10px; color:#c8a040; letter-spacing:2.5px; font-weight:700; font-family:'Poppins',Arial,sans-serif; text-transform:uppercase; }
 </style>
 </head>
@@ -1086,23 +1091,24 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <div class="rem-txt">${remark}</div>
     </div>
 
-    <!-- ══ SIGNATURES ══ -->
-    <div class="sigs">
-      <div class="sig-block">
-        ${marksheetSignatureHtml('teacher', branding)}
-        <div class="role">Class Teacher</div>
-      </div>
-      <div class="sig-block">
-        ${marksheetSignatureHtml('principal', branding)}
-        <div class="role">Principal</div>
-      </div>
-    </div>
 
-    <div class="footer">
-      <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
-    </div>
+  </div><!-- /inner — signatures and footer live outside inner so they are never clipped by zoom -->
 
-  </div><!-- /inner -->
+  <!-- ══ SIGNATURES ══ -->
+  <div class="sigs">
+    <div class="sig-block">
+      ${marksheetSignatureHtml('teacher', branding)}
+      <div class="role">Class Teacher</div>
+    </div>
+    <div class="sig-block">
+      ${marksheetSignatureHtml('principal', branding)}
+      <div class="role">Principal</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-quote">&#8220; Education is the most powerful weapon which you can use to change the world. &#8221;</div>
+  </div>
 
 </div><!-- /page -->
 </body>
