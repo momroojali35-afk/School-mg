@@ -305,10 +305,12 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
     `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><polyline points="2,36 2,6 6,2 36,2" fill="none" stroke="#c8a040" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polygon points="6,2 10,6 6,10 2,6" fill="#c8a040"/><line x1="8" y1="2" x2="22" y2="2" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/><line x1="2" y1="8" x2="2" y2="22" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/></svg>`;
 
   // Auto-scale .inner if subject count would overflow A4.
-  // Available inner height = 1123px(A4) - 10px(border) - 18px(padding) - 24px(inner-padding) = 1071px
-  // Base 760 = header~220 + info~130 + table-header~50 + summary~130 + remarks~40 + sigs~60 + footer~40 + gaps~90
-  const _innerContentH = 760 + exam.subjects.length * 27;
-  const _innerZoom = _innerContentH > 1071 ? (_innerContentH > 0 ? (1071 / _innerContentH).toFixed(3) : '') : '';
+  // Available inner height capped at 1000px (safety margin vs raw 1071px) so the zoom
+  // kicks in earlier and signatures + footer are never clipped by .page { overflow:hidden }.
+  // Base 910 = header~260 + info~140 + table-header~50 + summary~145 + remarks~45 + sigs~80 + footer~45 + gaps~95
+  // (previous base of 760 underestimated logo/signature image heights causing bottom clip)
+  const _innerContentH = 910 + exam.subjects.length * 27;
+  const _innerZoom = _innerContentH > 1000 ? (_innerContentH > 0 ? (1000 / _innerContentH).toFixed(3) : '') : '';
   const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
 
   return `<!DOCTYPE html>
@@ -785,10 +787,12 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
     .map(([r,g], i) => `<tr style="background:${i%2===0?'#fff':'#f5f7fd'}"><td style="padding:5px 10px;font-size:12px;color:#475569;border-bottom:1px solid #eef1f8">${r}</td><td style="padding:5px 10px;font-size:14px;font-weight:900;color:#0c1f4a;text-align:center;border-bottom:1px solid #eef1f8">${g}</td></tr>`).join('');
 
   // Auto-scale .inner if subject count would overflow A4.
-  // Available inner height = 1123px(A4) - 10px(border) - 18px(padding) - 22px(inner-padding) = 1073px
-  // Base 690 = header~240 + info~125 + table-header~55 + summary~130 + remarks~40 + sigs~60 + footer~40
-  const _innerContentH = 690 + subjectRows.length * 30;
-  const _innerZoom = _innerContentH > 1073 ? (_innerContentH > 0 ? (1073 / _innerContentH).toFixed(3) : '') : '';
+  // Available inner height capped at 1000px (safety margin vs raw 1073px) so the zoom
+  // kicks in earlier and signatures + footer are never clipped by .page { overflow:hidden }.
+  // Base 840 = header~275 + info~135 + table-header~60 + summary~140 + remarks~45 + sigs~80 + footer~45 + gaps~60
+  // (previous base of 690 underestimated logo/signature image heights causing bottom clip)
+  const _innerContentH = 840 + subjectRows.length * 30;
+  const _innerZoom = _innerContentH > 1000 ? (_innerContentH > 0 ? (1000 / _innerContentH).toFixed(3) : '') : '';
   const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
 
   return `<!DOCTYPE html>
