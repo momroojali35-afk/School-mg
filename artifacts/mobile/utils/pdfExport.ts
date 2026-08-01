@@ -241,6 +241,40 @@ function isCanvasBlank(canvas: HTMLCanvasElement): boolean {
   }
 }
 
+/**
+ * Apply the same inset used by the browser/jsPDF pipeline to native printing.
+ *
+ * expo-print uses the HTML print layout directly, so without this override the
+ * page shell (which is intentionally A4-sized for browser capture) fills the
+ * entire printable area and ignores the requested PDF margin.
+ */
+function applyNativePrintMargins(html: string, marginMm: number): string {
+  if (!Number.isFinite(marginMm) || marginMm <= 0) return html;
+
+  const safeMargin = Math.max(0, Math.min(marginMm, 20));
+  const pageWidth = `calc(210mm - ${safeMargin * 2}mm)`;
+  const pageHeight = `calc(297mm - ${safeMargin * 2}mm)`;
+  const printOverrides = `<style id="pdf-margin-overrides">
+  @page { size: A4 portrait; margin: ${safeMargin}mm !important; }
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .page {
+    width: ${pageWidth} !important;
+    height: ${pageHeight} !important;
+    margin: 0 auto !important;
+  }
+</style>`;
+
+  return html.includes('</head>')
+    ? html.replace('</head>', `${printOverrides}\n</head>`)
+    : `${printOverrides}\n${html}`;
+}
+
 /* ─── Public API ──────────────────────────────────────────────────────────── */
 
 /**
@@ -265,7 +299,9 @@ export async function downloadHtmlAsPdf(
   /* ── Native path ─────────────────────────────────────────────────────── */
   if (Platform.OS !== 'web') {
     console.log('[PDF] Native path — expo-print');
-    const { uri } = await Print.printToFileAsync({ html });
+    const { uri } = await Print.printToFileAsync({
+      html: applyNativePrintMargins(html, marginMm),
+    });
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
     await FileSystem.copyAsync({ from: uri, to: destUri });
@@ -549,7 +585,9 @@ ${pages}
 </html>`;
     }
 
-    const { uri } = await Print.printToFileAsync({ html: combinedHtml });
+    const { uri } = await Print.printToFileAsync({
+      html: applyNativePrintMargins(combinedHtml, marginMm),
+    });
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
     await FileSystem.copyAsync({ from: uri, to: destUri });
@@ -563,7 +601,15 @@ ${pages}
 
   /* ── Single page: reuse the existing single-page pipeline ─────────────── */
   if (htmlPages.length === 1) {
-    return downloadHtmlAsPdf(htmlPages[0], filename, pageSelector, 'img[alt="QR Code"],img[alt="QR"]', triggerDownload, onSaved);
+    return downloadHtmlAsPdf(
+      htmlPages[0],
+      filename,
+      pageSelector,
+      'img[alt="QR Code"],img[alt="QR"]',
+      triggerDownload,
+      onSaved,
+      marginMm,
+    );
   }
 
   const safeName = filename.replace(/['"\\<>]/g, '').trim();

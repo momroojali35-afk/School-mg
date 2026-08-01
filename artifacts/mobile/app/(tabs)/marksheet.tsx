@@ -391,8 +391,9 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
 
   /* ---------- summary cards ---------- */
   .summary { display:grid; grid-template-columns:repeat(6,1fr); gap:7px; margin-top:10px; page-break-inside:avoid; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .sc { border:1.5px solid #e2e8f0; border-radius:14px; padding:10px 6px 8px; text-align:center; background:#fff; box-shadow:0 6px 22px rgba(12,31,74,0.10), 0 1px 5px rgba(12,31,74,0.06); display:flex; flex-direction:column; align-items:center; }
-  .sc .si { display:flex; justify-content:center; align-items:center; margin-bottom:6px; width:44px; height:44px; border-radius:50%; flex-shrink:0; }
+  .sc { border:1.5px solid #e2e8f0; border-radius:14px; padding:10px 6px 8px; text-align:center; background:#fff; box-shadow:0 6px 22px rgba(12,31,74,0.10), 0 1px 5px rgba(12,31,74,0.06); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .sc .si { display:flex; justify-content:center; align-items:center; margin:0 auto 8px; width:50px; height:50px; border-radius:50%; flex-shrink:0; }
+  .sc .si svg { width:34px; height:34px; }
   .sc .sl { font-size:8.5px; font-weight:700; color:#0c1f4a; letter-spacing:0.4px; line-height:1.5; text-transform:uppercase; }
   .sc .sv { font-family:'Archivo Black',sans-serif; font-size:20px; color:#0c1f4a; margin-top:4px; line-height:1.1; }
   .sc .ss { font-size:8px; color:#64748b; margin-top:2px; line-height:1.4; }
@@ -543,7 +544,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       <!-- Card 1: Total Marks -->
       <div class="sc" style="border-color:#bfdbfe;border-top:3px solid #1e40af">
         <div class="si" style="background:#dbeafe">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <rect x="8" y="2" width="8" height="4" rx="1"/>
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
             <path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
@@ -556,7 +557,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       <!-- Card 2: Total Obtained Marks -->
       <div class="sc" style="border-color:#a7f3d0;border-top:3px solid #059669">
         <div class="si" style="background:#dcfce7">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <path d="m9 12 2 2 4-4"/>
           </svg>
@@ -568,7 +569,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       <!-- Card 3: Percentage -->
       <div class="sc" style="border-color:#bfdbfe;border-top:3px solid #2563eb">
         <div class="si" style="background:#eff6ff">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="5" x2="5" y2="19"/>
             <circle cx="6.5" cy="6.5" r="2.5"/>
             <circle cx="17.5" cy="17.5" r="2.5"/>
@@ -581,7 +582,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       <!-- Card 4: Overall Grade -->
       <div class="sc" style="border-color:#fcd34d;border-top:3px solid #d97706">
         <div class="si" style="background:#fef3c7">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="8" r="6"/>
             <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
           </svg>
@@ -594,7 +595,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       <!-- Card 5: Position / Rank -->
       <div class="sc" style="border-color:#fed7aa;border-top:3px solid #ea580c">
         <div class="si" style="background:#ffedd5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
             <path d="M4 22h16"/>
@@ -611,7 +612,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
       <!-- Card 6: Grade Scale -->
       <div class="sc" style="border-color:#ddd6fe;border-top:3px solid #7c3aed">
         <div class="si" style="background:#f3e8ff">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 3v18h18"/>
             <path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
           </svg>
@@ -861,8 +862,9 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   table.mt tr.tr td:first-child { font-size:12px; }
   /* summary cards */
   .summary { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:8px; margin-bottom:0; page-break-inside:avoid; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .sc { border:1.5px solid #e2e8f0; border-radius:14px; padding:6px 5px 5px; text-align:center; background:#fff; box-shadow:0 6px 20px rgba(12,31,74,0.10), 0 1px 5px rgba(12,31,74,0.06); display:flex; flex-direction:column; align-items:center; }
-  .sc .si { display:flex; justify-content:center; align-items:center; margin-bottom:4px; width:32px; height:32px; border-radius:50%; flex-shrink:0; }
+  .sc { border:1.5px solid #e2e8f0; border-radius:14px; padding:6px 5px 5px; text-align:center; background:#fff; box-shadow:0 6px 20px rgba(12,31,74,0.10), 0 1px 5px rgba(12,31,74,0.06); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .sc .si { display:flex; justify-content:center; align-items:center; margin:0 auto 6px; width:42px; height:42px; border-radius:50%; flex-shrink:0; }
+  .sc .si svg { width:29px; height:29px; }
   .sc .sl { font-size:8.5px; font-weight:700; color:#0c1f4a; letter-spacing:0.4px; line-height:1.5; text-transform:uppercase; }
   .sc .sv { font-family:'Archivo Black',sans-serif; font-size:17px; color:#0c1f4a; margin-top:2px; line-height:1.1; }
   .sc .ss { font-size:8px; color:#64748b; margin-top:1px; line-height:1.3; }
@@ -998,7 +1000,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 1: Total Marks -->
       <div class="sc" style="border-color:#bfdbfe;border-top:3px solid #1e40af">
         <div class="si" style="background:#dbeafe">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <rect x="8" y="2" width="8" height="4" rx="1"/>
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
             <path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
@@ -1011,7 +1013,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 2: Total Obtained Marks -->
       <div class="sc" style="border-color:#a7f3d0;border-top:3px solid #059669">
         <div class="si" style="background:#dcfce7">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <path d="m9 12 2 2 4-4"/>
           </svg>
@@ -1023,7 +1025,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 3: Percentage -->
       <div class="sc" style="border-color:#bfdbfe;border-top:3px solid #2563eb">
         <div class="si" style="background:#eff6ff">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="5" x2="5" y2="19"/>
             <circle cx="6.5" cy="6.5" r="2.5"/>
             <circle cx="17.5" cy="17.5" r="2.5"/>
@@ -1036,7 +1038,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 4: Overall Grade -->
       <div class="sc" style="border-color:#fcd34d;border-top:3px solid #d97706">
         <div class="si" style="background:#fef3c7">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="8" r="6"/>
             <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
           </svg>
@@ -1049,7 +1051,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 5: Position / Rank -->
       <div class="sc" style="border-color:#fed7aa;border-top:3px solid #ea580c">
         <div class="si" style="background:#ffedd5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
             <path d="M4 22h16"/>
@@ -1066,7 +1068,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
       <!-- Card 6: Grade Scale -->
       <div class="sc" style="border-color:#ddd6fe;border-top:3px solid #7c3aed">
         <div class="si" style="background:#f3e8ff">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+           <svg xmlns="http://www.w3.org/2000/svg" width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 3v18h18"/>
             <path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
           </svg>
