@@ -444,9 +444,20 @@ export async function downloadHtmlAsPdf(
 
       // PNG preserves colours perfectly; no JPEG compression artefacts on text/borders.
       const imgData = canvas.toDataURL('image/png');
-      // marginMm > 0 adds white space on all sides; content is scaled to fit within margins.
-      const m = marginMm;
-      pdf.addImage(imgData, 'PNG', m, m, A4_W - 2 * m, A4_H - 2 * m);
+      // Preserve the captured image's natural aspect ratio so the content is never
+      // squished or stretched. Center the result on the A4 page — equal margins on all sides.
+      const m        = marginMm;
+      const maxImgW  = A4_W - 2 * m;          // 194 mm (for m=8)
+      const maxImgH  = A4_H - 2 * m;          // 281 mm
+      const srcAspect = elH / elW;             // e.g. 1123/794 ≈ 1.414 for A4
+      // Scale to fill width; if that would exceed max height, scale to fill height instead.
+      let imgW = maxImgW;
+      let imgH = imgW * srcAspect;
+      if (imgH > maxImgH) { imgH = maxImgH; imgW = imgH / srcAspect; }
+      // Centre horizontally and vertically → equal white space on all four sides.
+      const imgX = (A4_W - imgW) / 2;
+      const imgY = (A4_H - imgH) / 2;
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH);
     }
 
     console.log('[PDF] Saving:', `${safeName}.pdf`);
@@ -718,8 +729,16 @@ ${pages}
     const canvas       = await capturePageCanvas(preparedHtml, i + 1);
 
     if (i > 0) pdf.addPage();
-    const m = marginMm;
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', m, m, A4_W - 2 * m, A4_H - 2 * m);
+    const m         = marginMm;
+    const maxImgW   = A4_W - 2 * m;
+    const maxImgH   = A4_H - 2 * m;
+    const srcAspect = canvas.height / canvas.width;
+    let imgW = maxImgW;
+    let imgH = imgW * srcAspect;
+    if (imgH > maxImgH) { imgH = maxImgH; imgW = imgH / srcAspect; }
+    const imgX = (A4_W - imgW) / 2;
+    const imgY = (A4_H - imgH) / 2;
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', imgX, imgY, imgW, imgH);
     console.log(`[PDF] Page ${i + 1} added to PDF ✓`);
   }
 
