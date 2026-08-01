@@ -304,14 +304,13 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
   const cornerSvg = () =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><polyline points="2,36 2,6 6,2 36,2" fill="none" stroke="#c8a040" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polygon points="6,2 10,6 6,10 2,6" fill="#c8a040"/><line x1="8" y1="2" x2="22" y2="2" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/><line x1="2" y1="8" x2="2" y2="22" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/></svg>`;
 
-  // Auto-scale .inner if subject count would overflow A4.
-  // Available inner height capped at 1000px (safety margin vs raw 1071px) so the zoom
-  // kicks in earlier and signatures + footer are never clipped by .page { overflow:hidden }.
+  // Always zoom .inner so footer + signatures are guaranteed to fit within
+  // .page { height:297mm; overflow:hidden }. A hard max of 0.93 ensures at least
+  // 7 % reduction even with very few subjects (estimation errors can't cause clipping).
   // Base 910 = header~260 + info~140 + table-header~50 + summary~145 + remarks~45 + sigs~80 + footer~45 + gaps~95
-  // (previous base of 760 underestimated logo/signature image heights causing bottom clip)
   const _innerContentH = 910 + exam.subjects.length * 27;
-  const _innerZoom = _innerContentH > 1000 ? (_innerContentH > 0 ? (1000 / _innerContentH).toFixed(3) : '') : '';
-  const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
+  const _innerZoomVal = Math.min(0.93, 920 / _innerContentH);
+  const _innerZoomCss = `zoom:${_innerZoomVal.toFixed(3)};`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -341,7 +340,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:14px 22px 10px; ${_innerZoomCss} }
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; ${_innerZoomCss} }
 
   /* ---------- header ---------- */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:10px; border-bottom:3px solid #0c1f4a; }
@@ -786,14 +785,13 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   const gradeRows = [['90% and above','A+'],['80% to 89%','A'],['70% to 79%','B+'],['60% to 69%','B'],['50% to 59%','C'],['30% to 49%','D'],['Below 30%','F']]
     .map(([r,g], i) => `<tr style="background:${i%2===0?'#fff':'#f5f7fd'}"><td style="padding:5px 10px;font-size:12px;color:#475569;border-bottom:1px solid #eef1f8">${r}</td><td style="padding:5px 10px;font-size:14px;font-weight:900;color:#0c1f4a;text-align:center;border-bottom:1px solid #eef1f8">${g}</td></tr>`).join('');
 
-  // Auto-scale .inner if subject count would overflow A4.
-  // Available inner height capped at 1000px (safety margin vs raw 1073px) so the zoom
-  // kicks in earlier and signatures + footer are never clipped by .page { overflow:hidden }.
+  // Always zoom .inner so footer + signatures are guaranteed to fit within
+  // .page { height:297mm; overflow:hidden }. A hard max of 0.93 ensures at least
+  // 7 % reduction even with very few subjects (estimation errors can't cause clipping).
   // Base 840 = header~275 + info~135 + table-header~60 + summary~140 + remarks~45 + sigs~80 + footer~45 + gaps~60
-  // (previous base of 690 underestimated logo/signature image heights causing bottom clip)
   const _innerContentH = 840 + subjectRows.length * 30;
-  const _innerZoom = _innerContentH > 1000 ? (_innerContentH > 0 ? (1000 / _innerContentH).toFixed(3) : '') : '';
-  const _innerZoomCss = _innerZoom ? `zoom:${_innerZoom};` : '';
+  const _innerZoomVal = Math.min(0.93, 920 / _innerContentH);
+  const _innerZoomCss = `zoom:${_innerZoomVal.toFixed(3)};`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -815,7 +813,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px 20px 10px; ${_innerZoomCss} }
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; ${_innerZoomCss} }
   /* header */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:8px; border-bottom:3px solid #0c1f4a; }
   .hdr-center { flex:1; text-align:center; }
