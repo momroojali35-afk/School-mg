@@ -161,18 +161,6 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Change Database — visible only on Admin tab, no login required */}
-            {role === 'admin' && (
-              <TouchableOpacity
-                style={s.changeDbBtn}
-                onPress={() => router.push('/db-manager' as any)}
-                activeOpacity={0.75}
-              >
-                <Feather name="database" size={14} color={colors.mutedForeground} />
-                <Text style={s.changeDbText}>Change Database</Text>
-              </TouchableOpacity>
-            )}
-
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
