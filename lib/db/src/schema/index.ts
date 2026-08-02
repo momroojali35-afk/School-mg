@@ -199,11 +199,17 @@ export const markAuditLogTable = pgTable("mark_audit_log", {
 
 export const alumniTable = pgTable("alumni", {
   id: text("id").primaryKey().default(sql`gen_random_uuid()`),
-  studentId: text("student_id").notNull(),
-  studentName: text("student_name").notNull().default(""),
-  class: text("class").notNull().default(""),
-  section: text("section"),
+  name: text("name").notNull(),
+  fatherName: text("father_name").notNull().default(""),
+  mobileNumber: text("mobile_number").notNull().default(""),
+  batch: text("batch").notNull(),
+  passOutClass: text("pass_out_class").notNull(),
   rollNumber: text("roll_number").notNull().default(""),
-  graduationYear: integer("graduation_year"),
+  admissionNo: text("admission_no"),
+  dateOfBirth: text("date_of_birth").notNull().default(""),
+  address: text("address"),
+  photo: text("photo"),
+  achievements: text("achievements"),
+  currentStatus: text("current_status"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
