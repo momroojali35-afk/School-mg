@@ -1742,5 +1742,5 @@ const fr = StyleSheet.create({
   td: { fontSize: 12, fontWeight: '500', textAlign: 'center' },
   resultBadge: { paddingHorizontal: 5, paddingVertical: 3, borderRadius: 6 },
   tableFooter: { borderRadius: 10, borderWidth: 1, padding: 12, marginTop: 4 },
-  dlBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 16, width: 104, flexShrink: 0 },
+  dlBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 16, minWidth: 104, flexShrink: 1 },
 });
