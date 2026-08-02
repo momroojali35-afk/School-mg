@@ -387,7 +387,7 @@ function buildPremiumHtml(student: Student, exam: Exam, branding: DocumentBrandi
   @page{size:A4;margin:0}
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Segoe UI',Arial,sans-serif;background:#DFE7F1;color:#10213F}
-  .pg{width:210mm;height:297mm;background:#fff;margin:0 auto;position:relative;overflow:hidden;padding-bottom:7mm;box-sizing:border-box}
+  .pg{width:calc(210mm - 16mm);height:calc(297mm - 16mm);background:#fff;margin:8mm auto;position:relative;overflow:hidden;padding-bottom:7mm;box-sizing:border-box}
   .inner{position:absolute;inset:0;border:1px solid #D8C28B;pointer-events:none;z-index:10}
   .section{margin:0 40px 20px;border:1px solid #CBD7E5;border-radius:4px;overflow:hidden}
   @media print{body{background:#fff;margin:0;padding:0}.pg{border:0;overflow:hidden;page-break-after:always;break-after:page}.section{break-inside:avoid}}
