@@ -304,8 +304,12 @@ export async function downloadHtmlAsPdf(
     });
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
-    // Delete any existing file first so copyAsync never hits "file already exists"
-    await FileSystem.deleteAsync(destUri, { idempotent: true });
+    // Explicitly check and delete any existing file before copying to avoid
+    // "file already exists" errors on Android when downloading the same marksheet again.
+    const existingFile = await FileSystem.getInfoAsync(destUri);
+    if (existingFile.exists) {
+      await FileSystem.deleteAsync(destUri);
+    }
     await FileSystem.copyAsync({ from: uri, to: destUri });
     if (onSaved) {
       onSaved(`${safeName}.pdf`, destUri);
@@ -592,8 +596,12 @@ ${pages}
     });
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
-    // Delete any existing file first so copyAsync never hits "file already exists"
-    await FileSystem.deleteAsync(destUri, { idempotent: true });
+    // Explicitly check and delete any existing file before copying to avoid
+    // "file already exists" errors on Android when downloading the same marksheet again.
+    const existingFile = await FileSystem.getInfoAsync(destUri);
+    if (existingFile.exists) {
+      await FileSystem.deleteAsync(destUri);
+    }
     await FileSystem.copyAsync({ from: uri, to: destUri });
     if (onSaved) {
       onSaved(`${safeName}.pdf`, destUri);
