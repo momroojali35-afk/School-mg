@@ -11,6 +11,194 @@ import EmptyState from '@/components/EmptyState';
 
 type ReportMode = 'daily' | 'monthly' | 'class' | 'student';
 
+// ─── Student Attendance Detail Modal ─────────────────────────────────────────
+function StudentAttendanceDetailModal({
+  visible,
+  studentId,
+  studentName,
+  studentClass,
+  allRecords,
+  onClose,
+  colors,
+}: {
+  visible: boolean;
+  studentId: string;
+  studentName: string;
+  studentClass: string;
+  allRecords: ReturnType<typeof useApp>['attendanceRecords'];
+  onClose: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const records = useMemo(
+    () => allRecords.filter(r => r.studentId === studentId).sort((a, b) => a.date.localeCompare(b.date)),
+    [allRecords, studentId],
+  );
+
+  const totalDays   = records.length;
+  const presentDays = records.filter(r => r.status === 'present').length;
+  const absentDays  = records.filter(r => r.status === 'absent').length;
+  const leaveDays   = records.filter(r => r.status === 'leave').length;
+  const attendancePct = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+  const pctColor = attendancePct >= 75 ? colors.success : attendancePct >= 50 ? colors.warning : colors.destructive;
+
+  // Group by month (YYYY-MM)
+  const monthMap = useMemo(() => {
+    const map: Record<string, { present: string[]; absent: string[]; leave: string[] }> = {};
+    records.forEach(r => {
+      const month = r.date.slice(0, 7); // YYYY-MM
+      if (!map[month]) map[month] = { present: [], absent: [], leave: [] };
+      map[month][r.status as 'present' | 'absent' | 'leave'].push(r.date);
+    });
+    return map;
+  }, [records]);
+
+  const months = Object.keys(monthMap).sort().reverse();
+
+  const formatMonthLabel = (ym: string) => {
+    const [year, month] = ym.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[parseInt(month, 10) - 1]} ${year}`;
+  };
+
+  const formatDate = (d: string) => {
+    const [, , day] = d.split('-');
+    return `${parseInt(day, 10)}`;
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={[det.overlay]}>
+        <View style={[det.sheet, { backgroundColor: colors.background }]}>
+          {/* Header */}
+          <View style={[det.header, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[det.name, { color: colors.text }]}>{studentName}</Text>
+              <Text style={[det.cls, { color: colors.mutedForeground }]}>{studentClass}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={det.closeBtn}>
+              <Feather name="x" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+            {/* Overall Stats */}
+            <View style={det.statsRow}>
+              <View style={[det.statBox, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={[det.statVal, { color: colors.primary }]}>{totalDays}</Text>
+                <Text style={[det.statLbl, { color: colors.primary }]}>Total Days</Text>
+              </View>
+              <View style={[det.statBox, { backgroundColor: pctColor + '15' }]}>
+                <Text style={[det.statVal, { color: pctColor }]}>{attendancePct}%</Text>
+                <Text style={[det.statLbl, { color: pctColor }]}>Attendance</Text>
+              </View>
+              <View style={[det.statBox, { backgroundColor: colors.success + '15' }]}>
+                <Text style={[det.statVal, { color: colors.success }]}>{presentDays}</Text>
+                <Text style={[det.statLbl, { color: colors.success }]}>Present</Text>
+              </View>
+              <View style={[det.statBox, { backgroundColor: colors.destructive + '15' }]}>
+                <Text style={[det.statVal, { color: colors.destructive }]}>{absentDays}</Text>
+                <Text style={[det.statLbl, { color: colors.destructive }]}>Absent</Text>
+              </View>
+              {leaveDays > 0 && (
+                <View style={[det.statBox, { backgroundColor: colors.warning + '15' }]}>
+                  <Text style={[det.statVal, { color: colors.warning }]}>{leaveDays}</Text>
+                  <Text style={[det.statLbl, { color: colors.warning }]}>Leave</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Month-by-month breakdown */}
+            {months.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                <Feather name="calendar" size={40} color={colors.mutedForeground} />
+                <Text style={{ color: colors.mutedForeground, marginTop: 8, fontSize: 14 }}>No attendance records found</Text>
+              </View>
+            ) : (
+              months.map(month => {
+                const { present, absent, leave } = monthMap[month];
+                const mTotal = present.length + absent.length + leave.length;
+                const mPct = mTotal > 0 ? Math.round((present.length / mTotal) * 100) : 0;
+                const mColor = mPct >= 75 ? colors.success : mPct >= 50 ? colors.warning : colors.destructive;
+                return (
+                  <View key={month} style={[det.monthCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    {/* Month header */}
+                    <View style={det.monthHeader}>
+                      <Text style={[det.monthTitle, { color: colors.text }]}>{formatMonthLabel(month)}</Text>
+                      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                          P: <Text style={{ color: colors.success, fontWeight: '700' }}>{present.length}</Text>
+                          {'  '}A: <Text style={{ color: colors.destructive, fontWeight: '700' }}>{absent.length}</Text>
+                          {leave.length > 0 ? <>{'  '}L: <Text style={{ color: colors.warning, fontWeight: '700' }}>{leave.length}</Text></> : null}
+                        </Text>
+                        <View style={[det.pctBadge, { backgroundColor: mColor + '20' }]}>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: mColor }}>{mPct}%</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Absent dates */}
+                    {absent.length > 0 && (
+                      <View style={det.absentSection}>
+                        <Text style={[det.absentTitle, { color: colors.destructive }]}>
+                          <Feather name="x-circle" size={11} color={colors.destructive} /> Absent Dates
+                        </Text>
+                        <View style={det.datePills}>
+                          {absent.map(d => (
+                            <View key={d} style={[det.datePill, { backgroundColor: colors.destructive + '15' }]}>
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.destructive }}>{formatDate(d)}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Leave dates */}
+                    {leave.length > 0 && (
+                      <View style={det.absentSection}>
+                        <Text style={[det.absentTitle, { color: colors.warning }]}>
+                          <Feather name="clock" size={11} color={colors.warning} /> Leave Dates
+                        </Text>
+                        <View style={det.datePills}>
+                          {leave.map(d => (
+                            <View key={d} style={[det.datePill, { backgroundColor: colors.warning + '15' }]}>
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.warning }}>{formatDate(d)}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const det = StyleSheet.create({
+  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet:        { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', overflow: 'hidden' },
+  header:       { flexDirection: 'row', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
+  name:         { fontSize: 17, fontWeight: '800' },
+  cls:          { fontSize: 13, marginTop: 2 },
+  closeBtn:     { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  statsRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+  statBox:      { flex: 1, minWidth: 70, borderRadius: 12, padding: 12, alignItems: 'center' },
+  statVal:      { fontSize: 20, fontWeight: '800' },
+  statLbl:      { fontSize: 11, fontWeight: '600', marginTop: 3, textAlign: 'center' },
+  monthCard:    { borderRadius: 14, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
+  monthHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, paddingBottom: 10 },
+  monthTitle:   { fontSize: 15, fontWeight: '700' },
+  pctBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  absentSection:{ paddingHorizontal: 14, paddingBottom: 12 },
+  absentTitle:  { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  datePills:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  datePill:     { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+});
+
 export default function AttendanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -25,6 +213,8 @@ export default function AttendanceScreen() {
 
   const [showClassPicker, setShowClassPicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
+
+  const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string } | null>(null);
 
   const getFilteredRecords = () => {
     let records = attendanceRecords;
@@ -68,17 +258,24 @@ export default function AttendanceScreen() {
       contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
       ListEmptyComponent={<EmptyState icon="calendar" title="No Records" subtitle="No attendance taken for this date." />}
       renderItem={({ item: r }) => (
-        <View style={[c.card, { backgroundColor: colors.card, borderLeftColor: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : colors.warning, borderLeftWidth: 4 }]}>
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={() => setDetailStudent({ id: r.studentId, name: r.studentName, cls: r.class })}
+          style={[c.card, { backgroundColor: colors.card, borderLeftColor: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : colors.warning, borderLeftWidth: 4 }]}
+        >
           <View style={{ flex: 1 }}>
             <Text style={[c.name, { color: colors.text }]}>{r.studentName}</Text>
             <Text style={[c.sub, { color: colors.mutedForeground }]}>{r.class} • Taken by {r.takenBy}</Text>
           </View>
-          <View style={[c.badge, { backgroundColor: r.status === 'present' ? colors.success + '20' : r.status === 'absent' ? colors.destructive + '20' : colors.warning + '20' }]}>
-            <Text style={{ fontSize: 12, fontWeight: '700', textTransform: 'capitalize', color: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : colors.warning }}>
-              {r.status}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={[c.badge, { backgroundColor: r.status === 'present' ? colors.success + '20' : r.status === 'absent' ? colors.destructive + '20' : colors.warning + '20' }]}>
+              <Text style={{ fontSize: 12, fontWeight: '700', textTransform: 'capitalize', color: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : colors.warning }}>
+                {r.status}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
           </View>
-        </View>
+        </TouchableOpacity>
       )}
     />
   );
@@ -105,18 +302,25 @@ export default function AttendanceScreen() {
         renderItem={({ item: stat }) => {
           const pct = stat.total > 0 ? Math.round((stat.present / stat.total) * 100) : 0;
           return (
-            <View style={[c.card, { backgroundColor: colors.card }]}>
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => setDetailStudent({ id: stat.id, name: stat.name, cls: stat.cls })}
+              style={[c.card, { backgroundColor: colors.card }]}
+            >
               <View style={{ flex: 1 }}>
                 <Text style={[c.name, { color: colors.text }]}>{stat.name}</Text>
                 <Text style={[c.sub, { color: colors.mutedForeground }]}>{stat.cls} • {stat.total} Days Total</Text>
               </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: pct >= 75 ? colors.success : pct >= 50 ? colors.warning : colors.destructive }}>
-                  {pct}%
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.mutedForeground }}>P: {stat.present} | A: {stat.absent}</Text>
+              <View style={{ alignItems: 'flex-end', gap: 4, flexDirection: 'row', alignSelf: 'center' }}>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: pct >= 75 ? colors.success : pct >= 50 ? colors.warning : colors.destructive }}>
+                    {pct}%
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.mutedForeground }}>P: {stat.present} | A: {stat.absent}</Text>
+                </View>
+                <Feather name="chevron-right" size={14} color={colors.mutedForeground} style={{ marginLeft: 6 }} />
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
       />
@@ -199,6 +403,19 @@ export default function AttendanceScreen() {
       </View>
 
       {mode === 'daily' ? renderDailyReport() : renderStudentWiseReport()}
+
+      {/* Student Attendance Detail */}
+      {detailStudent && (
+        <StudentAttendanceDetailModal
+          visible={!!detailStudent}
+          studentId={detailStudent.id}
+          studentName={detailStudent.name}
+          studentClass={detailStudent.cls}
+          allRecords={attendanceRecords}
+          onClose={() => setDetailStudent(null)}
+          colors={colors}
+        />
+      )}
 
       {/* Class Picker */}
       <Modal visible={showClassPicker} animationType="slide" transparent>
