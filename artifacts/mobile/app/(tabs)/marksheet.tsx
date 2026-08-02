@@ -298,7 +298,7 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
     percentage >= 60 ? 'Satisfactory performance. More effort is needed in some subjects.' :
     percentage >= 50 ? 'Average performance. Significant improvement is required.' :
     percentage >= 30 ? 'Below average. Needs to put in considerably more effort.' :
-    'Failed. Student must appear for supplementary examination.';
+    'Failed. Student must repeat the academic year.';
 
   // corner SVG helper — rotation handled entirely by CSS on the wrapper div
   const cornerSvg = () =>
@@ -784,7 +784,7 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
     percentage >= 60 ? 'Satisfactory performance. More effort is needed in some subjects.' :
     percentage >= 50 ? 'Average performance. Significant improvement is required.' :
     percentage >= 30 ? 'Below average. Needs to put in considerably more effort.' :
-    'Failed. Student must appear for supplementary examination.';
+    'Failed. Student must repeat the academic year.';
 
   const gradeRows = [['90% and above','A+'],['80% to 89%','A'],['70% to 79%','B+'],['60% to 69%','B'],['50% to 59%','C'],['30% to 49%','D'],['Below 30%','F']]
     .map(([r,g], i) => `<tr style="background:${i%2===0?'#fff':'#f5f7fd'}"><td style="padding:5px 10px;font-size:12px;color:#475569;border-bottom:1px solid #eef1f8">${r}</td><td style="padding:5px 10px;font-size:14px;font-weight:900;color:#0c1f4a;text-align:center;border-bottom:1px solid #eef1f8">${g}</td></tr>`).join('');
