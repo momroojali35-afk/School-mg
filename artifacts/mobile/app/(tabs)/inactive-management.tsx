@@ -432,8 +432,16 @@ function RequestReviewModal({
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null);
   const [error, setError] = useState('');
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deletingDocument, setDeletingDocument] = useState(false);
 
-  const reset = () => { setNote(''); setLoading(null); setError(''); };
+  const reset = () => {
+    setNote('');
+    setLoading(null);
+    setError('');
+    setDeleteConfirmVisible(false);
+    setDeletingDocument(false);
+  };
   const handleClose = () => { reset(); onClose(); };
 
   const handleApprove = async () => {
@@ -493,24 +501,20 @@ function RequestReviewModal({
 
   const handleDeleteDocument = () => {
     if (!request?.documentBase64) return;
-    Alert.alert(
-      'Delete document?',
-      'This removes only the attached document. The request will remain available.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await onDeleteDocument(request.id);
-            } catch (e: any) {
-              Alert.alert('Delete failed', e?.message ?? 'Unable to delete the document.');
-            }
-          },
-        },
-      ],
-    );
+    setDeleteConfirmVisible(true);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!request?.documentBase64 || deletingDocument) return;
+    setDeletingDocument(true);
+    try {
+      await onDeleteDocument(request.id);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setDeleteConfirmVisible(false);
+    } catch (e: any) {
+      setDeletingDocument(false);
+      Alert.alert('Delete failed', e?.message ?? 'Unable to delete the document.');
+    }
   };
 
   if (!request) return null;
@@ -518,6 +522,7 @@ function RequestReviewModal({
   const col = reqStatusColor(request.status, colors);
   const hasImage = request.documentBase64 && request.documentMimeType?.startsWith('image/');
   const hasDoc = request.documentBase64 && !hasImage;
+  const documentLabel = request.documentName?.trim() || 'Attached document';
   const m = reqModalStyles(colors);
 
   return (
@@ -698,6 +703,74 @@ function RequestReviewModal({
             )}
           </View>
         </KeyboardAvoidingView>
+
+        <Modal
+          visible={deleteConfirmVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => !deletingDocument && setDeleteConfirmVisible(false)}
+        >
+          <View style={m.confirmOverlay}>
+            <View style={[m.confirmCard, { backgroundColor: colors.card }]}>
+              <View style={m.confirmHeader}>
+                <View style={[m.confirmIcon, { backgroundColor: colors.destructive + '14' }]}>
+                  <Feather name="trash-2" size={22} color={colors.destructive} />
+                </View>
+                <TouchableOpacity
+                  onPress={() => !deletingDocument && setDeleteConfirmVisible(false)}
+                  style={m.confirmClose}
+                  disabled={deletingDocument}
+                  activeOpacity={0.75}
+                >
+                  <Feather name="x" size={19} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[m.confirmTitle, { color: colors.text }]}>Remove attachment?</Text>
+              <Text style={[m.confirmDescription, { color: colors.mutedForeground }]}>
+                This document will be permanently removed from the request.
+              </Text>
+
+              <View style={[m.confirmFile, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                <View style={[m.confirmFileIcon, { backgroundColor: colors.primary + '12' }]}>
+                  <Feather name={hasImage ? 'image' : 'file-text'} size={17} color={colors.primary} />
+                </View>
+                <Text style={[m.confirmFileName, { color: colors.text }]} numberOfLines={2}>
+                  {documentLabel}
+                </Text>
+              </View>
+
+              <View style={[m.confirmNotice, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '35' }]}>
+                <Feather name="info" size={14} color={colors.warning} />
+                <Text style={[m.confirmNoticeText, { color: colors.mutedForeground }]}>
+                  The request, student status, and review history will remain unchanged.
+                </Text>
+              </View>
+
+              <View style={m.confirmActions}>
+                <TouchableOpacity
+                  style={[m.confirmCancel, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                  onPress={() => setDeleteConfirmVisible(false)}
+                  disabled={deletingDocument}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[m.confirmCancelText, { color: colors.mutedForeground }]}>Keep document</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[m.confirmDelete, { backgroundColor: colors.destructive, opacity: deletingDocument ? 0.65 : 1 }]}
+                  onPress={confirmDeleteDocument}
+                  disabled={deletingDocument}
+                  activeOpacity={0.8}
+                >
+                  {deletingDocument
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <><Feather name="trash-2" size={15} color="#fff" /><Text style={m.confirmDeleteText}>Remove</Text></>
+                  }
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
   );
@@ -736,6 +809,23 @@ const reqModalStyles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   rejectText: { fontSize: 15, fontWeight: '700' },
   approveBtn: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14 },
   approveText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  confirmOverlay: { flex: 1, backgroundColor: 'rgba(7,18,35,0.62)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
+  confirmCard: { width: '100%', maxWidth: 390, borderRadius: 26, padding: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.24, shadowRadius: 28, elevation: 18 },
+  confirmHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
+  confirmIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  confirmClose: { padding: 7, marginRight: -5, marginTop: -5 },
+  confirmTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3, marginBottom: 7 },
+  confirmDescription: { fontSize: 14, lineHeight: 21, marginBottom: 18 },
+  confirmFile: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 15, padding: 11, marginBottom: 12 },
+  confirmFileIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  confirmFileName: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '700' },
+  confirmNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderRadius: 13, padding: 11, marginBottom: 20 },
+  confirmNoticeText: { flex: 1, fontSize: 12, lineHeight: 17 },
+  confirmActions: { flexDirection: 'row', gap: 10 },
+  confirmCancel: { flex: 1.25, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 13, paddingVertical: 13 },
+  confirmCancelText: { fontSize: 13, fontWeight: '700' },
+  confirmDelete: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 13, paddingVertical: 13 },
+  confirmDeleteText: { color: '#fff', fontSize: 13, fontWeight: '800' },
 });
 
 function RequestsTab({ colors }: { colors: ReturnType<typeof useColors> }) {
