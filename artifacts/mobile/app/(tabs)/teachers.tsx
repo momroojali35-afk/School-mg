@@ -23,7 +23,7 @@ const BLANK = {
 export default function TeachersScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { teachers, addTeacher, updateTeacher, deleteTeacher, salaryRecords, addSalaryRecord, deleteSalaryRecord } = useApp();
+  const { teachers, addTeacher, updateTeacher, deleteTeacher, salaryRecords, addSalaryRecord, deleteSalaryRecord, documentBranding } = useApp();
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Teacher | null>(null);
@@ -309,7 +309,7 @@ export default function TeachersScreen() {
                               <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>₹{r.amount.toLocaleString('en-IN')}</Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                                 {r.status === 'paid' && (
-                                  <TouchableOpacity onPress={() => printSalaryReceipt(r, detailTeacher)}>
+                                  <TouchableOpacity onPress={() => printSalaryReceipt(r, detailTeacher, documentBranding)}>
                                     <Feather name="printer" size={14} color={colors.primary} />
                                   </TouchableOpacity>
                                 )}
@@ -499,7 +499,7 @@ export default function TeachersScreen() {
         amount={salarySuccess?.amount ?? 0}
         onDismiss={() => setSalarySuccess(null)}
         onPrint={() => {
-          if (salarySuccess) printSalaryReceipt(salarySuccess.rec, salarySuccess.teacher);
+          if (salarySuccess) printSalaryReceipt(salarySuccess.rec, salarySuccess.teacher, documentBranding);
           setSalarySuccess(null);
         }}
       />
