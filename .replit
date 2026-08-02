@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 modules = ["nodejs-24"]
-=======
-modules = ["nodejs-20", "nodejs-24"]
->>>>>>> github/main
 
 [deployment]
 router = "application"
