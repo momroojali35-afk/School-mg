@@ -753,7 +753,10 @@ export default function ExamsScreen() {
               disabled={frGenerating}
             >
               <Feather name={frGenerating ? 'loader' : 'download'} size={15} color={frGenerating ? colors.mutedForeground : '#fff'} />
-              <Text style={{ fontSize: 12, fontWeight: '700', color: frGenerating ? colors.mutedForeground : '#fff' }}>
+              <Text
+                numberOfLines={1}
+                style={{ flexShrink: 1, fontSize: 12, fontWeight: '700', color: frGenerating ? colors.mutedForeground : '#fff' }}
+              >
                 {frGenerating ? 'Generating…' : 'Download'}
               </Text>
             </TouchableOpacity>
@@ -1705,7 +1708,7 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   subjectMgrText: { fontWeight: '600', fontSize: 13 },
   createBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20 },
   createBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  backBar: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 20, paddingVertical: 12, borderBottomWidth: 1, gap: 10 },
+  backBar: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 12, paddingVertical: 12, borderBottomWidth: 1, gap: 6 },
   backBtn: { padding: 4 },
   backTitle: { fontSize: 18, fontWeight: '700' },
   enterMarksBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
@@ -1739,5 +1742,5 @@ const fr = StyleSheet.create({
   td: { fontSize: 12, fontWeight: '500', textAlign: 'center' },
   resultBadge: { paddingHorizontal: 5, paddingVertical: 3, borderRadius: 6 },
   tableFooter: { borderRadius: 10, borderWidth: 1, padding: 12, marginTop: 4 },
-  dlBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, flexShrink: 0 },
+  dlBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 16, width: 104, flexShrink: 0 },
 });
