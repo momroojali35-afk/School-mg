@@ -1142,11 +1142,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteInactivationRequestDocument = useCallback(async (id: string): Promise<void> => {
-    const row = await apiDelete<any>(`/inactivation-requests/${id}/document`);
-    const req = mapInactivationRequest(row);
+    await apiDelete<any>(`/inactivation-requests/${id}/document`);
     setState(prev => ({
       ...prev,
-      inactivationRequests: prev.inactivationRequests.map(r => r.id === id ? req : r),
+      inactivationRequests: prev.inactivationRequests.map(r => r.id === id
+        ? { ...r, documentBase64: undefined, documentName: undefined, documentMimeType: undefined }
+        : r),
     }));
   }, []);
 
