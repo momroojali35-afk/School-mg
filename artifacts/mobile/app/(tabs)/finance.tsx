@@ -1021,6 +1021,7 @@ export default function FinanceScreen() {
                       rollNumber={reminderStudent.rollNumber}
                       fatherName={reminderStudent.fatherName}
                       dueAmount={getStudentFeeInfo(reminderStudent, feeRecords).remaining}
+                      logoDataUrl={documentBranding.logoDataUrl}
                     />
                   </ViewShot>
                   <Text style={{ fontSize: 11, color: colors.mutedForeground, textAlign: 'center', marginTop: 8, fontStyle: 'italic' }}>This card will be shared as an image on WhatsApp</Text>
