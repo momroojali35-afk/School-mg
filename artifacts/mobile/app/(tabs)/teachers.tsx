@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '@/hooks/useColors';
 import { useApp, Teacher } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
+import SalarySuccessModal from '@/components/SalarySuccessModal';
 import { printSalarySlip as printSalaryReceipt } from '@/utils/receipt';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -39,6 +40,7 @@ export default function TeachersScreen() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Teacher | null>(null);
   const [confirmDeleteSalaryId, setConfirmDeleteSalaryId] = useState<string | null>(null);
+  const [salarySuccess, setSalarySuccess] = useState<{ name: string; month: string; year: string; amount: number; rec: any; teacher: Teacher } | null>(null);
 
   const now = new Date();
   const curMonth = MONTH_NAMES[now.getMonth()];
@@ -122,10 +124,7 @@ export default function TeachersScreen() {
       paidDate: new Date().toISOString().split('T')[0],
     });
     setShowSalaryModal(false);
-    Alert.alert('Success', `Salary paid for ${salaryTeacher.name} — ${salaryMonth} ${salaryYear}. Print Receipt?`, [
-      { text: 'No', style: 'cancel' },
-      { text: 'Print', onPress: () => printSalaryReceipt(rec, salaryTeacher) }
-    ]);
+    setSalarySuccess({ name: salaryTeacher.name, month: salaryMonth, year: salaryYear, amount: Number(salaryAmount), rec, teacher: salaryTeacher });
   };
 
 
@@ -490,6 +489,20 @@ export default function TeachersScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ════ Salary Success Modal ════ */}
+      <SalarySuccessModal
+        visible={!!salarySuccess}
+        teacherName={salarySuccess?.name ?? ''}
+        month={salarySuccess?.month ?? ''}
+        year={salarySuccess?.year ?? ''}
+        amount={salarySuccess?.amount ?? 0}
+        onDismiss={() => setSalarySuccess(null)}
+        onPrint={() => {
+          if (salarySuccess) printSalaryReceipt(salarySuccess.rec, salarySuccess.teacher);
+          setSalarySuccess(null);
+        }}
+      />
 
       {/* Month Picker */}
       <Modal visible={showMonthPicker} animationType="slide" transparent>
