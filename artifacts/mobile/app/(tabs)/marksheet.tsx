@@ -1197,6 +1197,8 @@ export default function MarksheetScreen() {
   const [genMode, setGenMode]             = useState<GenMode>('individual');
   const [academicSession, setAcademicSession] = useState(getAcademicYear);
   const [showSessionPicker, setShowSessionPicker] = useState(false);
+  const [showCustomSessionInput, setShowCustomSessionInput] = useState(false);
+  const [customSessionText, setCustomSessionText] = useState('');
 
   // Single exam state
   const [selectedClass, setSelectedClass]   = useState('');
@@ -2235,6 +2237,54 @@ export default function MarksheetScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView>
+              {/* ── Add Custom Session ── */}
+              {showCustomSessionInput ? (
+                <View style={s.customSessionRow}>
+                  <TextInput
+                    style={s.customSessionInput}
+                    value={customSessionText}
+                    onChangeText={setCustomSessionText}
+                    placeholder="e.g. 2035–2036"
+                    placeholderTextColor="#94A3B8"
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      const trimmed = customSessionText.trim();
+                      if (trimmed) { selectAcademicSession(trimmed); }
+                      setShowCustomSessionInput(false);
+                      setCustomSessionText('');
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={s.customSessionConfirm}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      const trimmed = customSessionText.trim();
+                      if (trimmed) { selectAcademicSession(trimmed); }
+                      setShowCustomSessionInput(false);
+                      setCustomSessionText('');
+                    }}
+                  >
+                    <Feather name="check" size={18} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.customSessionCancel}
+                    activeOpacity={0.7}
+                    onPress={() => { setShowCustomSessionInput(false); setCustomSessionText(''); }}
+                  >
+                    <Feather name="x" size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={s.addCustomSessionBtn}
+                  activeOpacity={0.7}
+                  onPress={() => setShowCustomSessionInput(true)}
+                >
+                  <Feather name="plus-circle" size={16} color="#059669" />
+                  <Text style={s.addCustomSessionTxt}>Add Custom Session</Text>
+                </TouchableOpacity>
+              )}
               {academicSessionOptions.map(session => (
                 <TouchableOpacity
                   key={session}
@@ -2388,4 +2438,12 @@ const s = StyleSheet.create({
   pickerItemActive: { backgroundColor: '#EFF6FF' },
   pickerItemTxt: { fontSize: 14, fontWeight: '700', color: '#1E293B', flex: 1 },
   pickerItemSub: { fontSize: 11, color: '#64748B', marginTop: 2 },
+
+  addCustomSessionBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#F0FDF4' },
+  addCustomSessionTxt: { fontSize: 14, fontWeight: '700', color: '#059669' },
+
+  customSessionRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#F0FDF4', gap: 8 },
+  customSessionInput: { flex: 1, borderWidth: 1.5, borderColor: '#059669', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, fontWeight: '600', color: '#1E293B', backgroundColor: '#fff' },
+  customSessionConfirm: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
+  customSessionCancel: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
 });
