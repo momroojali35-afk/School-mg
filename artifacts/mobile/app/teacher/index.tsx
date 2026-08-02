@@ -933,8 +933,8 @@ export default function TeacherDashboard() {
               style={po.signOutBtn} activeOpacity={0.85}
               onPress={async () => {
                 setShowProfile(false);
-                router.replace('/login');
                 await logout();
+                router.replace('/login');
               }}
             >
               <Feather name="log-out" size={17} color="#fff" />
