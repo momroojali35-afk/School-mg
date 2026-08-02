@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { Platform, Alert, Linking } from 'react-native';
+import { Platform, Alert, Linking, Image } from 'react-native';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { FeeRecord, SalaryRecord, Student, Teacher } from '@/context/AppContext';
 
@@ -37,6 +37,14 @@ function toWords(num: number): string {
   return convert(Math.round(num)) + ' Rupees Only';
 }
 
+function schoolLogoHtml(size = 74): string {
+  const source = Image.resolveAssetSource(require('../assets/images/school-logo.png'));
+  const uri = source?.uri ?? '';
+  return uri
+    ? `<img src="${uri}" alt="${SCHOOL_INFO.name} logo" width="${size}" height="${size}" style="width:${size}px;height:${size}px;object-fit:contain;display:block" />`
+    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#0b2b55;color:#f6c65b;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;text-align:center;line-height:1.15">${SCHOOL_INFO.name.split(' ').slice(0, 3).join(' ')}</div>`;
+}
+
 // ─── Fee Receipt HTML ─────────────────────────────────────────────────────────
 function buildFeeReceiptHTML(record: FeeRecord, student?: Student): string {
   const receiptNo = record.receiptNumber ?? ('FR-'+new Date().getFullYear()+'-'+String(Math.abs(record.id.split('').reduce((a,c)=>a+c.charCodeAt(0),0))).slice(-6).padStart(6,'0'));
@@ -54,82 +62,80 @@ function buildFeeReceiptHTML(record: FeeRecord, student?: Student): string {
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:Arial,sans-serif; background:#fff; color:#1a1a2e; font-size:13px; }
-.page { max-width:760px; margin:0 auto; padding:24px 20px; }
+@page { size:A4 portrait; margin:12mm; }
+body { font-family:Arial,sans-serif; background:#f4f7fb; color:#17233d; font-size:13px; }
+.page { max-width:760px; margin:0 auto; padding:24px 22px; background:#fff; border-top:8px solid #0b2b55; border-bottom:1px solid #d8e1ee; }
+.eyebrow { color:#b48627; font-size:9px; font-weight:800; letter-spacing:2px; text-transform:uppercase; margin-bottom:5px; }
+.rule { height:3px; background:linear-gradient(90deg,#0b2b55 0%,#0b2b55 78%,#d9a832 78%,#d9a832 100%); margin-top:15px; }
 
-/* ── HEADER ── */
-.hdr { display:flex; align-items:flex-start; gap:14px; border-bottom:3px solid #1565C0; padding-bottom:14px; margin-bottom:16px; }
-.logo-ring { width:88px; height:88px; border-radius:50%; border:3px solid #1565C0; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#fff; }
-.logo-disc { width:80px; height:80px; border-radius:50%; background:#1565C0; display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center; }
-.logo-disc span { color:#fff; font-size:6.5px; font-weight:900; line-height:1.3; text-transform:uppercase; }
-.logo-disc .est { font-size:8px; }
+.hdr { display:flex; align-items:center; gap:16px; padding-bottom:16px; }
+.logo-wrap { width:88px; height:88px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden; background:#fff; }
 .school-info { flex:1; }
-.sch-name { font-size:19px; font-weight:900; color:#1565C0; text-transform:uppercase; line-height:1.2; }
-.sch-row { display:flex; align-items:center; gap:5px; margin-top:5px; font-size:11.5px; color:#333; }
-.sch-icon { color:#1565C0; font-size:12px; width:16px; }
-.rhs { flex-shrink:0; min-width:168px; }
-.rhs-title { font-size:24px; font-weight:900; color:#1565C0; letter-spacing:1px; text-align:right; margin-bottom:10px; }
-.tag-lbl { background:#1565C0; color:#fff; font-size:10px; font-weight:700; padding:4px 0; text-align:center; letter-spacing:1px; }
-.tag-val { border:2px solid #1565C0; font-size:13px; font-weight:700; padding:5px; text-align:center; color:#E53935; }
-.tag-val-date { border:2px solid #1565C0; border-top:none; font-size:12.5px; font-weight:600; padding:5px; text-align:center; color:#333; }
-.tag-lbl2 { background:#1565C0; color:#fff; font-size:10px; font-weight:700; padding:4px 0; text-align:center; letter-spacing:1px; margin-top:8px; }
+.sch-name { font-size:20px; font-weight:900; color:#0b2b55; text-transform:uppercase; line-height:1.2; letter-spacing:.2px; }
+.sch-row { display:flex; align-items:center; gap:7px; margin-top:6px; font-size:10.5px; color:#59677c; }
+.sch-icon { color:#b48627; font-size:11px; width:14px; text-align:center; }
+.rhs { flex-shrink:0; min-width:170px; text-align:right; }
+.rhs-title { color:#0b2b55; font-size:22px; font-weight:900; letter-spacing:1px; margin-bottom:9px; }
+.meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; text-align:center; }
+.meta-box { border:1px solid #d7e1ee; border-radius:5px; overflow:hidden; }
+.meta-label { background:#0b2b55; color:#fff; font-size:8px; font-weight:800; padding:5px 4px; letter-spacing:.8px; }
+.meta-value { color:#17233d; font-size:10px; font-weight:700; padding:6px 4px; white-space:nowrap; }
 
-/* ── STUDENT CARD ── */
-.stu-card { border:1.5px solid #c5cae9; border-radius:8px; display:flex; align-items:center; gap:14px; padding:14px 16px; margin-bottom:18px; }
-.stu-avatar { width:78px; height:78px; border-radius:50%; background:linear-gradient(135deg,#90CAF9,#5C6BC0); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:36px; }
+.section-kicker { color:#738197; font-size:9px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px; }
+.stu-card { border:1px solid #d8e1ee; border-radius:9px; display:flex; align-items:center; gap:16px; padding:15px 17px; margin:18px 0; background:#f8fafd; }
+.stu-avatar { width:62px; height:62px; border-radius:50%; background:linear-gradient(145deg,#d9a832,#0b2b55); flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:25px; font-weight:800; }
 .stu-fields { flex:1; }
-.f-row { display:flex; font-size:12.5px; margin-bottom:5px; }
-.f-lbl { font-weight:700; color:#333; width:126px; flex-shrink:0; }
-.f-sep { margin:0 7px; color:#666; }
-.f-val { color:#1a1a2e; }
-.rupee-circle { width:58px; height:58px; border-radius:50%; border:2px solid #1565C0; display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:700; color:#1565C0; flex-shrink:0; }
-.mo-box { flex-shrink:0; min-width:92px; }
-.mo-lbl { background:#1565C0; color:#fff; font-size:10px; font-weight:700; padding:4px 0; text-align:center; letter-spacing:1px; }
-.mo-val { border:2px solid #1565C0; border-top:none; font-size:12px; font-weight:600; padding:5px 8px; text-align:center; color:#333; }
+.f-row { display:flex; font-size:11.5px; margin-bottom:6px; }
+.f-row:last-child { margin-bottom:0; }
+.f-lbl { font-weight:800; color:#65748a; width:116px; flex-shrink:0; text-transform:uppercase; font-size:9px; letter-spacing:.3px; }
+.f-sep { margin:0 7px; color:#b48627; }
+.f-val { color:#17233d; font-weight:700; }
+.rupee-circle { width:52px; height:52px; border-radius:50%; border:2px solid #d9a832; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; color:#0b2b55; background:#fff; flex-shrink:0; }
+.mo-box { flex-shrink:0; min-width:104px; text-align:center; }
+.mo-lbl { background:#d9a832; color:#0b2b55; font-size:8px; font-weight:900; padding:5px 0; letter-spacing:1px; }
+.mo-val { border:1px solid #d9a832; border-top:none; font-size:10.5px; font-weight:700; padding:7px 6px; color:#17233d; }
 
-/* ── FEE TABLE ── */
-.fee-tbl { width:100%; border-collapse:collapse; margin-bottom:0; }
-.fee-tbl .sec-hdr th { background:#1a237e; color:#fff; text-align:center; font-size:13px; font-weight:700; letter-spacing:2px; padding:10px; }
-.fee-tbl .col-hdr th { background:#e8eaf6; color:#1a237e; font-size:12px; font-weight:700; padding:8px 12px; border:1px solid #c5cae9; }
+.fee-tbl { width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid #d8e1ee; border-radius:8px; }
+.fee-tbl .sec-hdr th { background:#0b2b55; color:#fff; text-align:left; font-size:11px; font-weight:800; letter-spacing:1.8px; padding:10px 13px; }
+.fee-tbl .col-hdr th { background:#edf2f8; color:#0b2b55; font-size:10px; font-weight:800; padding:8px 10px; border-bottom:1px solid #d8e1ee; }
 .fee-tbl .col-hdr th:first-child { text-align:center; width:50px; }
-.fee-tbl .col-hdr th:nth-child(3),
-.fee-tbl .col-hdr th:nth-child(4) { text-align:right; width:130px; }
-.fee-tbl td { border:1px solid #ddd; padding:9px 12px; font-size:12.5px; }
-.fee-tbl td:first-child { text-align:center; color:#555; }
-.fee-tbl td:nth-child(3),
-.fee-tbl td:nth-child(4) { text-align:right; }
-.foot-row td { border:1px solid #ddd; }
-.words-cell { padding:9px 12px; }
-.words-lbl { font-size:11px; color:#666; margin-bottom:3px; }
-.words-val { font-weight:700; font-size:13px; color:#1a1a2e; }
+.fee-tbl .col-hdr th:nth-child(3), .fee-tbl .col-hdr th:nth-child(4) { text-align:right; width:130px; }
+.fee-tbl td { border-bottom:1px solid #e7edf5; padding:10px; font-size:11.5px; }
+.fee-tbl tr:last-child td { border-bottom:none; }
+.fee-tbl td:first-child { text-align:center; color:#738197; }
+.fee-tbl td:nth-child(3), .fee-tbl td:nth-child(4) { text-align:right; }
+.words-cell { padding:11px 12px !important; }
+.words-lbl { font-size:9px; color:#738197; margin-bottom:4px; text-transform:uppercase; letter-spacing:.6px; }
+.words-val { font-weight:800; font-size:12px; color:#17233d; }
 .total-wrap { display:flex; height:100%; }
-.total-lbl { background:#1a237e; color:#fff; font-size:11px; font-weight:700; padding:10px 12px; display:flex; align-items:center; letter-spacing:.5px; white-space:nowrap; }
-.total-amt { background:#E8F5E9; color:#1B5E20; font-size:17px; font-weight:900; padding:10px 14px; border-left:none; display:flex; align-items:center; flex:1; justify-content:flex-end; }
+.total-lbl { background:#d9a832; color:#0b2b55; font-size:9px; font-weight:900; padding:11px 10px; display:flex; align-items:center; letter-spacing:.4px; white-space:nowrap; }
+.total-amt { background:#e8f5ee; color:#087443; font-size:16px; font-weight:900; padding:11px 13px; display:flex; align-items:center; flex:1; justify-content:flex-end; }
 
-/* ── BOTTOM BOXES ── */
-.bottom { display:flex; gap:14px; margin-top:16px; }
-.b-box { flex:1; border:1.5px solid #ddd; border-radius:8px; overflow:hidden; }
-.b-hdr { display:flex; align-items:center; gap:8px; padding:9px 14px; }
-.b-icon { font-size:18px; }
-.b-title-green { color:#00796B; font-size:12px; font-weight:800; letter-spacing:.5px; }
-.b-title-blue { color:#1565C0; font-size:12px; font-weight:800; letter-spacing:.5px; }
-.b-body { padding:6px 14px 12px; }
-.p-row { display:flex; font-size:11.5px; margin-bottom:5px; }
-.p-lbl { font-weight:600; color:#555; width:108px; flex-shrink:0; }
-.p-sep { margin:0 5px; color:#999; }
-.p-val { color:#1a1a2e; }
-.note { font-size:11px; color:#333; margin-bottom:4px; display:flex; gap:5px; }
-.note-dot { color:#1565C0; flex-shrink:0; }
+.bottom { display:flex; gap:12px; margin-top:15px; }
+.b-box { flex:1; border:1px solid #d8e1ee; border-radius:8px; overflow:hidden; }
+.b-hdr { display:flex; align-items:center; gap:8px; padding:9px 12px; background:#f8fafd; border-bottom:1px solid #e4ebf4; }
+.b-icon { width:22px; height:22px; border-radius:50%; background:#e5edf7; color:#0b2b55; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; }
+.b-title-green, .b-title-blue { color:#0b2b55; font-size:10px; font-weight:900; letter-spacing:.8px; }
+.b-body { padding:10px 12px 12px; }
+.p-row { display:flex; font-size:10.5px; margin-bottom:6px; }
+.p-row:last-child { margin-bottom:0; }
+.p-lbl { font-weight:700; color:#738197; width:102px; flex-shrink:0; }
+.p-sep { margin:0 5px; color:#b48627; }
+.p-val { color:#17233d; font-weight:600; }
+.note { font-size:10px; color:#526176; margin-bottom:6px; display:flex; gap:6px; }
+.note:last-child { margin-bottom:0; }
+.note-dot { color:#b48627; flex-shrink:0; font-weight:900; }
 
-/* ── SIGNATURES ── */
-.sig-row { display:flex; justify-content:space-between; align-items:flex-end; margin-top:30px; }
-.sig-col { text-align:center; }
-.sig-name { font-size:14px; font-style:italic; font-weight:700; color:#333; margin-bottom:2px; }
-.sig-line { width:140px; border-top:1.5px solid #333; margin:0 auto 6px; }
-.sig-lbl { font-size:10.5px; color:#555; margin-top:4px; }
-.stamp-ring { width:88px; height:88px; border-radius:50%; border:2px dashed #1565C0; display:flex; align-items:center; justify-content:center; margin:0 auto; }
-.stamp-inner { width:78px; height:78px; border-radius:50%; border:1.5px solid #1565C0; display:flex; align-items:center; justify-content:center; }
-.stamp-txt { font-size:5.5px; font-weight:700; color:#1565C0; text-transform:uppercase; text-align:center; line-height:1.4; }
+.sig-row { display:flex; justify-content:space-between; align-items:flex-end; margin-top:30px; padding-top:17px; border-top:1px solid #d8e1ee; }
+.sig-col { text-align:center; min-width:150px; }
+.sig-name { font-size:12px; font-style:italic; font-weight:700; color:#17233d; margin-bottom:3px; }
+.sig-line { width:140px; border-top:1.5px solid #526176; margin:0 auto 6px; }
+.sig-lbl { font-size:9px; color:#738197; margin-top:4px; text-transform:uppercase; letter-spacing:.4px; }
+.stamp-ring { width:76px; height:76px; border-radius:50%; border:2px dashed #d9a832; display:flex; align-items:center; justify-content:center; margin:0 auto; }
+.stamp-inner { width:65px; height:65px; border-radius:50%; border:1px solid #0b2b55; display:flex; align-items:center; justify-content:center; }
+.stamp-txt { font-size:5px; font-weight:800; color:#0b2b55; text-transform:uppercase; text-align:center; line-height:1.35; }
+.footer { text-align:center; margin-top:21px; padding-top:11px; border-top:1px solid #e2e9f2; color:#8a96a8; font-size:9px; line-height:1.5; }
+.footer strong { color:#0b2b55; }
 </style>
 </head>
 <body>
@@ -137,15 +143,7 @@ body { font-family:Arial,sans-serif; background:#fff; color:#1a1a2e; font-size:1
 
   <!-- HEADER -->
   <div class="hdr">
-    <div class="logo-ring">
-      <div class="logo-disc">
-        <span>DR.A.P.J</span>
-        <span class="est">ESTD 2016</span>
-        <span>ABDUL KALAM</span>
-        <span>JATIYA</span>
-        <span>VIDYALAYA</span>
-      </div>
-    </div>
+    <div class="logo-wrap">${schoolLogoHtml(88)}</div>
     <div class="school-info">
       <div class="sch-name">${SCHOOL_INFO.name}</div>
       <div class="sch-row"><span class="sch-icon">📍</span><span>${SCHOOL_INFO.address}</span></div>
@@ -154,16 +152,17 @@ body { font-family:Arial,sans-serif; background:#fff; color:#1a1a2e; font-size:1
     </div>
     <div class="rhs">
       <div class="rhs-title">FEE RECEIPT</div>
-      <div class="tag-lbl">RECEIPT NO.</div>
-      <div class="tag-val">${receiptNo}</div>
-      <div class="tag-lbl2">DATE</div>
-      <div class="tag-val-date">${dateStr}</div>
+      <div class="meta-grid">
+        <div class="meta-box"><div class="meta-label">RECEIPT NO.</div><div class="meta-value">${receiptNo}</div></div>
+        <div class="meta-box"><div class="meta-label">DATE</div><div class="meta-value">${dateStr}</div></div>
+      </div>
     </div>
   </div>
+  <div class="rule"></div>
 
   <!-- STUDENT CARD -->
   <div class="stu-card">
-    <div class="stu-avatar">👤</div>
+    <div class="stu-avatar">S</div>
     <div class="stu-fields">
       <div class="f-row"><span class="f-lbl">Student Name</span><span class="f-sep">:</span><span class="f-val">${record.studentName}</span></div>
       <div class="f-row"><span class="f-lbl">Father's Name</span><span class="f-sep">:</span><span class="f-val">${fatherName}</span></div>
@@ -210,7 +209,7 @@ body { font-family:Arial,sans-serif; background:#fff; color:#1a1a2e; font-size:1
   <div class="bottom">
     <div class="b-box">
       <div class="b-hdr">
-        <span class="b-icon">💳</span>
+        <span class="b-icon">₹</span>
         <span class="b-title-green">PAYMENT INFORMATION</span>
       </div>
       <div class="b-body">
@@ -221,7 +220,7 @@ body { font-family:Arial,sans-serif; background:#fff; color:#1a1a2e; font-size:1
     </div>
     <div class="b-box">
       <div class="b-hdr">
-        <span class="b-icon">🛡️</span>
+        <span class="b-icon">i</span>
         <span class="b-title-blue">IMPORTANT NOTES</span>
       </div>
       <div class="b-body">
@@ -251,6 +250,11 @@ body { font-family:Arial,sans-serif; background:#fff; color:#1a1a2e; font-size:1
       <div class="sig-line"></div>
       <div class="sig-lbl">Authorised Signature<br/>(Principal)</div>
     </div>
+  </div>
+
+  <div class="footer">
+    <p>This is a computer-generated receipt.</p>
+    <p><strong>${SCHOOL_INFO.name}</strong> · ${SCHOOL_INFO.email}</p>
   </div>
 
 </div>
@@ -315,43 +319,67 @@ _${SCHOOL_INFO.email}_`;
   }
 }
 
-// ─── Salary slip (unchanged design) ──────────────────────────────────────────
+// ─── Premium salary receipt ───────────────────────────────────────────────────
 export async function printSalarySlip(record: SalaryRecord, teacher?: Teacher) {
   const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; padding: 28px; color: #1a1a2e; background: #fff; }
-  .header { text-align: center; border-bottom: 3px solid #1565C0; padding-bottom: 16px; margin-bottom: 24px; }
-  .school-name { font-size: 22px; font-weight: 900; color: #1565C0; }
-  .school-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
-  .slip-title { font-size: 18px; font-weight: 700; color: #1565C0; margin-top: 12px; letter-spacing: 2px; text-transform: uppercase; }
-  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-  .info-box { background: #f0f4f8; border-radius: 10px; padding: 14px; }
-  .info-box h3 { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-  .info-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
-  .info-label { color: #64748b; }
-  .info-value { font-weight: 600; color: #1a1a2e; }
-  .salary-section { background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); border-radius: 14px; padding: 24px; text-align: center; margin-bottom: 24px; }
-  .salary-label { color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-  .salary-value { color: #fff; font-size: 40px; font-weight: 900; }
-  .period { color: rgba(255,255,255,0.75); font-size: 13px; margin-top: 6px; }
-  .status-badge { display: inline-block; background: #059669; color: #fff; font-size: 13px; font-weight: 700; padding: 6px 20px; border-radius: 20px; margin-top: 10px; }
-  .breakdown { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-  .breakdown h3 { background: #f8fafc; padding: 12px 16px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b; border-bottom: 1px solid #e2e8f0; }
-  .breakdown-row { display: flex; justify-content: space-between; padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
-  .breakdown-total { display: flex; justify-content: space-between; padding: 12px 16px; font-size: 14px; font-weight: 700; color: #1565C0; background: #eff6ff; }
-  .footer { border-top: 1px dashed #e2e8f0; padding-top: 14px; text-align: center; font-size: 11px; color: #94a3b8; }
-  .footer strong { color: #1565C0; }
+  @page { size: A4 portrait; margin: 12mm; }
+  body { font-family: Arial, sans-serif; color: #17233d; background: #f4f7fb; }
+  .page { max-width: 760px; margin: 0 auto; padding: 24px 22px; background: #fff; border-top: 8px solid #0b2b55; border-bottom: 1px solid #d8e1ee; }
+  .header { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; }
+  .logo-wrap { width: 88px; height: 88px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; background: #fff; }
+  .school-copy { flex: 1; }
+  .eyebrow { color: #b48627; font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; }
+  .school-name { font-size: 20px; font-weight: 900; color: #0b2b55; text-transform: uppercase; line-height: 1.2; }
+  .school-sub { font-size: 10.5px; color: #59677c; margin-top: 7px; }
+  .slip-title { color: #0b2b55; font-size: 22px; font-weight: 900; letter-spacing: 1px; text-align: right; white-space: nowrap; }
+  .rule { height: 3px; background: linear-gradient(90deg,#0b2b55 0%,#0b2b55 78%,#d9a832 78%,#d9a832 100%); }
+  .receipt-meta { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 16px; padding: 10px 13px; border: 1px solid #d8e1ee; border-radius: 8px; background: #f8fafd; }
+  .meta-label { color: #738197; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; }
+  .meta-value { color: #17233d; font-size: 12px; font-weight: 800; margin-top: 3px; }
+  .paid-pill { color: #087443; background: #e8f5ee; border: 1px solid #b9e1ca; border-radius: 999px; padding: 6px 12px; font-size: 9px; font-weight: 900; letter-spacing: .7px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .info-box { border: 1px solid #d8e1ee; border-radius: 9px; padding: 13px 14px; background: #fff; }
+  .info-box h3 { color: #0b2b55; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #d9a832; }
+  .info-row { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; margin-bottom: 7px; }
+  .info-row:last-child { margin-bottom: 0; }
+  .info-label { color: #738197; }
+  .info-value { font-weight: 700; color: #17233d; text-align: right; }
+  .salary-section { background: linear-gradient(135deg, #0b2b55 0%, #124d83 100%); border-radius: 12px; padding: 26px 20px; text-align: center; margin: 6px 0 24px; position: relative; overflow: hidden; }
+  .salary-section:after { content: ''; position: absolute; width: 180px; height: 180px; border: 1px solid rgba(217,168,50,.28); border-radius: 50%; right: -65px; top: -105px; }
+  .salary-label { color: #d9a832; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.8px; margin-bottom: 7px; }
+  .salary-value { color: #fff; font-size: 40px; font-weight: 900; letter-spacing: .5px; }
+  .period { color: rgba(255,255,255,.76); font-size: 11px; margin-top: 7px; }
+  .status-badge { display: inline-block; background: #18a66d; color: #fff; font-size: 9px; font-weight: 900; padding: 6px 15px; border-radius: 20px; margin-top: 12px; letter-spacing: .7px; }
+  .closing { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .closing-box { border: 1px solid #d8e1ee; border-radius: 8px; padding: 12px 14px; background: #f8fafd; }
+  .closing-label { color: #738197; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .7px; }
+  .closing-value { color: #17233d; font-size: 11px; font-weight: 700; margin-top: 5px; }
+  .footer { border-top: 1px solid #e2e9f2; padding-top: 13px; text-align: center; font-size: 9px; color: #8a96a8; line-height: 1.5; }
+  .footer strong { color: #0b2b55; }
 </style>
 </head>
 <body>
+<div class="page">
 <div class="header">
-  <div class="school-name">${SCHOOL_INFO.name}</div>
-  <div class="school-sub">${SCHOOL_INFO.address} | ${SCHOOL_INFO.contact}</div>
-  <div class="slip-title">Salary Slip</div>
+  <div class="logo-wrap">${schoolLogoHtml(88)}</div>
+  <div class="school-copy">
+    <div class="eyebrow">Official Salary Receipt</div>
+    <div class="school-name">${SCHOOL_INFO.name}</div>
+    <div class="school-sub">${SCHOOL_INFO.address} · ${SCHOOL_INFO.contact} · ${SCHOOL_INFO.email}</div>
+  </div>
+  <div class="slip-title">SALARY<br/>RECEIPT</div>
+</div>
+<div class="rule"></div>
+<div class="receipt-meta">
+  <div><div class="meta-label">Receipt number</div><div class="meta-value">${record.receiptNumber ?? '—'}</div></div>
+  <div><div class="meta-label">Pay period</div><div class="meta-value">${record.month} ${record.year}</div></div>
+  <div class="paid-pill">✓ PAID</div>
 </div>
 <div class="info-grid">
   <div class="info-box">
@@ -368,23 +396,25 @@ export async function printSalarySlip(record: SalaryRecord, teacher?: Teacher) {
   </div>
 </div>
 <div class="salary-section">
-  <div class="salary-label">Net Salary Paid</div>
+  <div class="salary-label">Net salary paid</div>
   <div class="salary-value">₹${record.amount.toLocaleString('en-IN')}</div>
-  <div class="period">For: ${record.month} ${record.year}</div>
-  <div class="status-badge">✓ PAID</div>
+  <div class="period">Payment for ${record.month} ${record.year}</div>
+  <div class="status-badge">PAYMENT RECEIVED</div>
 </div>
-<div class="breakdown">
-  <h3>Salary Breakdown</h3>
-  <div class="breakdown-row"><span>Basic Salary</span><span>₹${Math.round(record.amount * 0.7).toLocaleString('en-IN')}</span></div>
-  <div class="breakdown-row"><span>HRA</span><span>₹${Math.round(record.amount * 0.2).toLocaleString('en-IN')}</span></div>
-  <div class="breakdown-row"><span>Other Allowances</span><span>₹${Math.round(record.amount * 0.1).toLocaleString('en-IN')}</span></div>
-  <div class="breakdown-row"><span>Deductions</span><span>₹0</span></div>
-  <div class="breakdown-total"><span>Net Payable</span><span>₹${record.amount.toLocaleString('en-IN')}</span></div>
+<div class="closing">
+  <div class="closing-box">
+    <div class="closing-label">Payment date</div>
+    <div class="closing-value">${record.paidDate ? formatDate(record.paidDate) : '—'}</div>
+  </div>
+  <div class="closing-box">
+    <div class="closing-label">Payment status</div>
+    <div class="closing-value">Salary payment completed successfully</div>
+  </div>
 </div>
 <div class="footer">
-  <p>This is a computer-generated salary slip. No signature required.</p>
-  <p style="margin-top:4px"><strong>${SCHOOL_INFO.name}</strong> | ${SCHOOL_INFO.email}</p>
-  <p style="margin-top:4px">Generated on: ${new Date().toLocaleString('en-IN')}</p>
+  <p>This is a computer-generated salary receipt. No signature required.</p>
+  <p><strong>${SCHOOL_INFO.name}</strong> · ${SCHOOL_INFO.email}</p>
+</div>
 </div>
 </body>
 </html>`;
