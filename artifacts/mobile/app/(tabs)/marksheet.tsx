@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import PDFSavedModal from '@/components/PDFSavedModal';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
@@ -11,6 +12,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import { useApp, Student, Exam, ExamResult } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { downloadHtmlAsPdf, downloadMultipleHtmlsAsPdf, printHtml as sharedPrintHtml } from '@/utils/pdfExport';
 import {
@@ -50,6 +52,7 @@ const EXAM_TYPE_LABELS: Record<ExamTypeKey, string> = {
   'annual': 'Annual',
 };
 const EXAM_TYPE_ORDER: ExamTypeKey[] = ['1ut', '2ut', 'half', 'annual'];
+const ACADEMIC_SESSION_KEY = '@school_marksheet_academic_session';
 
 function classifyExam(name: string): ExamTypeKey | null {
   const n = name.toLowerCase();
@@ -267,9 +270,13 @@ function subjectIcon(sub: string): string {
   return '📚';
 }
 
-function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildSingleMarksheetHtml(
+  data: MarksheetData,
+  branding: DocumentBranding = EMPTY_BRANDING,
+  academicSession: string = getAcademicYear(),
+): string {
   const { student, exam, result, total, maxTotal, percentage, grade, rank, totalStudents, passed } = data;
-  const acYear  = getAcademicYear();
+  const acYear  = academicSession;
   const pctFmt  = percentage.toFixed(2);
   const issueDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const verifyData = encodeURIComponent(
@@ -661,11 +668,15 @@ function buildSingleMarksheetHtml(data: MarksheetData, branding: DocumentBrandin
 </html>`;
 }
 
-function buildBulkSingleHtml(dataList: MarksheetData[], branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildBulkSingleHtml(
+  dataList: MarksheetData[],
+  branding: DocumentBranding = EMPTY_BRANDING,
+  academicSession: string = getAcademicYear(),
+): string {
   if (dataList.length === 0) return '';
-  if (dataList.length === 1) return buildSingleMarksheetHtml(dataList[0], branding);
+  if (dataList.length === 1) return buildSingleMarksheetHtml(dataList[0], branding, academicSession);
 
-  const htmls = dataList.map(data => buildSingleMarksheetHtml(data, branding));
+  const htmls = dataList.map(data => buildSingleMarksheetHtml(data, branding, academicSession));
 
   // Extract <head> content from the first document (styles are identical across all)
   const headMatch = htmls[0].match(/<head>([\s\S]*?)<\/head>/);
@@ -713,10 +724,14 @@ ${pages}
 
 // ─── Combined Annual HTML ─────────────────────────────────────────────────────
 // Columns: Subject | 1st Unit Test (OBT./max) | 2nd Unit Test | Half Yearly | Annual Exam | TOTAL | % | GRADE
-function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildCombinedMarksheetHtml(
+  data: CombinedMarksheetData,
+  branding: DocumentBranding = EMPTY_BRANDING,
+  academicSession: string = getAcademicYear(),
+): string {
   const { student, examMap, subjectRows, examTotals, grandTotal, grandMax, percentage, grade,
     rank, totalStudents, passed } = data;
-  const acYear  = getAcademicYear();
+  const acYear  = academicSession;
   const pctFmt  = percentage.toFixed(2);
   const issueDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -1117,11 +1132,15 @@ function buildCombinedMarksheetHtml(data: CombinedMarksheetData, branding: Docum
 </html>`;
 }
 
-function buildBulkCombinedHtml(dataList: CombinedMarksheetData[], branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildBulkCombinedHtml(
+  dataList: CombinedMarksheetData[],
+  branding: DocumentBranding = EMPTY_BRANDING,
+  academicSession: string = getAcademicYear(),
+): string {
   if (dataList.length === 0) return '';
-  if (dataList.length === 1) return buildCombinedMarksheetHtml(dataList[0], branding);
+  if (dataList.length === 1) return buildCombinedMarksheetHtml(dataList[0], branding, academicSession);
 
-  const htmls = dataList.map(data => buildCombinedMarksheetHtml(data, branding));
+  const htmls = dataList.map(data => buildCombinedMarksheetHtml(data, branding, academicSession));
 
   // Extract <head> content from the first document (styles are identical across all)
   const headMatch = htmls[0].match(/<head>([\s\S]*?)<\/head>/);
@@ -1171,9 +1190,13 @@ ${pages}
 export default function MarksheetScreen() {
   const insets = useSafeAreaInsets();
   const { students, exams, examResults, documentBranding } = useApp();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [marksheetType, setMarksheetType] = useState<MarksheetType>('single');
   const [genMode, setGenMode]             = useState<GenMode>('individual');
+  const [academicSession, setAcademicSession] = useState(getAcademicYear);
+  const [showSessionPicker, setShowSessionPicker] = useState(false);
 
   // Single exam state
   const [selectedClass, setSelectedClass]   = useState('');
@@ -1204,6 +1227,26 @@ export default function MarksheetScreen() {
       if (downloadReady?.url) URL.revokeObjectURL(downloadReady.url);
     };
   }, [downloadReady]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(ACADEMIC_SESSION_KEY).then(savedSession => {
+      if (savedSession?.trim()) setAcademicSession(savedSession);
+    });
+  }, []);
+
+  const academicSessionOptions = useMemo(() => {
+    const currentStartYear = Number(getAcademicYear().slice(0, 4));
+    return Array.from({ length: 11 }, (_, index) => {
+      const startYear = currentStartYear - 5 + index;
+      return `${startYear}–${startYear + 1}`;
+    });
+  }, []);
+
+  const selectAcademicSession = useCallback((session: string) => {
+    setAcademicSession(session);
+    setShowSessionPicker(false);
+    void AsyncStorage.setItem(ACADEMIC_SESSION_KEY, session);
+  }, []);
 
   // ── Class options ─────────────────────────────────────────────────────────────
   const classOptions = useMemo(() => {
@@ -1373,20 +1416,20 @@ export default function MarksheetScreen() {
     if (!data) { Alert.alert('No Results', 'No results found.'); return; }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
-    try { await printHtml(buildSingleMarksheetHtml(data, documentBranding)); }
+    try { await printHtml(buildSingleMarksheetHtml(data, documentBranding, academicSession)); }
     catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
-  }, [buildSingleData, documentBranding]);
+  }, [buildSingleData, documentBranding, academicSession]);
 
   const downloadSingle = useCallback(async (student: Student) => {
     const data = buildSingleData(student);
     if (!data) { Alert.alert('No Results', 'No results found.'); return; }
     if (!beginDownload()) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try { await downloadHtml(buildSingleMarksheetHtml(data, documentBranding), `Marksheet – ${student.name}`); }
+    try { await downloadHtml(buildSingleMarksheetHtml(data, documentBranding, academicSession), `Marksheet – ${student.name}`); }
     catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
-  }, [buildSingleData, documentBranding]);
+  }, [buildSingleData, documentBranding, academicSession]);
 
   const bulkPrint = useCallback(async () => {
     const list = bulkSelected.size > 0 ? bulkStudents.filter(s => bulkSelected.has(s.id)) : bulkStudents;
@@ -1395,10 +1438,10 @@ export default function MarksheetScreen() {
     setLoading(true);
     try {
       const dataList = list.map(s => buildSingleData(s)).filter(Boolean) as MarksheetData[];
-      await printHtml(buildBulkSingleHtml(dataList, documentBranding));
+      await printHtml(buildBulkSingleHtml(dataList, documentBranding, academicSession));
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
-  }, [bulkStudents, bulkSelected, buildSingleData, documentBranding]);
+  }, [bulkStudents, bulkSelected, buildSingleData, documentBranding, academicSession]);
 
   const bulkDownload = useCallback(async () => {
     const list = bulkSelected.size > 0 ? bulkStudents.filter(s => bulkSelected.has(s.id)) : bulkStudents;
@@ -1414,12 +1457,12 @@ export default function MarksheetScreen() {
       // strings only ever captured the first .page element per iframe, producing
       // a single-student PDF regardless of how many students were selected.
       await downloadHtml(
-        buildBulkSingleHtml(dataList, documentBranding),
+        buildBulkSingleHtml(dataList, documentBranding, academicSession),
         `Marksheets – ${selectedClass}`,
       );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
-  }, [bulkStudents, bulkSelected, buildSingleData, selectedClass, documentBranding]);
+  }, [bulkStudents, bulkSelected, buildSingleData, selectedClass, documentBranding, academicSession]);
 
   // ── Combined actions ──────────────────────────────────────────────────────────
   const openCombinedPreview = useCallback((student: Student) => {
@@ -1433,20 +1476,20 @@ export default function MarksheetScreen() {
     if (!data) { Alert.alert('No Results', 'No results found.'); return; }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
-    try { await printHtml(buildCombinedMarksheetHtml(data, documentBranding)); }
+    try { await printHtml(buildCombinedMarksheetHtml(data, documentBranding, academicSession)); }
     catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
-  }, [buildCombinedData, documentBranding]);
+  }, [buildCombinedData, documentBranding, academicSession]);
 
   const downloadCombined = useCallback(async (student: Student) => {
     const data = buildCombinedData(student);
     if (!data) { Alert.alert('No Results', 'No results found.'); return; }
     if (!beginDownload()) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try { await downloadHtml(buildCombinedMarksheetHtml(data, documentBranding), `Combined Marksheet – ${student.name}`); }
+    try { await downloadHtml(buildCombinedMarksheetHtml(data, documentBranding, academicSession), `Combined Marksheet – ${student.name}`); }
     catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
-  }, [buildCombinedData, documentBranding]);
+  }, [buildCombinedData, documentBranding, academicSession]);
 
   const bulkCombinedPrint = useCallback(async () => {
     if (combinedStudents.length === 0) { Alert.alert('No Students', 'No students with results.'); return; }
@@ -1454,10 +1497,10 @@ export default function MarksheetScreen() {
     setLoading(true);
     try {
       const dataList = combinedStudents.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
-      await printHtml(buildBulkCombinedHtml(dataList, documentBranding));
+      await printHtml(buildBulkCombinedHtml(dataList, documentBranding, academicSession));
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
-  }, [combinedStudents, buildCombinedData, documentBranding]);
+  }, [combinedStudents, buildCombinedData, documentBranding, academicSession]);
 
   const bulkCombinedDownload = useCallback(async () => {
     if (combinedStudents.length === 0) { Alert.alert('No Students', 'No students with results.'); return; }
@@ -1472,12 +1515,12 @@ export default function MarksheetScreen() {
       // HTML strings only ever captured the first .page element per iframe, producing a
       // single-student PDF regardless of how many students were selected.
       await downloadHtml(
-        buildBulkCombinedHtml(dataList, documentBranding),
+        buildBulkCombinedHtml(dataList, documentBranding, academicSession),
         `Combined Marksheets – ${combinedClass}`,
       );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
-  }, [combinedStudents, buildCombinedData, combinedClass, documentBranding]);
+  }, [combinedStudents, buildCombinedData, combinedClass, documentBranding, academicSession]);
 
   const toggleBulk = useCallback((id: string) => {
     setBulkSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -1562,6 +1605,16 @@ export default function MarksheetScreen() {
       </LinearGradient>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: botPad }}>
+        {isAdmin && (
+          <View style={s.filterCard}>
+            <Text style={s.filterLabel}>Academic Session</Text>
+            <TouchableOpacity style={s.picker} onPress={() => setShowSessionPicker(true)} activeOpacity={0.7}>
+              <Feather name="calendar" size={16} color="#059669" />
+              <Text style={s.pickerTxt}>{academicSession}</Text>
+              <Feather name="chevron-down" size={16} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── COMBINED ANNUAL MODE ── */}
         {isCombined ? (
@@ -2166,6 +2219,35 @@ export default function MarksheetScreen() {
                 </TouchableOpacity>
               ))}
               {classOptions.length === 0 && <Text style={{ textAlign: 'center', color: '#94A3B8', padding: 24 }}>No classes found</Text>}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Academic Session Picker (Admin) ── */}
+      <Modal visible={showSessionPicker} animationType="slide" transparent>
+        <View style={s.modalBg}>
+          <View style={s.pickerModal}>
+            <View style={s.pickerModalHeader}>
+              <Text style={s.pickerModalTitle}>Select Academic Session</Text>
+              <TouchableOpacity onPress={() => setShowSessionPicker(false)} activeOpacity={0.7}>
+                <Feather name="x" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {academicSessionOptions.map(session => (
+                <TouchableOpacity
+                  key={session}
+                  style={[s.pickerItem, academicSession === session && s.pickerItemActive]}
+                  onPress={() => selectAcademicSession(session)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.pickerItemTxt, academicSession === session && { color: '#059669' }]}>
+                    {session}
+                  </Text>
+                  {academicSession === session && <Feather name="check-circle" size={18} color="#059669" />}
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </View>
         </View>
