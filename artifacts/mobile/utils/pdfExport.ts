@@ -304,6 +304,8 @@ export async function downloadHtmlAsPdf(
     });
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
+    // Delete any existing file first so copyAsync never hits "file already exists"
+    await FileSystem.deleteAsync(destUri, { idempotent: true });
     await FileSystem.copyAsync({ from: uri, to: destUri });
     if (onSaved) {
       onSaved(`${safeName}.pdf`, destUri);
@@ -590,6 +592,8 @@ ${pages}
     });
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
+    // Delete any existing file first so copyAsync never hits "file already exists"
+    await FileSystem.deleteAsync(destUri, { idempotent: true });
     await FileSystem.copyAsync({ from: uri, to: destUri });
     if (onSaved) {
       onSaved(`${safeName}.pdf`, destUri);
