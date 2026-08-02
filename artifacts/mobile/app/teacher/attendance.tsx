@@ -270,6 +270,7 @@ export default function TeacherAttendance() {
   }, [attendanceRecords, selectedClass, selectedDate]);
 
   const alreadySubmitted = existingAttendance.length > 0;
+  const takenByTeacher = existingAttendance[0]?.takenBy ?? '';
 
   const handleSelectClass = (cls: string) => {
     setSelectedClass(cls);
@@ -313,6 +314,11 @@ export default function TeacherAttendance() {
     const pending = activeStudents.filter(s => !attendance[s.id]);
     if (pending.length > 0) {
       setSubmitError(`${pending.length} student${pending.length > 1 ? 's' : ''} still need${pending.length === 1 ? 's' : ''} to be marked: ${pending.map(p => p.name).join(', ')}`);
+      return;
+    }
+
+    if (alreadySubmitted) {
+      setSubmitError(`Attendance for ${selectedClass} on ${selectedDate} was already submitted by ${takenByTeacher}. It cannot be edited or resubmitted.`);
       return;
     }
 
@@ -461,13 +467,15 @@ export default function TeacherAttendance() {
               </View>
             ) : null}
             {alreadySubmitted && !submitSuccess && (
-              <View style={[s.alreadyBanner, { backgroundColor: colors.info + '15', borderColor: colors.info }]}>
-                <Feather name="info" size={14} color={colors.info} />
-                <Text style={[s.alreadyText, { color: colors.info }]}>Attendance already submitted — you can edit and resubmit.</Text>
+              <View style={[s.alreadyBanner, { backgroundColor: colors.destructive + '15', borderColor: colors.destructive }]}>
+                <Feather name="lock" size={14} color={colors.destructive} />
+                <Text style={[s.alreadyText, { color: colors.destructive }]}>
+                  Attendance already submitted by {takenByTeacher}. Cannot be edited or resubmitted.
+                </Text>
               </View>
             )}
 
-            {selectedClass && activeStudents.length > 0 && (
+            {selectedClass && activeStudents.length > 0 && !alreadySubmitted && (
               <View style={s.markAllBtns}>
                 <TouchableOpacity style={[s.markBtn, { backgroundColor: colors.success + '20' }]} onPress={() => markAll('present')} activeOpacity={0.8}>
                   <Text style={[s.markBtnText, { color: colors.success }]}>All P</Text>
@@ -532,22 +540,25 @@ export default function TeacherAttendance() {
                       <View style={{ flex: 1 }}>
                         <Text style={[sc.name, { color: colors.text }]}>{student.name}</Text>
                       </View>
-                      <View style={sc.btnGroup}>
+                      <View style={[sc.btnGroup, alreadySubmitted && { opacity: 0.45 }]}>
                         <TouchableOpacity
                           style={[sc.statusBtn, { backgroundColor: status === 'present' ? colors.success : colors.muted }]}
-                          onPress={() => setStatus(student.id, 'present')}
+                          onPress={() => !alreadySubmitted && setStatus(student.id, 'present')}
+                          disabled={alreadySubmitted}
                         >
                           <Text style={[sc.statusText, { color: status === 'present' ? '#fff' : colors.mutedForeground }]}>P</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[sc.statusBtn, { backgroundColor: status === 'absent' ? colors.destructive : colors.muted }]}
-                          onPress={() => setStatus(student.id, 'absent')}
+                          onPress={() => !alreadySubmitted && setStatus(student.id, 'absent')}
+                          disabled={alreadySubmitted}
                         >
                           <Text style={[sc.statusText, { color: status === 'absent' ? '#fff' : colors.mutedForeground }]}>A</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[sc.statusBtn, { backgroundColor: status === 'leave' ? colors.warning : colors.muted }]}
-                          onPress={() => setStatus(student.id, 'leave')}
+                          onPress={() => !alreadySubmitted && setStatus(student.id, 'leave')}
+                          disabled={alreadySubmitted}
                         >
                           <Text style={[sc.statusText, { color: status === 'leave' ? '#fff' : colors.mutedForeground }]}>L</Text>
                         </TouchableOpacity>
@@ -558,16 +569,23 @@ export default function TeacherAttendance() {
               />
               {activeStudents.length > 0 && (
                 <View style={[s.submitBar, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: botPad }]}>
-                  <TouchableOpacity
-                    style={[s.submitBtn, { backgroundColor: pendingCount === 0 ? colors.primary : colors.warning }]}
-                    onPress={handleSubmit}
-                    activeOpacity={0.85}
-                  >
-                    <Feather name="send" size={18} color="#fff" />
-                    <Text style={[s.submitBtnText, { color: '#fff' }]}>
-                      {pendingCount === 0 ? 'Submit Attendance' : `Submit (${pendingCount} pending)`}
-                    </Text>
-                  </TouchableOpacity>
+                  {alreadySubmitted ? (
+                    <View style={[s.submitBtn, { backgroundColor: colors.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }]}>
+                      <Feather name="lock" size={18} color={colors.mutedForeground} />
+                      <Text style={[s.submitBtnText, { color: colors.mutedForeground }]}>Attendance Locked</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[s.submitBtn, { backgroundColor: pendingCount === 0 ? colors.primary : colors.warning }]}
+                      onPress={handleSubmit}
+                      activeOpacity={0.85}
+                    >
+                      <Feather name="send" size={18} color="#fff" />
+                      <Text style={[s.submitBtnText, { color: '#fff' }]}>
+                        {pendingCount === 0 ? 'Submit Attendance' : `Submit (${pendingCount} pending)`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </>
