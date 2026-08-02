@@ -829,9 +829,11 @@ export default function TeacherDashboard() {
                     style={StyleSheet.absoluteFillObject}
                     start={{x:0,y:0}} end={{x:1,y:1}}
                   />
+                  {/* Top gold accent */}
+                  <LinearGradient colors={['transparent','#F59E0B','#FCD34D','#F59E0B','transparent']} style={bc.topAccent} start={{x:0,y:0}} end={{x:1,y:0}} />
                   <View style={bc.orb1} /><View style={bc.orb2} /><View style={bc.orb3} />
                   <View style={bc.sparkleRow}>
-                    {['✦','✧','✦','✧','✦','✧','✦','✧','✦'].map((sp, i) => (
+                    {['✦','✧','✦','✧','✦','✧','✦'].map((sp, i) => (
                       <Text key={i} style={[bc.sparkleDot, {opacity: i % 2 === 0 ? 0.7 : 0.3}]}>{sp}</Text>
                     ))}
                   </View>
@@ -853,24 +855,23 @@ export default function TeacherDashboard() {
                     <Text style={bc.classText}>{birthdayCard.class} · Roll No. {birthdayCard.rollNumber}</Text>
                   </View>
                   <View style={bc.messageBox}>
-                    <Text style={bc.msg1}>🎈 Wishing you a fantastic birthday filled with{'\n'}joy, laughter, and endless success!</Text>
+                    <Text style={bc.msg1}>🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!</Text>
                     <View style={bc.msgDivider} />
-                    <Text style={bc.msg2}>🏆 May this year bring great happiness{'\n'}and remarkable achievements.</Text>
+                    <Text style={bc.msg2}>🏆 May this year bring great happiness and remarkable achievements.</Text>
                   </View>
-                  <LinearGradient colors={['transparent','#F59E0B','#FCD34D','#F59E0B','transparent']} style={bc.shimmer} start={{x:0,y:0}} end={{x:1,y:0}} />
                   <View style={bc.schoolRow}>
                     <Text style={bc.schoolEmoji}>🏫</Text>
-                    <View>
+                    <View style={{flex:1}}>
                       <Text style={bc.schoolName}>{SCHOOL_INFO.name}</Text>
                       <Text style={bc.schoolContact}>📞 {SCHOOL_INFO.contact}</Text>
                     </View>
+                    <View style={bc.bottomStars}>
+                      {['⭐','✨','🌟'].map((em, i) => (
+                        <Text key={i} style={{fontSize: i === 2 ? 13 : 11}}>{em}</Text>
+                      ))}
+                    </View>
                   </View>
-                  <View style={bc.bottomStars}>
-                    {['⭐','✨','🌟','✨','⭐'].map((em, i) => (
-                      <Text key={i} style={{fontSize: i === 2 ? 18 : 14}}>{em}</Text>
-                    ))}
-                  </View>
-                </View>
+                                </View>
                 <View style={bc.actions}>
                   <TouchableOpacity
                     activeOpacity={0.85}
@@ -1763,54 +1764,55 @@ const bday = StyleSheet.create({
 
 const bc = StyleSheet.create({
   overlay:   { flex: 1, backgroundColor: 'rgba(5,0,20,0.94)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  container: { width: '100%', maxWidth: 380, alignItems: 'center', gap: 14 },
+  container: { width: '100%', maxWidth: 380, alignItems: 'center', gap: 10 },
   card: {
-    width: '100%', borderRadius: 28, overflow: 'hidden', padding: 26, alignItems: 'center',
+    width: '100%', borderRadius: 24, overflow: 'hidden', padding: 18, alignItems: 'center',
     borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)',
-    shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3, shadowRadius: 24, elevation: 12,
+    shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35, shadowRadius: 20, elevation: 12,
   },
-  orb1: { position: 'absolute', width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(124,58,237,0.22)', top: -50, right: -40 },
-  orb2: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(245,158,11,0.12)', bottom: 40, left: -30 },
-  orb3: { position: 'absolute', width: 70,  height: 70,  borderRadius: 35, backgroundColor: 'rgba(236,72,153,0.18)', top: 60, left: 10 },
-  sparkleRow: { flexDirection: 'row', gap: 5, marginBottom: 10 },
-  sparkleDot: { fontSize: 11, color: 'rgba(252,211,77,0.8)' },
-  emojiRow:   { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },
-  sideEmoji:  { fontSize: 26 },
-  mainEmoji:  { fontSize: 52 },
-  titleSub:   { fontSize: 13, fontWeight: '800', color: 'rgba(252,211,77,0.7)', letterSpacing: 10, marginBottom: 4 },
-  titleMain:  { fontSize: 32, fontWeight: '900', color: '#FCD34D', letterSpacing: 5, textAlign: 'center', marginBottom: 10 },
-  shimmer:    { width: '75%', height: 1.5, marginVertical: 14 },
+  topAccent: { width: '100%', height: 2, marginBottom: 12 },
+  orb1: { position: 'absolute', width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(124,58,237,0.22)', top: -40, right: -35 },
+  orb2: { position: 'absolute', width: 80,  height: 80,  borderRadius: 40, backgroundColor: 'rgba(245,158,11,0.12)', bottom: 30, left: -25 },
+  orb3: { position: 'absolute', width: 55,  height: 55,  borderRadius: 28, backgroundColor: 'rgba(236,72,153,0.18)', top: 50, left: 8 },
+  sparkleRow: { flexDirection: 'row', gap: 5, marginBottom: 6 },
+  sparkleDot: { fontSize: 10, color: 'rgba(252,211,77,0.8)' },
+  emojiRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  sideEmoji:  { fontSize: 20 },
+  mainEmoji:  { fontSize: 38 },
+  titleSub:   { fontSize: 11, fontWeight: '800', color: 'rgba(252,211,77,0.7)', letterSpacing: 8, marginBottom: 2 },
+  titleMain:  { fontSize: 26, fontWeight: '900', color: '#FCD34D', letterSpacing: 5, textAlign: 'center', marginBottom: 6 },
+  shimmer:    { width: '80%', height: 1.5, marginVertical: 10 },
   avatarRing: {
-    width: 88, height: 88, borderRadius: 44, padding: 3,
-    backgroundColor: '#F59E0B', marginBottom: 12,
+    width: 70, height: 70, borderRadius: 35, padding: 3,
+    backgroundColor: '#F59E0B', marginBottom: 8,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 12, elevation: 8,
+    shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
   },
-  avatarG:       { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter:  { fontSize: 34, fontWeight: '900', color: '#fff' },
-  studentName:   { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 8 },
+  avatarG:       { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+  avatarLetter:  { fontSize: 26, fontWeight: '900', color: '#fff' },
+  studentName:   { fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 4 },
   classBadge:    {
-    backgroundColor: 'rgba(245,158,11,0.18)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5,
-    marginBottom: 16, borderWidth: 1, borderColor: 'rgba(252,211,77,0.35)',
+    backgroundColor: 'rgba(245,158,11,0.18)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 3,
+    marginBottom: 10, borderWidth: 1, borderColor: 'rgba(252,211,77,0.35)',
   },
-  classText:   { fontSize: 12, color: '#FCD34D', fontWeight: '700' },
+  classText:   { fontSize: 11, color: '#FCD34D', fontWeight: '700' },
   messageBox:  {
-    width: '100%', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: 4,
+    width: '100%', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 14, padding: 11,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: 6,
   },
-  msg1:       { fontSize: 13, color: 'rgba(255,255,255,0.88)', textAlign: 'center', lineHeight: 21, marginBottom: 10 },
-  msgDivider: { width: '40%', height: 1, backgroundColor: 'rgba(252,211,77,0.3)', alignSelf: 'center', marginBottom: 10 },
-  msg2:       { fontSize: 12.5, color: 'rgba(255,255,255,0.65)', textAlign: 'center', lineHeight: 20 },
-  schoolRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
-  schoolEmoji:   { fontSize: 20 },
-  schoolName:    { fontSize: 12, fontWeight: '800', color: '#F59E0B', letterSpacing: 0.5 },
-  schoolContact: { fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  bottomStars:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
+  msg1:       { fontSize: 12, color: 'rgba(255,255,255,0.88)', textAlign: 'center', lineHeight: 18, marginBottom: 6 },
+  msgDivider: { width: '40%', height: 1, backgroundColor: 'rgba(252,211,77,0.3)', alignSelf: 'center', marginBottom: 6 },
+  msg2:       { fontSize: 11.5, color: 'rgba(255,255,255,0.65)', textAlign: 'center', lineHeight: 17 },
+  schoolRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, width: '100%' },
+  schoolEmoji:   { fontSize: 17 },
+  schoolName:    { fontSize: 11, fontWeight: '800', color: '#F59E0B', letterSpacing: 0.3 },
+  schoolContact: { fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 1 },
+  bottomStars:  { flexDirection: 'row', alignItems: 'center', gap: 3 },
   actions:      { width: '100%', gap: 8 },
-  whatsappBtn:  { width: '100%', borderRadius: 16, overflow: 'hidden' },
-  whatsappGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
-  whatsappTxt:  { color: '#fff', fontWeight: '700', fontSize: 16 },
-  closeBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
-  closeTxt:     { color: 'rgba(255,255,255,0.55)', fontWeight: '600', fontSize: 14 },
+  whatsappBtn:  { width: '100%', borderRadius: 14, overflow: 'hidden' },
+  whatsappGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14 },
+  whatsappTxt:  { color: '#fff', fontWeight: '700', fontSize: 15 },
+  closeBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 },
+  closeTxt:     { color: 'rgba(255,255,255,0.55)', fontWeight: '600', fontSize: 13 },
 });
