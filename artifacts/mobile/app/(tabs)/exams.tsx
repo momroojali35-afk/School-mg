@@ -110,9 +110,10 @@ export default function ExamsScreen() {
 
         const grandTotal = examTotals.reduce((s, e) => s + e.total, 0);
         const grandMax = examTotals.reduce((s, e) => s + e.maxTotal, 0);
-        const pct = grandMax > 0 ? Math.round((grandTotal / grandMax) * 100) : 0;
-        const grade = getGrade(pct);
-        const pass = pct >= 30;
+        const rawPct = grandMax > 0 ? (grandTotal / grandMax) * 100 : 0;
+        const pct = Math.round(rawPct);   // rounded for display only
+        const grade = getGrade(rawPct);   // use raw so 29.5% → F, not D
+        const pass = rawPct >= 30;        // use raw so 29.5% → FAIL, not PASS
         const hasAny = examTotals.some(e => e.hasResult);
         return { student: st, examTotals, grandTotal, grandMax, pct, grade, pass, hasAny };
       })
