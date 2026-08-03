@@ -1192,16 +1192,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const bulkAddAlumni = useCallback(async (records: Omit<Alumni, 'id'>[], batch: string): Promise<void> => {
     const withIds: Alumni[] = records.map(r => ({ ...r, id: genId(), batch }));
+    // Optimistic update — show immediately in UI
     setState(prev => ({ ...prev, alumni: [...prev.alumni, ...withIds] }));
     try {
-      const rows = await apiPost<any[]>('/alumni/bulk', { records: withIds });
+      // Strip photos before sending — base64 images can exceed the 10 MB API limit
+      // for a whole-class import.  Photos can be added individually after import.
+      const payload = withIds.map(r => ({ ...r, photo: undefined }));
+      const rows = await apiPost<any[]>('/alumni/bulk', { records: payload });
+      // Replace optimistic entries with server-confirmed rows (may have different ids)
       setState(prev => {
         const idSet = new Set(withIds.map(x => x.id));
         const kept = prev.alumni.filter(x => !idSet.has(x.id));
         return { ...prev, alumni: [...kept, ...(rows as Alumni[])] };
       });
     } catch (e) {
-      console.error(e);
+      // Roll back the optimistic update so the UI stays in sync with the DB
+      setState(prev => ({
+        ...prev,
+        alumni: prev.alumni.filter(x => !withIds.some(w => w.id === x.id)),
+      }));
+      throw e; // re-throw so handleBulkImport can show "Import Failed"
     }
   }, []);
 

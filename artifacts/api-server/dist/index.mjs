@@ -45911,7 +45911,7 @@ function createPgAdapter(db2) {
           if (data.id) v.id = data.id;
           return v;
         });
-        return db2.insert(alumniTable2).values(values).returning();
+        return db2.insert(alumniTable2).values(values).onConflictDoNothing().returning();
       },
       async delete(id) {
         await db2.delete(alumniTable2).where(eq(alumniTable2.id, id));

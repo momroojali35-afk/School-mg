@@ -712,7 +712,7 @@ export function createPgAdapter(db: DB): DataAdapter {
           if (data.id) v.id = data.id;
           return v;
         });
-        return db.insert(alumniTable).values(values).returning();
+        return db.insert(alumniTable).values(values).onConflictDoNothing().returning();
       },
       async delete(id) {
         await db.delete(alumniTable).where(eq(alumniTable.id, id));
