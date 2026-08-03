@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -64,6 +65,8 @@ async function apiDeleteReq<T = void>(path: string): Promise<T> {
   if (res.status === 404 || res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
+
+const ACADEMIC_SESSION_KEY = '@school_admitcard_academic_session';
 
 const EMPTY_BRANDING: DocumentBranding = {
   logoDataUrl: null,
@@ -674,94 +677,32 @@ export default function AdmitCardScreen() {
   } | null>(null);
 
   // ── Academic Session state ─────────────────────────────────────────────────
-  const [academicSessions, setAcademicSessions] = useState<string[]>([
-    getAcademicYear(),
-  ]);
-  const [selectedSession, setSelectedSession] =
-    useState<string>(getAcademicYear());
+  const [academicSession, setAcademicSession] = useState(getAcademicYear);
   const [showSessionPicker, setShowSessionPicker] = useState(false);
-  const [newSessionInput, setNewSessionInput] = useState("");
-  const [sessionSaving, setSessionSaving] = useState(false);
+  const [showCustomSessionInput, setShowCustomSessionInput] = useState(false);
+  const [customSessionText, setCustomSessionText] = useState('');
 
   useEffect(() => {
-    apiGet<{ sessions: string[]; activeSession: string }>(
-      "/settings/academic-sessions",
-    )
-      .then((data) => {
-        setAcademicSessions(data.sessions);
-        setSelectedSession(data.activeSession);
-      })
-      .catch(() => {});
+    AsyncStorage.getItem(ACADEMIC_SESSION_KEY).then(savedSession => {
+      if (savedSession?.trim()) setAcademicSession(savedSession);
+    });
   }, []);
 
-  const handleSelectSession = useCallback(async (session: string) => {
-    setSelectedSession(session);
+  const academicSessionOptions = useMemo(() => {
+    const currentStartYear = Number(getAcademicYear().slice(0, 4));
+    return Array.from({ length: 11 }, (_, index) => {
+      const startYear = currentStartYear - 5 + index;
+      return `${startYear}–${startYear + 1}`;
+    });
+  }, []);
+
+  const selectAcademicSession = useCallback((session: string) => {
+    setAcademicSession(session);
     setShowSessionPicker(false);
-    try {
-      await apiPut("/settings/academic-sessions", {
-        activeSession: session,
-        adminId: "admin",
-      });
-    } catch {}
+    void AsyncStorage.setItem(ACADEMIC_SESSION_KEY, session);
   }, []);
 
-  const handleAddSession = useCallback(async () => {
-    const trimmed = newSessionInput.trim();
-    if (!trimmed) return;
-    if (academicSessions.includes(trimmed)) {
-      setNewSessionInput("");
-      return;
-    }
-    setSessionSaving(true);
-    try {
-      const updated = await apiPut<{
-        sessions: string[];
-        activeSession: string;
-      }>("/settings/academic-sessions", {
-        sessions: [...academicSessions, trimmed],
-        activeSession: trimmed,
-        adminId: "admin",
-      });
-      setAcademicSessions(updated.sessions);
-      setSelectedSession(updated.activeSession);
-      setNewSessionInput("");
-    } catch {
-    } finally {
-      setSessionSaving(false);
-    }
-  }, [newSessionInput, academicSessions]);
-
-  const handleDeleteSession = useCallback(
-    async (session: string) => {
-      if (academicSessions.length <= 1) {
-        Alert.alert(
-          "Cannot Delete",
-          "At least one academic session is required.",
-        );
-        return;
-      }
-      setSessionSaving(true);
-      try {
-        const updated = await apiDeleteReq<{
-          sessions: string[];
-          activeSession: string;
-        }>(
-          `/settings/academic-sessions/${encodeURIComponent(session)}?adminId=admin`,
-        );
-        if (updated) {
-          setAcademicSessions(updated.sessions);
-          if (selectedSession === session)
-            setSelectedSession(updated.activeSession);
-        }
-      } catch {
-      } finally {
-        setSessionSaving(false);
-      }
-    },
-    [academicSessions, selectedSession],
-  );
-
-  const acYear = selectedSession;
+  const acYear = academicSession;
   const botPad = insets.bottom + 80;
 
   // ── Derived data ─────────────────────────────────────────────────────────────
@@ -828,7 +769,7 @@ export default function AdmitCardScreen() {
           selectedExam,
           template,
           documentBranding,
-          selectedSession,
+          academicSession,
         );
         await Print.printAsync({ html });
       } catch (e: any) {
@@ -838,7 +779,7 @@ export default function AdmitCardScreen() {
         setLoading(false);
       }
     },
-    [selectedExam, template, documentBranding, selectedSession],
+    [selectedExam, template, documentBranding, academicSession],
   );
 
   const downloadStudent = useCallback(
@@ -855,7 +796,7 @@ export default function AdmitCardScreen() {
           selectedExam,
           template,
           documentBranding,
-          selectedSession,
+          academicSession,
         );
         await downloadHtmlAsPdf(
           html,
@@ -872,7 +813,7 @@ export default function AdmitCardScreen() {
         setLoading(false);
       }
     },
-    [selectedExam, template, documentBranding, selectedSession],
+    [selectedExam, template, documentBranding, academicSession],
   );
 
   const bulkPrint = useCallback(async () => {
@@ -895,7 +836,7 @@ export default function AdmitCardScreen() {
         selectedExam,
         template,
         documentBranding,
-        selectedSession,
+        academicSession,
       );
       await Print.printAsync({ html });
     } catch (e: any) {
@@ -910,7 +851,7 @@ export default function AdmitCardScreen() {
     bulkList,
     bulkSelected,
     documentBranding,
-    selectedSession,
+    academicSession,
   ]);
 
   const bulkDownload = useCallback(async () => {
@@ -931,7 +872,7 @@ export default function AdmitCardScreen() {
       // Build a separate complete HTML document per student so each is rendered
       // in its own iframe — eliminates blank pages caused by joining full documents.
       const htmlPages = list.map((s) =>
-        buildHtml(s, selectedExam, template, documentBranding, selectedSession),
+        buildHtml(s, selectedExam, template, documentBranding, academicSession),
       );
       await downloadMultipleHtmlsAsPdf(
         htmlPages,
@@ -953,7 +894,7 @@ export default function AdmitCardScreen() {
     bulkSelected,
     selectedClass,
     documentBranding,
-    selectedSession,
+    academicSession,
   ]);
 
   const openPreview = useCallback(
@@ -1400,18 +1341,18 @@ export default function AdmitCardScreen() {
             </View>
 
             {/* Academic Session selector */}
-            <TouchableOpacity
-              style={[st.picker, st.sessionPicker]}
-              onPress={() => setShowSessionPicker(true)}
-              activeOpacity={0.85}
-            >
-              <Feather name="calendar" size={15} color="#7C3AED" />
-              <View style={{ flex: 1 }}>
-                <Text style={st.sessionPickerLabel}>Academic Session</Text>
-                <Text style={st.sessionPickerValue}>{selectedSession}</Text>
-              </View>
-              <Feather name="chevron-down" size={14} color="#94A3B8" />
-            </TouchableOpacity>
+            <View style={st.sessionCard}>
+              <Text style={st.sessionCardLabel}>Academic Session</Text>
+              <TouchableOpacity
+                style={st.sessionCardPicker}
+                onPress={() => setShowSessionPicker(true)}
+                activeOpacity={0.7}
+              >
+                <Feather name="calendar" size={16} color="#059669" />
+                <Text style={st.sessionCardTxt}>{academicSession}</Text>
+                <Feather name="chevron-down" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
 
             {/* Selected exam info */}
             {selectedExam && (
@@ -1803,130 +1744,75 @@ export default function AdmitCardScreen() {
       </Modal>
 
       {/* ── Academic Session Picker Modal ──────────────────────────────────── */}
-      <Modal
-        visible={showSessionPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSessionPicker(false)}
-      >
-        <View style={mo.overlay}>
-          <View style={mo.sheet}>
-            <View style={mo.sheetHeader}>
-              <Text style={mo.sheetTitle}>Academic Session</Text>
-              <TouchableOpacity onPress={() => setShowSessionPicker(false)}>
+      <Modal visible={showSessionPicker} animationType="slide" transparent>
+        <View style={so.modalBg}>
+          <View style={so.pickerModal}>
+            <View style={so.pickerModalHeader}>
+              <Text style={so.pickerModalTitle}>Select Academic Session</Text>
+              <TouchableOpacity onPress={() => setShowSessionPicker(false)} activeOpacity={0.7}>
                 <Feather name="x" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
-            <ScrollView
-              style={mo.sheetScroll}
-              keyboardShouldPersistTaps="handled"
-            >
-              {/* Add new session */}
-              <View style={so.addRow}>
-                <TextInput
-                  style={so.addInput}
-                  placeholder="e.g. 2025–2026"
-                  placeholderTextColor="#94A3B8"
-                  value={newSessionInput}
-                  onChangeText={setNewSessionInput}
-                  returnKeyType="done"
-                  onSubmitEditing={handleAddSession}
-                />
-                <TouchableOpacity
-                  style={[
-                    so.addBtn,
-                    (!newSessionInput.trim() || sessionSaving) && {
-                      opacity: 0.5,
-                    },
-                  ]}
-                  onPress={handleAddSession}
-                  disabled={!newSessionInput.trim() || sessionSaving}
-                  activeOpacity={0.8}
-                >
-                  {sessionSaving ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Feather name="plus" size={18} color="#fff" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* Existing sessions */}
-              {academicSessions.map((session) => (
-                <TouchableOpacity
-                  key={session}
-                  style={[
-                    mo.item,
-                    selectedSession === session && mo.itemActive,
-                  ]}
-                  onPress={() => handleSelectSession(session)}
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={[
-                      mo.itemIcon,
-                      selectedSession === session && {
-                        backgroundColor: "rgba(255,255,255,0.2)",
-                      },
-                    ]}
-                  >
-                    <Feather
-                      name="calendar"
-                      size={18}
-                      color={selectedSession === session ? "#fff" : "#7C3AED"}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        mo.itemName,
-                        selectedSession === session && { color: "#fff" },
-                      ]}
-                    >
-                      {session}
-                    </Text>
-                    {selectedSession === session && (
-                      <Text
-                        style={[
-                          mo.itemMeta,
-                          { color: "rgba(255,255,255,0.75)" },
-                        ]}
-                      >
-                        Active session
-                      </Text>
-                    )}
-                  </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
+            <ScrollView>
+              {/* ── Add Custom Session ── */}
+              {showCustomSessionInput ? (
+                <View style={so.customSessionRow}>
+                  <TextInput
+                    style={so.customSessionInput}
+                    value={customSessionText}
+                    onChangeText={setCustomSessionText}
+                    placeholder="e.g. 2035–2036"
+                    placeholderTextColor="#94A3B8"
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      const trimmed = customSessionText.trim();
+                      if (trimmed) { selectAcademicSession(trimmed); }
+                      setShowCustomSessionInput(false);
+                      setCustomSessionText('');
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={so.customSessionConfirm}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      const trimmed = customSessionText.trim();
+                      if (trimmed) { selectAcademicSession(trimmed); }
+                      setShowCustomSessionInput(false);
+                      setCustomSessionText('');
                     }}
                   >
-                    {selectedSession === session && (
-                      <Feather name="check" size={18} color="#fff" />
-                    )}
-                    {academicSessions.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() => handleDeleteSession(session)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={[
-                          so.deleteBtn,
-                          selectedSession === session && {
-                            backgroundColor: "rgba(255,255,255,0.2)",
-                          },
-                        ]}
-                      >
-                        <Feather
-                          name="trash-2"
-                          size={14}
-                          color={
-                            selectedSession === session ? "#fff" : "#EF4444"
-                          }
-                        />
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                    <Feather name="check" size={18} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={so.customSessionCancel}
+                    activeOpacity={0.7}
+                    onPress={() => { setShowCustomSessionInput(false); setCustomSessionText(''); }}
+                  >
+                    <Feather name="x" size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={so.addCustomSessionBtn}
+                  activeOpacity={0.7}
+                  onPress={() => setShowCustomSessionInput(true)}
+                >
+                  <Feather name="plus-circle" size={16} color="#059669" />
+                  <Text style={so.addCustomSessionTxt}>Add Custom Session</Text>
+                </TouchableOpacity>
+              )}
+              {academicSessionOptions.map(session => (
+                <TouchableOpacity
+                  key={session}
+                  style={[so.pickerItem, academicSession === session && so.pickerItemActive]}
+                  onPress={() => selectAcademicSession(session)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[so.pickerItemTxt, academicSession === session && { color: '#059669' }]}>
+                    {session}
+                  </Text>
+                  {academicSession === session && <Feather name="check-circle" size={18} color="#059669" />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -2215,20 +2101,38 @@ const st = StyleSheet.create({
   },
   loadingTxt: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
 
-  // Academic Session picker button (full-width row below exam+class pickers)
-  sessionPicker: {
-    borderColor: "#EDE9FE",
-    backgroundColor: "#FAFAFF",
+  // Academic Session card (marksheet-style)
+  sessionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
     marginTop: 8,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  sessionPickerLabel: {
-    fontSize: 10,
-    color: "#7C3AED",
-    fontWeight: "700",
+  sessionCardLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 1,
   },
-  sessionPickerValue: { fontSize: 14, color: "#1e1b4b", fontWeight: "800" },
+  sessionCardPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  sessionCardTxt: { flex: 1, fontSize: 14, fontWeight: '600', color: '#1E293B' },
 });
 
 // Preview modal styles
@@ -2441,44 +2345,21 @@ const pm = StyleSheet.create({
   btnTxt: { fontSize: 15, fontWeight: "800", color: "#fff" },
 });
 
-// Session modal add-row styles
+// Session modal styles (marksheet-style)
 const so = StyleSheet.create({
-  addRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
-  },
-  addInput: {
-    flex: 1,
-    height: 46,
-    backgroundColor: "#F8FAFF",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    fontSize: 14,
-    color: "#0F172A",
-    borderWidth: 1.5,
-    borderColor: "#DDD6FE",
-  },
-  addBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#7C3AED",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: "#FEF2F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  pickerModal: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '70%' },
+  pickerModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  pickerModalTitle: { fontSize: 17, fontWeight: '800', color: '#1E293B' },
+  pickerItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+  pickerItemActive: { backgroundColor: '#EFF6FF' },
+  pickerItemTxt: { fontSize: 14, fontWeight: '700', color: '#1E293B', flex: 1 },
+  addCustomSessionBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#F0FDF4' },
+  addCustomSessionTxt: { fontSize: 14, fontWeight: '700', color: '#059669' },
+  customSessionRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#F0FDF4', gap: 8 },
+  customSessionInput: { flex: 1, borderWidth: 1.5, borderColor: '#059669', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, fontWeight: '600', color: '#1E293B', backgroundColor: '#fff' },
+  customSessionConfirm: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center' },
+  customSessionCancel: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
 });
 
 // Picker modal styles
