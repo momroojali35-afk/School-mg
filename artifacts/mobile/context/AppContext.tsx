@@ -337,6 +337,7 @@ interface AppContextType extends AppState {
   approveInactivationRequest: (id: string, adminNote?: string) => Promise<void>;
   rejectInactivationRequest: (id: string, adminNote?: string) => Promise<void>;
   deleteInactivationRequestDocument: (id: string) => Promise<void>;
+  deleteInactivationRequest: (id: string) => Promise<void>;
   refreshInactivationRequests: () => Promise<void>;
   setStudentStatus: (id: string, status: 'active' | 'inactive') => Promise<void>;
   setClassAbsentLimit: (className: string, maxDays: number) => Promise<void>;
@@ -1160,6 +1161,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const deleteInactivationRequest = useCallback(async (id: string): Promise<void> => {
+    await apiDelete(`/inactivation-requests/${id}`);
+    setState(prev => ({
+      ...prev,
+      inactivationRequests: prev.inactivationRequests.filter(r => r.id !== id),
+    }));
+  }, []);
+
   const refreshInactivationRequests = useCallback(async (): Promise<void> => {
     const rows = await apiGet<any[]>('/inactivation-requests');
     setState(prev => ({ ...prev, inactivationRequests: rows.map(mapInactivationRequest) }));
@@ -1240,7 +1249,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addExpense, deleteExpense,
       updateSalaryStatus, addSalaryRecord, deleteSalaryRecord,
       promoteStudent, bulkPromoteClass,
-      submitInactivationRequest, approveInactivationRequest, rejectInactivationRequest, deleteInactivationRequestDocument,
+      submitInactivationRequest, approveInactivationRequest, rejectInactivationRequest,
+      deleteInactivationRequestDocument, deleteInactivationRequest,
       refreshInactivationRequests, setStudentStatus, setClassAbsentLimit, updateDocumentBranding,
       addAlumni, updateAlumni, deleteAlumni, bulkAddAlumni,
     }}>

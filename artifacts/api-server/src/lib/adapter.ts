@@ -50,6 +50,7 @@ export interface DataAdapter {
     create(data: any): Promise<any>;
     updateStatus(id: string, status: "approved" | "rejected", adminNote?: string): Promise<any | null>;
     clearDocument(id: string): Promise<any | null>;
+    delete(id: string): Promise<boolean>;
   };
   exams: {
     list(): Promise<any[]>;

@@ -420,6 +420,7 @@ function RequestReviewModal({
   onApprove,
   onReject,
   onDeleteDocument,
+  onDeleteRequest,
   colors,
 }: {
   request: InactivationRequest | null;
@@ -427,6 +428,7 @@ function RequestReviewModal({
   onApprove: (id: string, note?: string) => Promise<void>;
   onReject: (id: string, note?: string) => Promise<void>;
   onDeleteDocument: (id: string) => Promise<void>;
+  onDeleteRequest: (id: string) => Promise<void>;
   colors: ReturnType<typeof useColors>;
 }) {
   const [note, setNote] = useState('');
@@ -434,6 +436,8 @@ function RequestReviewModal({
   const [error, setError] = useState('');
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deletingDocument, setDeletingDocument] = useState(false);
+  const [requestDeleteConfirmVisible, setRequestDeleteConfirmVisible] = useState(false);
+  const [deletingRequest, setDeletingRequest] = useState(false);
 
   const reset = () => {
     setNote('');
@@ -441,6 +445,8 @@ function RequestReviewModal({
     setError('');
     setDeleteConfirmVisible(false);
     setDeletingDocument(false);
+    setRequestDeleteConfirmVisible(false);
+    setDeletingRequest(false);
   };
   const handleClose = () => { reset(); onClose(); };
 
@@ -514,6 +520,25 @@ function RequestReviewModal({
     } catch (e: any) {
       setDeletingDocument(false);
       Alert.alert('Delete failed', e?.message ?? 'Unable to delete the document.');
+    }
+  };
+
+  const handleDeleteRequest = () => {
+    if (!request || deletingRequest) return;
+    setRequestDeleteConfirmVisible(true);
+  };
+
+  const confirmDeleteRequest = async () => {
+    if (!request || deletingRequest) return;
+    setDeletingRequest(true);
+    try {
+      await onDeleteRequest(request.id);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      reset();
+      onClose();
+    } catch (e: any) {
+      setDeletingRequest(false);
+      Alert.alert('Delete failed', e?.message ?? 'Unable to delete the request.');
     }
   };
 
@@ -679,6 +704,17 @@ function RequestReviewModal({
             </ScrollView>
 
             {/* Actions */}
+            <TouchableOpacity
+              style={[m.deleteRequestBtn, { borderColor: colors.destructive, opacity: loading || deletingRequest ? 0.55 : 1 }]}
+              onPress={handleDeleteRequest}
+              disabled={!!loading || deletingRequest}
+              activeOpacity={0.8}
+            >
+              {deletingRequest
+                ? <ActivityIndicator size="small" color={colors.destructive} />
+                : <><Feather name="trash-2" size={16} color={colors.destructive} /><Text style={[m.deleteRequestText, { color: colors.destructive }]}>Delete Request</Text></>
+              }
+            </TouchableOpacity>
             {!isReviewed && (
               <View style={m.actions}>
                 <TouchableOpacity
@@ -772,6 +808,62 @@ function RequestReviewModal({
           </View>
         </Modal>
       </View>
+      <Modal
+        visible={requestDeleteConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deletingRequest && setRequestDeleteConfirmVisible(false)}
+      >
+        <View style={m.confirmOverlay}>
+          <View style={[m.confirmCard, { backgroundColor: colors.background }]}>
+            <View style={m.confirmHeader}>
+              <View style={[m.confirmIcon, { backgroundColor: colors.destructive + '15' }]}>
+                <Feather name="trash-2" size={23} color={colors.destructive} />
+              </View>
+              <TouchableOpacity
+                style={m.confirmClose}
+                onPress={() => setRequestDeleteConfirmVisible(false)}
+                disabled={deletingRequest}
+              >
+                <Feather name="x" size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[m.confirmTitle, { color: colors.text }]}>Delete request permanently?</Text>
+            <Text style={[m.confirmDescription, { color: colors.mutedForeground }]}>
+              This permanently removes the application request and its uploaded document from the database. It cannot be restored.
+            </Text>
+            <View style={[m.confirmFile, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <View style={[m.confirmFileIcon, { backgroundColor: colors.destructive + '12' }]}>
+                <Feather name="file-text" size={17} color={colors.destructive} />
+              </View>
+              <Text style={[m.confirmFileName, { color: colors.text }]} numberOfLines={2}>
+                {request?.studentName ?? 'Application request'}
+              </Text>
+            </View>
+            <View style={m.confirmActions}>
+              <TouchableOpacity
+                style={[m.confirmCancel, { borderColor: colors.border, backgroundColor: colors.muted }]}
+                onPress={() => setRequestDeleteConfirmVisible(false)}
+                disabled={deletingRequest}
+                activeOpacity={0.8}
+              >
+                <Text style={[m.confirmCancelText, { color: colors.mutedForeground }]}>Keep request</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[m.confirmDelete, { backgroundColor: colors.destructive, opacity: deletingRequest ? 0.65 : 1 }]}
+                onPress={confirmDeleteRequest}
+                disabled={deletingRequest}
+                activeOpacity={0.8}
+              >
+                {deletingRequest
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <><Feather name="trash-2" size={15} color="#fff" /><Text style={m.confirmDeleteText}>Delete</Text></>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -805,6 +897,8 @@ const reqModalStyles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   errorBox: { flexDirection: 'row', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 6 },
   errorText: { flex: 1, fontSize: 13 },
   actions: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 8 },
+  deleteRequestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: 16, marginTop: 8, borderRadius: 12, paddingVertical: 10, borderWidth: 1 },
+  deleteRequestText: { fontSize: 13, fontWeight: '700' },
   rejectBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14, borderWidth: 1.5 },
   rejectText: { fontSize: 15, fontWeight: '700' },
   approveBtn: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 14 },
@@ -829,7 +923,7 @@ const reqModalStyles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
 });
 
 function RequestsTab({ colors }: { colors: ReturnType<typeof useColors> }) {
-  const { inactivationRequests, approveInactivationRequest, rejectInactivationRequest, deleteInactivationRequestDocument, refreshInactivationRequests } = useApp();
+  const { inactivationRequests, approveInactivationRequest, rejectInactivationRequest, deleteInactivationRequestDocument, deleteInactivationRequest, refreshInactivationRequests } = useApp();
   const [filter, setFilter] = useState<ReqFilter>('pending');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<InactivationRequest | null>(null);
@@ -867,6 +961,10 @@ function RequestsTab({ colors }: { colors: ReturnType<typeof useColors> }) {
           onClose={() => setSelected(null)}
           onApprove={approveInactivationRequest}
           onReject={rejectInactivationRequest}
+          onDeleteRequest={async id => {
+            await deleteInactivationRequest(id);
+            setSelected(null);
+          }}
           onDeleteDocument={async id => {
             await deleteInactivationRequestDocument(id);
             setSelected(prev => prev && prev.id === id

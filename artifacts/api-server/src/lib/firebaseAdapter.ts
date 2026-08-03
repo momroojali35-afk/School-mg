@@ -373,6 +373,13 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
         await ref.update(updates);
         return { id, ...snap.data(), ...updates };
       },
+      async delete(id) {
+        const ref = col("inactivation_requests").doc(id);
+        const snap = await ref.get();
+        if (!snap.exists) return false;
+        await ref.delete();
+        return true;
+      },
     },
 
     // ── Exams ─────────────────────────────────────────────────────────────────

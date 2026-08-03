@@ -89,4 +89,11 @@ router.delete("/inactivation-requests/:id/document", async (req, res) => {
   res.json(row);
 });
 
+// Admin permanently deletes an entire reactivation request and its uploaded document.
+router.delete("/inactivation-requests/:id", async (req, res) => {
+  const deleted = await getAdapter().inactivationRequests.delete(req.params.id);
+  if (!deleted) { res.status(404).json({ error: "Request not found" }); return; }
+  res.sendStatus(204);
+});
+
 export default router;

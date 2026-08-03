@@ -348,6 +348,13 @@ export function createPgAdapter(db: DB): DataAdapter {
           .returning();
         return row ?? null;
       },
+      async delete(id) {
+        const deleted = await db
+          .delete(inactivationRequestsTable)
+          .where(eq(inactivationRequestsTable.id, id))
+          .returning({ id: inactivationRequestsTable.id });
+        return deleted.length > 0;
+      },
     },
 
     // ── Exams ─────────────────────────────────────────────────────────────────
