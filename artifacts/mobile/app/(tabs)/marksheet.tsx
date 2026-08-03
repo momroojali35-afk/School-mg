@@ -91,6 +91,21 @@ function rankSuffix(n: number): string {
   return n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
 }
 
+function combinedMarksheetDownloadName(label: string): string {
+  const now = new Date();
+  const timestamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('') + '_' + [
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('');
+  const uniqueId = Math.random().toString(36).slice(2, 8);
+  return `${label}_${timestamp}_${uniqueId}`;
+}
+
 // ─── Per-subject max marks lookup ─────────────────────────────────────────────
 function getSubjectMaxMarks(exam: Exam, sub: string): number {
   const sched = exam.subjectSchedule?.find(s => s.subject === sub);
@@ -1484,7 +1499,12 @@ export default function MarksheetScreen() {
     if (!data) { Alert.alert('No Results', 'No results found.'); return; }
     if (!beginDownload()) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try { await downloadHtml(buildCombinedMarksheetHtml(data, documentBranding, academicSession), `Combined Marksheet – ${student.name}`); }
+    try {
+      await downloadHtml(
+        buildCombinedMarksheetHtml(data, documentBranding, academicSession),
+        combinedMarksheetDownloadName(`Combined Marksheet – ${student.name}`),
+      );
+    }
     catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
   }, [buildCombinedData, documentBranding, academicSession]);
@@ -1514,7 +1534,7 @@ export default function MarksheetScreen() {
       // single-student PDF regardless of how many students were selected.
       await downloadHtml(
         buildBulkCombinedHtml(dataList, documentBranding, academicSession),
-        `Combined Marksheets – ${combinedClass}`,
+        combinedMarksheetDownloadName(`Combined Marksheets – ${combinedClass}`),
       );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
