@@ -835,6 +835,11 @@ function RequestsTab({ colors }: { colors: ReturnType<typeof useColors> }) {
   const [selected, setSelected] = useState<InactivationRequest | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Auto-fetch on mount so data restores after app is killed and relaunched
+  React.useEffect(() => {
+    refreshInactivationRequests().catch(() => {});
+  }, []);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try { await refreshInactivationRequests(); } catch { /* ignore */ }
