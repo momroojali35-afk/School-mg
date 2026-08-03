@@ -307,9 +307,10 @@ function buildSingleMarksheetHtml(
     percentage >= 30 ? 'Below average. Needs to put in considerably more effort.' :
     'Failed. Student must repeat the academic year.';
 
-  // corner SVG helper — rotation handled entirely by CSS on the wrapper div
+  // corner SVG helper — all four ornaments share the same geometry; rotation is
+  // handled entirely by CSS on the wrapper div.
   const cornerSvg = () =>
-    `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><polyline points="2,36 2,6 6,2 36,2" fill="none" stroke="#c8a040" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polygon points="6,2 10,6 6,10 2,6" fill="#c8a040"/><line x1="8" y1="2" x2="22" y2="2" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/><line x1="2" y1="8" x2="2" y2="22" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/></svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><polyline points="2,32 2,6 6,2 32,2" fill="none" stroke="#c8a040" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polygon points="6,2 10,6 6,10 2,6" fill="#c8a040"/><line x1="8" y1="2" x2="22" y2="2" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/><line x1="2" y1="8" x2="2" y2="22" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/></svg>`;
 
   // Always zoom .inner so footer + signatures are guaranteed to fit within
   // .page { height:297mm; overflow:hidden }. A hard max of 0.93 ensures at least
@@ -341,11 +342,11 @@ function buildSingleMarksheetHtml(
   /* ---------- page shell ---------- */
   /* 794 px = A4 width at 96 dpi; height:auto so PDF captures only actual content, no blank gap */
   .page { width:794px; height:auto; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; box-sizing:border-box; display:flex; flex-direction:column; }
-  .corner { position:absolute; width:56px; height:56px; pointer-events:none; z-index:10; }
-  .corner.tl { top:4px; left:4px; }
-  .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
-  .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
-  .corner.br { bottom:4px; right:4px; transform:rotate(180deg); transform-origin:50% 50%; }
+  .corner { position:absolute; width:48px; height:48px; pointer-events:none; z-index:10; }
+  .corner.tl { top:5px; left:5px; transform:rotate(0deg); transform-origin:50% 50%; }
+  .corner.tr { top:5px; right:5px; transform:rotate(90deg); transform-origin:50% 50%; }
+  .corner.bl { bottom:5px; left:5px; transform:rotate(-90deg); transform-origin:50% 50%; }
+  .corner.br { bottom:5px; right:5px; transform:rotate(180deg); transform-origin:50% 50%; }
   .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
 
   /* ---------- header ---------- */
@@ -420,7 +421,7 @@ function buildSingleMarksheetHtml(
   .sig-block .role { font-size:12px; font-weight:700; color:#0c1f4a; letter-spacing:0.3px; }
 
   /* ---------- footer — flex-shrink:0 always pins it at page bottom ------------------- */
-  .footer { background:#0c1f4a; border-radius:0 0 6px 6px; margin-top:6px; padding:8px 22px; text-align:center; flex-shrink:0; }
+  .footer { position:relative; z-index:11; background:#0c1f4a; border-radius:0 0 6px 6px; margin-top:6px; padding:8px 22px; text-align:center; flex-shrink:0; }
   .footer-quote { font-size:10px; color:#c8a040; letter-spacing:2.5px; font-weight:700; font-family:'Poppins',Arial,sans-serif; text-transform:uppercase; }
 </style>
 </head>
@@ -736,9 +737,10 @@ function buildCombinedMarksheetHtml(
     `${student.name}|Roll:${student.rollNumber}|Class:${data.className}|Combined Annual|Total:${grandTotal}/${grandMax}|Grade:${grade}|${passed ? 'PASS' : 'FAIL'}`
   );
 
-  // corner SVG helper — rotation handled entirely by CSS on the wrapper div
+  // corner SVG helper — all four ornaments share the same geometry; rotation is
+  // handled entirely by CSS on the wrapper div.
   const cornerSvg = () =>
-    `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><polyline points="2,36 2,6 6,2 36,2" fill="none" stroke="#c8a040" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polygon points="6,2 10,6 6,10 2,6" fill="#c8a040"/><line x1="8" y1="2" x2="22" y2="2" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/><line x1="2" y1="8" x2="2" y2="22" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/></svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><polyline points="2,32 2,6 6,2 32,2" fill="none" stroke="#c8a040" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polygon points="6,2 10,6 6,10 2,6" fill="#c8a040"/><line x1="8" y1="2" x2="22" y2="2" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/><line x1="2" y1="8" x2="2" y2="22" stroke="#c8a040" stroke-width="1.2" opacity="0.6"/></svg>`;
 
   // Table header rows
   const examTopHeaders = EXAM_TYPE_ORDER.map(key => {
@@ -823,11 +825,11 @@ function buildCombinedMarksheetHtml(
   @media print { html, body { background:#fff; padding:0; margin:0; height:297mm; overflow:hidden; } .page { page-break-after:avoid; break-after:avoid; } }
   /* 794 px = A4 width at 96 dpi; height:auto so PDF captures only actual content, no blank gap */
   .page { width:794px; height:auto; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; box-sizing:border-box; display:flex; flex-direction:column; }
-  .corner { position:absolute; width:56px; height:56px; pointer-events:none; z-index:10; }
-  .corner.tl { top:4px; left:4px; }
-  .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
-  .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
-  .corner.br { bottom:4px; right:4px; transform:rotate(180deg); transform-origin:50% 50%; }
+  .corner { position:absolute; width:48px; height:48px; pointer-events:none; z-index:10; }
+  .corner.tl { top:5px; left:5px; transform:rotate(0deg); transform-origin:50% 50%; }
+  .corner.tr { top:5px; right:5px; transform:rotate(90deg); transform-origin:50% 50%; }
+  .corner.bl { bottom:5px; left:5px; transform:rotate(-90deg); transform-origin:50% 50%; }
+  .corner.br { bottom:5px; right:5px; transform:rotate(180deg); transform-origin:50% 50%; }
   .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
   /* header */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:8px; border-bottom:3px solid #0c1f4a; }
@@ -893,7 +895,7 @@ function buildCombinedMarksheetHtml(
   .sig-block .cursive { font-family:'Brush Script MT','Segoe Script',cursive; font-size:28px; color:#0c1f4a; display:block; border-bottom:1.5px solid #333; padding-bottom:4px; margin-bottom:6px; min-width:160px; line-height:1.4; }
   .sig-block .role { font-size:11.5px; font-weight:700; color:#0c1f4a; letter-spacing:0.3px; }
   /* footer — flex-shrink:0 always pins it at page bottom */
-  .footer { background:#0c1f4a; border-radius:0 0 6px 6px; margin-top:6px; padding:8px 22px; text-align:center; flex-shrink:0; }
+  .footer { position:relative; z-index:11; background:#0c1f4a; border-radius:0 0 6px 6px; margin-top:6px; padding:8px 22px; text-align:center; flex-shrink:0; }
   .footer-quote { font-size:10px; color:#c8a040; letter-spacing:2.5px; font-weight:700; font-family:'Poppins',Arial,sans-serif; text-transform:uppercase; }
 </style>
 </head>
