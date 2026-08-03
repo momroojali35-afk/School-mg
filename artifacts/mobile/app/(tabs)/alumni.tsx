@@ -170,7 +170,10 @@ export default function AlumniScreen() {
       setImportStep(0);
       Alert.alert('Import Complete', `${toImport.length} student${toImport.length !== 1 ? 's' : ''} added to alumni.`);
     } catch (e) {
-      Alert.alert('Import Failed', 'Please try again.');
+      const message = e instanceof Error && e.message
+        ? e.message.replace(/^POST \/api\/alumni\/bulk failed: \d+\s*—?\s*/, '')
+        : 'Please try again.';
+      Alert.alert('Import Failed', message);
     } finally {
       setImportLoading(false);
     }

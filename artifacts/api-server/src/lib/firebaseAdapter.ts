@@ -134,6 +134,84 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
       },
     },
 
+    // ── Alumni ────────────────────────────────────────────────────────────────
+    alumni: {
+      async list() {
+        const snap = await col("alumni").orderBy("batch").get();
+        return snap.docs
+          .map(mapDoc)
+          .sort((a, b) => String(a.batch).localeCompare(String(b.batch)) || String(a.name).localeCompare(String(b.name)));
+      },
+      async create(data: any) {
+        const id = data.id ?? newId();
+        const doc = stamp({
+          name: data.name,
+          fatherName: data.fatherName ?? "",
+          mobileNumber: data.mobileNumber ?? "",
+          batch: data.batch,
+          passOutClass: data.passOutClass,
+          rollNumber: data.rollNumber ?? "",
+          admissionNo: data.admissionNo ?? null,
+          dateOfBirth: data.dateOfBirth ?? "",
+          address: data.address ?? null,
+          photo: data.photo ?? null,
+          achievements: data.achievements ?? null,
+          currentStatus: data.currentStatus ?? null,
+        });
+        await col("alumni").doc(id).set(doc);
+        return { id, ...doc };
+      },
+      async bulkCreate(records: any[]) {
+        const batch = fs.batch();
+        const rows: any[] = [];
+        for (const data of records) {
+          const id = data.id ?? newId();
+          const doc = stamp({
+            name: data.name,
+            fatherName: data.fatherName ?? "",
+            mobileNumber: data.mobileNumber ?? "",
+            batch: data.batch,
+            passOutClass: data.passOutClass,
+            rollNumber: data.rollNumber ?? "",
+            admissionNo: data.admissionNo ?? null,
+            dateOfBirth: data.dateOfBirth ?? "",
+            address: data.address ?? null,
+            photo: data.photo ?? null,
+            achievements: data.achievements ?? null,
+            currentStatus: data.currentStatus ?? null,
+          });
+          batch.set(col("alumni").doc(id), doc);
+          rows.push({ id, ...doc });
+        }
+        await batch.commit();
+        return rows;
+      },
+      async update(id, data: any) {
+        const ref = col("alumni").doc(id);
+        const existing = await ref.get();
+        if (!existing.exists) return null;
+        const updates: any = {};
+        if (data.name !== undefined) updates.name = data.name;
+        if (data.fatherName !== undefined) updates.fatherName = data.fatherName ?? "";
+        if (data.mobileNumber !== undefined) updates.mobileNumber = data.mobileNumber ?? "";
+        if (data.batch !== undefined) updates.batch = data.batch;
+        if (data.passOutClass !== undefined) updates.passOutClass = data.passOutClass;
+        if (data.rollNumber !== undefined) updates.rollNumber = data.rollNumber ?? "";
+        if ("admissionNo" in data) updates.admissionNo = data.admissionNo ?? null;
+        if (data.dateOfBirth !== undefined) updates.dateOfBirth = data.dateOfBirth ?? "";
+        if ("address" in data) updates.address = data.address ?? null;
+        if ("photo" in data) updates.photo = data.photo ?? null;
+        if ("achievements" in data) updates.achievements = data.achievements ?? null;
+        if ("currentStatus" in data) updates.currentStatus = data.currentStatus ?? null;
+        if (Object.keys(updates).length === 0) return { id, ...existing.data() };
+        await ref.update(updates);
+        return { id, ...existing.data(), ...updates };
+      },
+      async delete(id) {
+        await col("alumni").doc(id).delete();
+      },
+    },
+
     // ── Teachers ──────────────────────────────────────────────────────────────
     teachers: {
       async list() {

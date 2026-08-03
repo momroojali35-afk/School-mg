@@ -44,6 +44,23 @@ ALTER TABLE students ADD COLUMN IF NOT EXISTS section TEXT;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS admission_no TEXT;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
 
+CREATE TABLE IF NOT EXISTS alumni (
+  id             TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  name           TEXT NOT NULL,
+  father_name    TEXT NOT NULL DEFAULT '',
+  mobile_number  TEXT NOT NULL DEFAULT '',
+  batch          TEXT NOT NULL,
+  pass_out_class TEXT NOT NULL,
+  roll_number    TEXT NOT NULL DEFAULT '',
+  admission_no   TEXT,
+  date_of_birth  TEXT NOT NULL DEFAULT '',
+  address        TEXT,
+  photo          TEXT,
+  achievements   TEXT,
+  current_status TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS teachers (
   id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
   name          TEXT NOT NULL,
