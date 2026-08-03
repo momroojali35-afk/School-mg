@@ -45162,12 +45162,18 @@ var markAuditLogTable = pgTable("mark_audit_log", {
 });
 var alumniTable = pgTable("alumni", {
   id: text("id").primaryKey().default(sql`gen_random_uuid()`),
-  studentId: text("student_id").notNull(),
-  studentName: text("student_name").notNull().default(""),
-  class: text("class").notNull().default(""),
-  section: text("section"),
+  name: text("name").notNull(),
+  fatherName: text("father_name").notNull().default(""),
+  mobileNumber: text("mobile_number").notNull().default(""),
+  batch: text("batch").notNull(),
+  passOutClass: text("pass_out_class").notNull(),
   rollNumber: text("roll_number").notNull().default(""),
-  graduationYear: integer("graduation_year"),
+  admissionNo: text("admission_no"),
+  dateOfBirth: text("date_of_birth").notNull().default(""),
+  address: text("address"),
+  photo: text("photo"),
+  achievements: text("achievements"),
+  currentStatus: text("current_status"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });
 
@@ -45532,6 +45538,14 @@ function createPgAdapter(db2) {
           await db2.update(studentsTable2).set({ status: "active" }).where(eq(studentsTable2.id, row.studentId));
         }
         return row;
+      },
+      async clearDocument(id) {
+        const [row] = await db2.update(inactivationRequestsTable2).set({
+          documentBase64: null,
+          documentName: null,
+          documentMimeType: null
+        }).where(eq(inactivationRequestsTable2.id, id)).returning();
+        return row ?? null;
       }
     },
     // ── Exams ─────────────────────────────────────────────────────────────────
@@ -46221,6 +46235,18 @@ function createFirebaseAdapter(fs2) {
           if (studentId) await col("students").doc(studentId).update({ status: "active" });
         }
         return updated;
+      },
+      async clearDocument(id) {
+        const ref = col("inactivation_requests").doc(id);
+        const snap = await ref.get();
+        if (!snap.exists) return null;
+        const updates = {
+          documentBase64: null,
+          documentName: null,
+          documentMimeType: null
+        };
+        await ref.update(updates);
+        return { id, ...snap.data(), ...updates };
       }
     },
     // ── Exams ─────────────────────────────────────────────────────────────────
@@ -47994,6 +48020,14 @@ router18.put("/inactivation-requests/:id/reject", async (req, res) => {
   }
   res.json(row);
 });
+router18.delete("/inactivation-requests/:id/document", async (req, res) => {
+  const row = await getAdapter().inactivationRequests.clearDocument(req.params.id);
+  if (!row) {
+    res.status(404).json({ error: "Request not found" });
+    return;
+  }
+  res.json(row);
+});
 var inactivationRequests_default = router18;
 
 // src/routes/settings.ts
@@ -48159,6 +48193,86 @@ router19.put("/settings/class-absent-limits", async (req, res) => {
   }
   await getAdapter().appSettings.set(CLASS_ABSENT_LIMITS_KEY, limits);
   res.json(limits);
+});
+var ACADEMIC_SESSIONS_KEY = "academic_sessions";
+function defaultAcademicYear() {
+  const y = (/* @__PURE__ */ new Date()).getFullYear();
+  return (/* @__PURE__ */ new Date()).getMonth() >= 3 ? `${y}\u2013${y + 1}` : `${y - 1}\u2013${y}`;
+}
+router19.get("/settings/academic-sessions", async (_req, res) => {
+  const setting = await getAdapter().appSettings.get(ACADEMIC_SESSIONS_KEY);
+  const data = setting?.value;
+  const currentYear = defaultAcademicYear();
+  if (!data) {
+    res.json({ sessions: [currentYear], activeSession: currentYear });
+    return;
+  }
+  const sessions = data.sessions?.length ? data.sessions : [currentYear];
+  const activeSession = data.activeSession && sessions.includes(data.activeSession) ? data.activeSession : sessions[0];
+  res.json({ sessions, activeSession });
+});
+router19.put("/settings/academic-sessions", async (req, res) => {
+  const { sessions, activeSession, adminId } = req.body ?? {};
+  if (adminId !== "admin") {
+    res.status(403).json({ error: "Unauthorized: only administrators can manage academic sessions" });
+    return;
+  }
+  const setting = await getAdapter().appSettings.get(ACADEMIC_SESSIONS_KEY);
+  const current = setting?.value ?? {
+    sessions: [defaultAcademicYear()],
+    activeSession: defaultAcademicYear()
+  };
+  let updatedSessions = current.sessions;
+  if (sessions !== void 0) {
+    if (!Array.isArray(sessions) || sessions.some((s) => typeof s !== "string" || !s.trim())) {
+      res.status(400).json({ error: "sessions must be an array of non-empty strings" });
+      return;
+    }
+    updatedSessions = sessions.map((s) => s.trim()).filter(Boolean);
+    if (updatedSessions.length === 0) {
+      res.status(400).json({ error: "At least one session is required" });
+      return;
+    }
+  }
+  let updatedActive = current.activeSession;
+  if (activeSession !== void 0) {
+    if (typeof activeSession !== "string" || !activeSession.trim()) {
+      res.status(400).json({ error: "activeSession must be a non-empty string" });
+      return;
+    }
+    updatedActive = activeSession.trim();
+    if (!updatedSessions.includes(updatedActive)) {
+      updatedSessions = [...updatedSessions, updatedActive];
+    }
+  }
+  if (!updatedSessions.includes(updatedActive)) {
+    updatedActive = updatedSessions[0];
+  }
+  const result = { sessions: updatedSessions, activeSession: updatedActive };
+  await getAdapter().appSettings.set(ACADEMIC_SESSIONS_KEY, result);
+  res.json(result);
+});
+router19.delete("/settings/academic-sessions/:session", async (req, res) => {
+  const { adminId } = req.query;
+  if (adminId !== "admin") {
+    res.status(403).json({ error: "Unauthorized: only administrators can delete academic sessions" });
+    return;
+  }
+  const sessionToDelete = decodeURIComponent(req.params.session);
+  const setting = await getAdapter().appSettings.get(ACADEMIC_SESSIONS_KEY);
+  const current = setting?.value ?? {
+    sessions: [defaultAcademicYear()],
+    activeSession: defaultAcademicYear()
+  };
+  const updatedSessions = current.sessions.filter((s) => s !== sessionToDelete);
+  if (updatedSessions.length === 0) {
+    res.status(400).json({ error: "Cannot delete the last academic session" });
+    return;
+  }
+  const updatedActive = updatedSessions.includes(current.activeSession) ? current.activeSession : updatedSessions[0];
+  const result = { sessions: updatedSessions, activeSession: updatedActive };
+  await getAdapter().appSettings.set(ACADEMIC_SESSIONS_KEY, result);
+  res.json(result);
 });
 var settings_default = router19;
 
