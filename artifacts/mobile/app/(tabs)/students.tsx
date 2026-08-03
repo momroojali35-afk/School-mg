@@ -145,6 +145,7 @@ export default function StudentsScreen() {
   const [editingSectionName, setEditingSectionName] = useState<string | null>(null);
   const [editingSectionValue, setEditingSectionValue] = useState('');
   const [sectionLoading, setSectionLoading] = useState(false);
+  const [confirmDeleteSection, setConfirmDeleteSection] = useState<string | null>(null);
 
   const filtered = useMemo(() =>
     students.filter(s =>
@@ -238,6 +239,7 @@ export default function StudentsScreen() {
     setSectionLoading(true);
     try {
       await updateSection(oldName, editingSectionValue.trim());
+      setForm(prev => prev.section === oldName ? { ...prev, section: editingSectionValue.trim() } : prev);
       setEditingSectionName(null);
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Failed to update section');
@@ -246,16 +248,20 @@ export default function StudentsScreen() {
     }
   };
 
-  const handleDeleteSection = (name: string) => {
-    Alert.alert('Delete Section', `Delete section "${name}"? Students in this section will not be affected.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          setSectionLoading(true);
-          try { await deleteSection(name); } catch (e: any) { Alert.alert('Error', e.message); } finally { setSectionLoading(false); }
-        },
-      },
-    ]);
+  const handleDeleteSection = async () => {
+    if (!confirmDeleteSection) return;
+    const name = confirmDeleteSection;
+    setSectionLoading(true);
+    try {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      await deleteSection(name);
+      setForm(prev => prev.section === name ? { ...prev, section: '' } : prev);
+      setConfirmDeleteSection(null);
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Failed to delete section');
+    } finally {
+      setSectionLoading(false);
+    }
   };
 
   const finalPayable = calcFinalPayable(form.annualFee, form.discountType, form.discountValue);
@@ -604,7 +610,7 @@ export default function StudentsScreen() {
       {/* ══ Sections Manager Modal ══ */}
       <Modal visible={showSectionsMgr} animationType="slide" transparent>
         <View style={modalStyles.overlay}>
-          <View style={[modalStyles.sheet, { backgroundColor: colors.card, maxHeight: 500 }]}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.card, height: '78%' as any, minHeight: 0 }]}>
             <View style={[modalStyles.header, { borderBottomColor: colors.border }]}>
               <View>
                 <Text style={[modalStyles.title, { color: colors.text }]}>Manage Sections</Text>
@@ -657,7 +663,7 @@ export default function StudentsScreen() {
                       >
                         <Feather name="edit-2" size={16} color={colors.primary} />
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeleteSection(sec)} style={{ padding: 6 }}>
+                      <TouchableOpacity onPress={() => setConfirmDeleteSection(sec)} style={{ padding: 6 }}>
                         <Feather name="trash-2" size={16} color={colors.destructive} />
                       </TouchableOpacity>
                     </>
@@ -683,6 +689,41 @@ export default function StudentsScreen() {
                 activeOpacity={0.8}
               >
                 <Feather name="plus" size={20} color={newSectionName.trim() ? '#fff' : colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Premium section delete confirmation */}
+      <Modal visible={!!confirmDeleteSection} animationType="fade" transparent>
+        <View style={modalStyles.overlay}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.card, borderRadius: 24, margin: 24, minHeight: 0 }]}>
+            <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingTop: 28, paddingBottom: 18 }}>
+              <View style={{ width: 62, height: 62, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.destructive + '14', marginBottom: 16 }}>
+                <Feather name="trash-2" size={26} color={colors.destructive} />
+              </View>
+              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800', textAlign: 'center' }}>Delete section?</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 8 }}>
+                This will permanently remove <Text style={{ color: colors.text, fontWeight: '800' }}>{confirmDeleteSection}</Text> and clear it from any student records. This action cannot be undone.
+              </Text>
+            </View>
+            <View style={[modalStyles.footer, { borderTopColor: colors.border }]}>
+              <TouchableOpacity
+                style={[modalStyles.cancelBtn, { borderColor: colors.border }]}
+                onPress={() => setConfirmDeleteSection(null)}
+                disabled={sectionLoading}
+                activeOpacity={0.8}
+              >
+                <Text style={[modalStyles.cancelText, { color: colors.text }]}>Keep Section</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[modalStyles.saveBtn, { backgroundColor: colors.destructive }]}
+                onPress={handleDeleteSection}
+                disabled={sectionLoading}
+                activeOpacity={0.8}
+              >
+                <Text style={modalStyles.saveText}>{sectionLoading ? 'Deleting…' : 'Delete Forever'}</Text>
               </TouchableOpacity>
             </View>
           </View>

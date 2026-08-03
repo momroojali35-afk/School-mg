@@ -224,6 +224,7 @@ export default function TeacherDashboard() {
   const [editingSectionName,    setEditingSectionName]    = useState<string | null>(null);
   const [editingSectionValue,   setEditingSectionValue]   = useState('');
   const [sectionLoading,        setSectionLoading]        = useState(false);
+  const [confirmDeleteSection,  setConfirmDeleteSection]  = useState<string | null>(null);
   const [studentForm,           setStudentForm]           = useState(EMPTY_STUDENT);
   const [blockedAction,   setBlockedAction]    = useState<null | {
     label: string; icon: React.ComponentProps<typeof Feather>['name'];
@@ -420,18 +421,29 @@ export default function TeacherDashboard() {
   const handleUpdateSectionTeacher = async (oldName: string) => {
     if (!editingSectionValue.trim()) return;
     setSectionLoading(true);
-    try { await updateSection(oldName, editingSectionValue.trim()); setEditingSectionName(null); }
+    try {
+      const newName = editingSectionValue.trim();
+      await updateSection(oldName, newName);
+      setStudentForm(prev => prev.section === oldName ? { ...prev, section: newName } : prev);
+      setEditingSectionName(null);
+    }
     catch (e: any) { Alert.alert('Error', e.message ?? 'Failed to update section'); }
     finally { setSectionLoading(false); }
   };
-  const handleDeleteSectionTeacher = (name: string) => {
-    Alert.alert('Delete Section', `Delete section "${name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        setSectionLoading(true);
-        try { await deleteSection(name); } catch (e: any) { Alert.alert('Error', e.message); } finally { setSectionLoading(false); }
-      }},
-    ]);
+  const handleDeleteSectionTeacher = async () => {
+    if (!confirmDeleteSection) return;
+    const name = confirmDeleteSection;
+    setSectionLoading(true);
+    try {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      await deleteSection(name);
+      setStudentForm(prev => prev.section === name ? { ...prev, section: '' } : prev);
+      setConfirmDeleteSection(null);
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Failed to delete section');
+    } finally {
+      setSectionLoading(false);
+    }
   };
 
   const handleAddStudentSubmit = async () => {
@@ -1198,7 +1210,7 @@ export default function TeacherDashboard() {
       {/* ── SECTIONS MANAGER ────────────────────────────────────────────────── */}
       <Modal visible={showSectionsMgr} animationType="slide" transparent>
         <View style={mo.overlay}>
-          <View style={[mo.sheet, { backgroundColor: '#fff', maxHeight: 500 }]}>
+          <View style={[mo.sheet, { backgroundColor: '#fff', height: '78%' as any, minHeight: 0 }]}>
             <View style={[mo.mHeader, { borderBottomColor: '#E2E8F0' }]}>
               <View>
                 <Text style={mo.mTitle}>Manage Sections</Text>
@@ -1247,7 +1259,7 @@ export default function TeacherDashboard() {
                       <TouchableOpacity onPress={() => { setEditingSectionName(sec); setEditingSectionValue(sec); }} style={{ padding: 6 }}>
                         <Feather name="edit-2" size={16} color={H_MID} />
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeleteSectionTeacher(sec)} style={{ padding: 6 }}>
+                      <TouchableOpacity onPress={() => setConfirmDeleteSection(sec)} style={{ padding: 6 }}>
                         <Feather name="trash-2" size={16} color="#F43F5E" />
                       </TouchableOpacity>
                     </>
@@ -1272,6 +1284,46 @@ export default function TeacherDashboard() {
                 activeOpacity={0.8}
               >
                 <Feather name="plus" size={20} color={newSectionName.trim() ? '#fff' : '#94A3B8'} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── SECTION DELETE CONFIRMATION ─────────────────────────────────────── */}
+      <Modal visible={!!confirmDeleteSection} animationType="fade" transparent>
+        <View style={mo.overlay}>
+          <View style={[mo.sheet, {
+            backgroundColor: '#fff',
+            borderRadius: 24,
+            margin: 24,
+            minHeight: 0,
+          }]}>
+            <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingTop: 28, paddingBottom: 18 }}>
+              <View style={{ width: 62, height: 62, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FEF2F2', marginBottom: 16 }}>
+                <Feather name="trash-2" size={26} color="#F43F5E" />
+              </View>
+              <Text style={{ color: '#0F172A', fontSize: 20, fontWeight: '800', textAlign: 'center' }}>Delete section?</Text>
+              <Text style={{ color: '#64748B', fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 8 }}>
+                This will permanently remove <Text style={{ color: '#0F172A', fontWeight: '800' }}>{confirmDeleteSection}</Text> and clear it from any student records. This action cannot be undone.
+              </Text>
+            </View>
+            <View style={[mo.mFooter, { borderTopColor: '#E2E8F0' }]}>
+              <TouchableOpacity
+                style={[mo.mBtn, { borderColor: '#E2E8F0' }]}
+                onPress={() => setConfirmDeleteSection(null)}
+                disabled={sectionLoading}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#0F172A', fontSize: 14, fontWeight: '700' }}>Keep Section</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[mo.mBtn, { backgroundColor: '#F43F5E', borderColor: '#F43F5E' }]}
+                onPress={handleDeleteSectionTeacher}
+                disabled={sectionLoading}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{sectionLoading ? 'Deleting…' : 'Delete Forever'}</Text>
               </TouchableOpacity>
             </View>
           </View>
