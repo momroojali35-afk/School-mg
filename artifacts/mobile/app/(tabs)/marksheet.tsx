@@ -341,11 +341,11 @@ function buildSingleMarksheetHtml(
   /* ---------- page shell ---------- */
   /* 794 px = A4 width at 96 dpi; height:auto so PDF captures only actual content, no blank gap */
   .page { width:794px; height:auto; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; box-sizing:border-box; display:flex; flex-direction:column; }
-  .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
+  .corner { position:absolute; width:56px; height:56px; pointer-events:none; z-index:10; }
   .corner.tl { top:4px; left:4px; }
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
-  .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
+  .corner.br { bottom:4px; right:4px; transform:rotate(180deg); transform-origin:50% 50%; }
   .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
 
   /* ---------- header ---------- */
@@ -823,11 +823,11 @@ function buildCombinedMarksheetHtml(
   @media print { html, body { background:#fff; padding:0; margin:0; height:297mm; overflow:hidden; } .page { page-break-after:avoid; break-after:avoid; } }
   /* 794 px = A4 width at 96 dpi; height:auto so PDF captures only actual content, no blank gap */
   .page { width:794px; height:auto; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; box-sizing:border-box; display:flex; flex-direction:column; }
-  .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
+  .corner { position:absolute; width:56px; height:56px; pointer-events:none; z-index:10; }
   .corner.tl { top:4px; left:4px; }
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
-  .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
+  .corner.br { bottom:4px; right:4px; transform:rotate(180deg); transform-origin:50% 50%; }
   .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
   /* header */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:8px; border-bottom:3px solid #0c1f4a; }
