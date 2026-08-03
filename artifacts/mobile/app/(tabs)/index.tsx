@@ -894,8 +894,8 @@ export default function AdminDashboard() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: kind === 'logo' ? [1, 1] : [3, 1],
+      allowsEditing: kind === 'logo',          // signatures: no forced crop
+      aspect: kind === 'logo' ? [1, 1] : undefined,
       quality: 0.65,
       base64: true,
     });
