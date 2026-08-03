@@ -1043,7 +1043,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addSalaryRecord = useCallback((r: Omit<SalaryRecord, 'id'>): SalaryRecord => {
-    const nr: SalaryRecord = { ...r, id: genId() };
+    const nr: SalaryRecord = { ...r, id: genId(), receiptNumber: r.receiptNumber ?? genReceiptNumber('SAL') };
     setState(prev => ({ ...prev, salaryRecords: [...prev.salaryRecords, nr] }));
     apiPost('/salary-records', nr).catch(console.error);
     return nr;
