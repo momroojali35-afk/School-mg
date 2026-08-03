@@ -4,3 +4,4 @@
 - [Marksheet academic session](marksheet-academic-session.md) — admin-selected session is locally persisted and applied across every marksheet output path.
 - [Admit-card contact visibility](admit-card-contact-visibility.md) — school phone and email are intentionally omitted from admit-card headers only.
 - [Mobile preview dependencies](mobile-preview-dependencies.md) — the Expo workflow requires workspace dependencies installed before it can start.
+- [Request document storage](request-document-storage.md) — application documents are stored as base64 fields on the request record; hard deletion removes the database record and embedded file data.
