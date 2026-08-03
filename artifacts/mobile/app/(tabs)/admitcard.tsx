@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
   Modal, Alert, Platform, FlatList, ActivityIndicator, Image,
@@ -18,6 +18,32 @@ import {
   principalSignatureHtml,
 } from '@/utils/documentBranding';
 import type { DocumentBranding } from '@/context/AppContext';
+
+// ─── API helpers (same pattern as AppContext) ──────────────────────────────────
+const getApiBase = (): string => {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  return domain ? `https://${domain}` : '';
+};
+async function apiGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${getApiBase()}/api${path}`);
+  if (!res.ok) throw new Error(`GET /api${path} failed: ${res.status}`);
+  return res.json();
+}
+async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${getApiBase()}/api${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PUT /api${path} failed: ${res.status}`);
+  return res.json();
+}
+async function apiDeleteReq<T = void>(path: string): Promise<T> {
+  const res = await fetch(`${getApiBase()}/api${path}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error(`DELETE /api${path} failed: ${res.status}`);
+  if (res.status === 404 || res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
 
 const EMPTY_BRANDING: DocumentBranding = {
   logoDataUrl: null,
@@ -160,9 +186,9 @@ function infoRows(student: Student): string {
     </tr>`).join('');
 }
 
-function buildClassicHtml(student: Student, exam: Exam, branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildClassicHtml(student: Student, exam: Exam, branding: DocumentBranding = EMPTY_BRANDING, academicYear?: string): string {
   const schedule = buildSchedule(exam, student.class);
-  const acYear = getAcademicYear();
+  const acYear = academicYear ?? getAcademicYear();
   const admitNo = getAdmitNo(student.id, exam.id);
   const color = studentColor(student.name);
   const qrData = encodeURIComponent(`${student.name}|Class:${student.class}|Roll:${student.rollNumber}|${exam.name}|${admitNo}`);
@@ -219,9 +245,9 @@ function buildClassicHtml(student: Student, exam: Exam, branding: DocumentBrandi
 </div></body></html>`;
 }
 
-function buildModernHtml(student: Student, exam: Exam, branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildModernHtml(student: Student, exam: Exam, branding: DocumentBranding = EMPTY_BRANDING, academicYear?: string): string {
   const schedule = buildSchedule(exam, student.class);
-  const acYear = getAcademicYear();
+  const acYear = academicYear ?? getAcademicYear();
   const admitNo = getAdmitNo(student.id, exam.id);
   const color = studentColor(student.name);
   const qrData = encodeURIComponent(`${student.name}|Class:${student.class}|Roll:${student.rollNumber}|${exam.name}|${admitNo}`);
@@ -291,9 +317,9 @@ function buildModernHtml(student: Student, exam: Exam, branding: DocumentBrandin
 </div></body></html>`;
 }
 
-function buildElegantHtml(student: Student, exam: Exam, branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildElegantHtml(student: Student, exam: Exam, branding: DocumentBranding = EMPTY_BRANDING, academicYear?: string): string {
   const schedule = buildSchedule(exam, student.class);
-  const acYear = getAcademicYear();
+  const acYear = academicYear ?? getAcademicYear();
   const admitNo = getAdmitNo(student.id, exam.id);
   const color = studentColor(student.name);
   const qrData = encodeURIComponent(`${student.name}|Class:${student.class}|Roll:${student.rollNumber}|${exam.name}|${admitNo}`);
@@ -373,9 +399,9 @@ function premiumCandidateDetails(student: Student): string {
     </div>`).join('');
 }
 
-function buildPremiumHtml(student: Student, exam: Exam, branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildPremiumHtml(student: Student, exam: Exam, branding: DocumentBranding = EMPTY_BRANDING, academicYear?: string): string {
   const schedule = buildSchedule(exam, student.class);
-  const acYear = getAcademicYear();
+  const acYear = academicYear ?? getAcademicYear();
   const admitNo = getAdmitNo(student.id, exam.id);
   const qrData = encodeURIComponent(`${student.name}|Class:${student.class}|Roll:${student.rollNumber}|${exam.name}|${admitNo}`);
   const logo = branding.logoDataUrl
@@ -451,13 +477,13 @@ function buildPremiumHtml(student: Student, exam: Exam, branding: DocumentBrandi
 </div></body></html>`;
 }
 
-function buildHtml(student: Student, exam: Exam, _template: Template, branding: DocumentBranding = EMPTY_BRANDING): string {
-  return buildPremiumHtml(student, exam, branding);
+function buildHtml(student: Student, exam: Exam, _template: Template, branding: DocumentBranding = EMPTY_BRANDING, academicYear?: string): string {
+  return buildPremiumHtml(student, exam, branding, academicYear);
 }
 
-function buildBulkHtml(students: Student[], exam: Exam, template: Template, branding: DocumentBranding = EMPTY_BRANDING): string {
+function buildBulkHtml(students: Student[], exam: Exam, template: Template, branding: DocumentBranding = EMPTY_BRANDING, academicYear?: string): string {
   return students.map((s, i) => {
-    const html = buildHtml(s, exam, template, branding);
+    const html = buildHtml(s, exam, template, branding, academicYear);
     if (i < students.length - 1) {
       // Inject page-break between students
       return html.replace('</body>', '<div style="page-break-after:always"></div></body>');
@@ -490,7 +516,66 @@ export default function AdmitCardScreen() {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [pdfSaved, setPdfSaved] = useState<{ filename: string; fileUri: string } | null>(null);
 
-  const acYear = getAcademicYear();
+  // ── Academic Session state ─────────────────────────────────────────────────
+  const [academicSessions, setAcademicSessions] = useState<string[]>([getAcademicYear()]);
+  const [selectedSession, setSelectedSession]   = useState<string>(getAcademicYear());
+  const [showSessionPicker, setShowSessionPicker] = useState(false);
+  const [newSessionInput, setNewSessionInput]   = useState('');
+  const [sessionSaving, setSessionSaving]       = useState(false);
+
+  useEffect(() => {
+    apiGet<{ sessions: string[]; activeSession: string }>('/settings/academic-sessions')
+      .then(data => {
+        setAcademicSessions(data.sessions);
+        setSelectedSession(data.activeSession);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSelectSession = useCallback(async (session: string) => {
+    setSelectedSession(session);
+    setShowSessionPicker(false);
+    try {
+      await apiPut('/settings/academic-sessions', { activeSession: session, adminId: 'admin' });
+    } catch {}
+  }, []);
+
+  const handleAddSession = useCallback(async () => {
+    const trimmed = newSessionInput.trim();
+    if (!trimmed) return;
+    if (academicSessions.includes(trimmed)) { setNewSessionInput(''); return; }
+    setSessionSaving(true);
+    try {
+      const updated = await apiPut<{ sessions: string[]; activeSession: string }>(
+        '/settings/academic-sessions',
+        { sessions: [...academicSessions, trimmed], activeSession: trimmed, adminId: 'admin' },
+      );
+      setAcademicSessions(updated.sessions);
+      setSelectedSession(updated.activeSession);
+      setNewSessionInput('');
+    } catch {}
+    finally { setSessionSaving(false); }
+  }, [newSessionInput, academicSessions]);
+
+  const handleDeleteSession = useCallback(async (session: string) => {
+    if (academicSessions.length <= 1) {
+      Alert.alert('Cannot Delete', 'At least one academic session is required.');
+      return;
+    }
+    setSessionSaving(true);
+    try {
+      const updated = await apiDeleteReq<{ sessions: string[]; activeSession: string }>(
+        `/settings/academic-sessions/${encodeURIComponent(session)}?adminId=admin`,
+      );
+      if (updated) {
+        setAcademicSessions(updated.sessions);
+        if (selectedSession === session) setSelectedSession(updated.activeSession);
+      }
+    } catch {}
+    finally { setSessionSaving(false); }
+  }, [academicSessions, selectedSession]);
+
+  const acYear = selectedSession;
   const botPad = insets.bottom + 80;
 
   // ── Derived data ─────────────────────────────────────────────────────────────
@@ -543,24 +628,24 @@ export default function AdmitCardScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
     try {
-      const html = buildHtml(student, selectedExam, template, documentBranding);
+      const html = buildHtml(student, selectedExam, template, documentBranding, selectedSession);
       await Print.printAsync({ html });
     } catch (e: any) {
       if (!e?.message?.includes('cancelled')) Alert.alert('Error', e?.message ?? 'Print failed');
     } finally { setLoading(false); }
-  }, [selectedExam, template, documentBranding]);
+  }, [selectedExam, template, documentBranding, selectedSession]);
 
   const downloadStudent = useCallback(async (student: Student) => {
     if (!selectedExam) { Alert.alert('Select Exam', 'Please select an exam first.'); return; }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
     try {
-      const html = buildHtml(student, selectedExam, template, documentBranding);
+      const html = buildHtml(student, selectedExam, template, documentBranding, selectedSession);
       await downloadHtmlAsPdf(html, `Admit Card – ${student.name}`, '.pg', 'img[alt="QR"]', true, (fn, uri) => setPdfSaved({ filename: fn, fileUri: uri }));
     } catch (e: any) {
       if (!e?.message?.includes('cancelled')) Alert.alert('PDF Error', e?.message ?? 'Download failed');
     } finally { setLoading(false); }
-  }, [selectedExam, template, documentBranding]);
+  }, [selectedExam, template, documentBranding, selectedSession]);
 
   const bulkPrint = useCallback(async () => {
     if (!selectedExam) { Alert.alert('Select Exam', 'Please select an exam first.'); return; }
@@ -569,12 +654,12 @@ export default function AdmitCardScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      const html = buildBulkHtml(list, selectedExam, template, documentBranding);
+      const html = buildBulkHtml(list, selectedExam, template, documentBranding, selectedSession);
       await Print.printAsync({ html });
     } catch (e: any) {
       if (!e?.message?.includes('cancelled')) Alert.alert('Error', e?.message ?? 'Print failed');
     } finally { setLoading(false); }
-  }, [selectedExam, template, bulkList, bulkSelected, documentBranding]);
+  }, [selectedExam, template, bulkList, bulkSelected, documentBranding, selectedSession]);
 
   const bulkDownload = useCallback(async () => {
     if (!selectedExam) { Alert.alert('Select Exam', 'Please select an exam first.'); return; }
@@ -585,7 +670,7 @@ export default function AdmitCardScreen() {
     try {
       // Build a separate complete HTML document per student so each is rendered
       // in its own iframe — eliminates blank pages caused by joining full documents.
-      const htmlPages = list.map(s => buildHtml(s, selectedExam, template, documentBranding));
+      const htmlPages = list.map(s => buildHtml(s, selectedExam, template, documentBranding, selectedSession));
       await downloadMultipleHtmlsAsPdf(
         htmlPages,
         `Admit Cards – Class ${selectedClass}`,
@@ -596,7 +681,7 @@ export default function AdmitCardScreen() {
     } catch (e: any) {
       if (!e?.message?.includes('cancelled')) Alert.alert('PDF Error', e?.message ?? 'Download failed');
     } finally { setLoading(false); }
-  }, [selectedExam, template, bulkList, bulkSelected, selectedClass, documentBranding]);
+  }, [selectedExam, template, bulkList, bulkSelected, selectedClass, documentBranding, selectedSession]);
 
   const openPreview = useCallback((student: Student) => {
     if (!selectedExam) { Alert.alert('Select Exam', 'Please select an exam first.'); return; }
@@ -865,6 +950,16 @@ export default function AdmitCardScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Academic Session selector */}
+            <TouchableOpacity style={[st.picker, st.sessionPicker]} onPress={() => setShowSessionPicker(true)} activeOpacity={0.85}>
+              <Feather name="calendar" size={15} color="#7C3AED" />
+              <View style={{ flex: 1 }}>
+                <Text style={st.sessionPickerLabel}>Academic Session</Text>
+                <Text style={st.sessionPickerValue}>{selectedSession}</Text>
+              </View>
+              <Feather name="chevron-down" size={14} color="#94A3B8" />
+            </TouchableOpacity>
+
             {/* Selected exam info */}
             {selectedExam && (
               <View style={st.examInfo}>
@@ -1092,6 +1187,74 @@ export default function AdmitCardScreen() {
         </View>
       </Modal>
 
+      {/* ── Academic Session Picker Modal ──────────────────────────────────── */}
+      <Modal visible={showSessionPicker} transparent animationType="slide" onRequestClose={() => setShowSessionPicker(false)}>
+        <View style={mo.overlay}>
+          <View style={mo.sheet}>
+            <View style={mo.sheetHeader}>
+              <Text style={mo.sheetTitle}>Academic Session</Text>
+              <TouchableOpacity onPress={() => setShowSessionPicker(false)}><Feather name="x" size={22} color="#64748B" /></TouchableOpacity>
+            </View>
+            <ScrollView style={mo.sheetScroll} keyboardShouldPersistTaps="handled">
+              {/* Add new session */}
+              <View style={so.addRow}>
+                <TextInput
+                  style={so.addInput}
+                  placeholder="e.g. 2025–2026"
+                  placeholderTextColor="#94A3B8"
+                  value={newSessionInput}
+                  onChangeText={setNewSessionInput}
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddSession}
+                />
+                <TouchableOpacity
+                  style={[so.addBtn, (!newSessionInput.trim() || sessionSaving) && { opacity: 0.5 }]}
+                  onPress={handleAddSession}
+                  disabled={!newSessionInput.trim() || sessionSaving}
+                  activeOpacity={0.8}
+                >
+                  {sessionSaving
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Feather name="plus" size={18} color="#fff" />}
+                </TouchableOpacity>
+              </View>
+
+              {/* Existing sessions */}
+              {academicSessions.map(session => (
+                <TouchableOpacity
+                  key={session}
+                  style={[mo.item, selectedSession === session && mo.itemActive]}
+                  onPress={() => handleSelectSession(session)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[mo.itemIcon, selectedSession === session && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                    <Feather name="calendar" size={18} color={selectedSession === session ? '#fff' : '#7C3AED'} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[mo.itemName, selectedSession === session && { color: '#fff' }]}>{session}</Text>
+                    {selectedSession === session && (
+                      <Text style={[mo.itemMeta, { color: 'rgba(255,255,255,0.75)' }]}>Active session</Text>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {selectedSession === session && <Feather name="check" size={18} color="#fff" />}
+                    {academicSessions.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteSession(session)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={[so.deleteBtn, selectedSession === session && { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+                      >
+                        <Feather name="trash-2" size={14} color={selectedSession === session ? '#fff' : '#EF4444'} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {renderPreviewModal()}
 
     </View>
@@ -1172,6 +1335,11 @@ const st = StyleSheet.create({
   loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', zIndex: 99 },
   loadingBox: { backgroundColor: '#fff', borderRadius: 20, padding: 28, alignItems: 'center', gap: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 24 },
   loadingTxt: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
+
+  // Academic Session picker button (full-width row below exam+class pickers)
+  sessionPicker:      { borderColor: '#EDE9FE', backgroundColor: '#FAFAFF', marginTop: 8 },
+  sessionPickerLabel: { fontSize: 10, color: '#7C3AED', fontWeight: '700', letterSpacing: 0.5, marginBottom: 1 },
+  sessionPickerValue: { fontSize: 14, color: '#1e1b4b', fontWeight: '800' },
 });
 
 // Preview modal styles
@@ -1232,6 +1400,14 @@ const pm = StyleSheet.create({
   dlBtn: { flex: 1, borderRadius: 16, overflow: 'hidden' },
   btnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
   btnTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
+});
+
+// Session modal add-row styles
+const so = StyleSheet.create({
+  addRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  addInput:  { flex: 1, height: 46, backgroundColor: '#F8FAFF', borderRadius: 12, paddingHorizontal: 14, fontSize: 14, color: '#0F172A', borderWidth: 1.5, borderColor: '#DDD6FE' },
+  addBtn:    { width: 46, height: 46, borderRadius: 12, backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' },
+  deleteBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
 });
 
 // Picker modal styles

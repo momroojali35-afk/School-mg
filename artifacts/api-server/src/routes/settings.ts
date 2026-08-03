@@ -189,4 +189,112 @@ router.put("/settings/class-absent-limits", async (req, res) => {
   res.json(limits);
 });
 
+// ─── Academic Sessions ────────────────────────────────────────────────────────
+
+const ACADEMIC_SESSIONS_KEY = "academic_sessions";
+
+interface AcademicSessionsData {
+  sessions: string[];
+  activeSession: string;
+}
+
+function defaultAcademicYear(): string {
+  const y = new Date().getFullYear();
+  return new Date().getMonth() >= 3 ? `${y}–${y + 1}` : `${y - 1}–${y}`;
+}
+
+/** GET /api/settings/academic-sessions → { sessions: string[], activeSession: string } */
+router.get("/settings/academic-sessions", async (_req, res) => {
+  const setting = await getAdapter().appSettings.get(ACADEMIC_SESSIONS_KEY);
+  const data = setting?.value as AcademicSessionsData | undefined;
+  const currentYear = defaultAcademicYear();
+  if (!data) {
+    res.json({ sessions: [currentYear], activeSession: currentYear });
+    return;
+  }
+  const sessions = data.sessions?.length ? data.sessions : [currentYear];
+  const activeSession = data.activeSession && sessions.includes(data.activeSession)
+    ? data.activeSession
+    : sessions[0];
+  res.json({ sessions, activeSession });
+});
+
+/** PUT /api/settings/academic-sessions  { sessions?, activeSession?, adminId } */
+router.put("/settings/academic-sessions", async (req, res) => {
+  const { sessions, activeSession, adminId } = req.body ?? {};
+  if (adminId !== "admin") {
+    res.status(403).json({ error: "Unauthorized: only administrators can manage academic sessions" });
+    return;
+  }
+
+  const setting = await getAdapter().appSettings.get(ACADEMIC_SESSIONS_KEY);
+  const current = (setting?.value as AcademicSessionsData | undefined) ?? {
+    sessions: [defaultAcademicYear()],
+    activeSession: defaultAcademicYear(),
+  };
+
+  let updatedSessions: string[] = current.sessions;
+  if (sessions !== undefined) {
+    if (!Array.isArray(sessions) || sessions.some((s: unknown) => typeof s !== "string" || !(s as string).trim())) {
+      res.status(400).json({ error: "sessions must be an array of non-empty strings" });
+      return;
+    }
+    updatedSessions = sessions.map((s: string) => s.trim()).filter(Boolean);
+    if (updatedSessions.length === 0) {
+      res.status(400).json({ error: "At least one session is required" });
+      return;
+    }
+  }
+
+  let updatedActive = current.activeSession;
+  if (activeSession !== undefined) {
+    if (typeof activeSession !== "string" || !activeSession.trim()) {
+      res.status(400).json({ error: "activeSession must be a non-empty string" });
+      return;
+    }
+    updatedActive = activeSession.trim();
+    if (!updatedSessions.includes(updatedActive)) {
+      updatedSessions = [...updatedSessions, updatedActive];
+    }
+  }
+
+  if (!updatedSessions.includes(updatedActive)) {
+    updatedActive = updatedSessions[0];
+  }
+
+  const result: AcademicSessionsData = { sessions: updatedSessions, activeSession: updatedActive };
+  await getAdapter().appSettings.set(ACADEMIC_SESSIONS_KEY, result);
+  res.json(result);
+});
+
+/** DELETE /api/settings/academic-sessions/:session  ?adminId=admin */
+router.delete("/settings/academic-sessions/:session", async (req, res) => {
+  const { adminId } = req.query;
+  if (adminId !== "admin") {
+    res.status(403).json({ error: "Unauthorized: only administrators can delete academic sessions" });
+    return;
+  }
+  const sessionToDelete = decodeURIComponent(req.params.session);
+
+  const setting = await getAdapter().appSettings.get(ACADEMIC_SESSIONS_KEY);
+  const current = (setting?.value as AcademicSessionsData | undefined) ?? {
+    sessions: [defaultAcademicYear()],
+    activeSession: defaultAcademicYear(),
+  };
+
+  const updatedSessions = current.sessions.filter(s => s !== sessionToDelete);
+  if (updatedSessions.length === 0) {
+    res.status(400).json({ error: "Cannot delete the last academic session" });
+    return;
+  }
+
+  const updatedActive = updatedSessions.includes(current.activeSession)
+    ? current.activeSession
+    : updatedSessions[0];
+
+  const result: AcademicSessionsData = { sessions: updatedSessions, activeSession: updatedActive };
+  await getAdapter().appSettings.set(ACADEMIC_SESSIONS_KEY, result);
+  res.json(result);
+});
+
 export default router;
