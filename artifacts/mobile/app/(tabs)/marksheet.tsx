@@ -337,19 +337,16 @@ function buildSingleMarksheetHtml(
     print-color-adjust: exact;
   }
   @page { size: A4 portrait; margin: 0; }
-  html, body { height: 297mm; overflow: hidden; }
   @media print { html, body { background: #fff; padding: 0; margin: 0; height: 297mm; overflow: hidden; } .page { page-break-after: avoid; break-after: avoid; } }
   /* ---------- page shell ---------- */
-  /* 794 px = A4 width at 96 dpi; 297mm = exact A4 height — guarantees one-page output */
-  /* flex-column so .sigs and .footer are always pinned at the bottom, never clipped */
-  .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; display:flex; flex-direction:column; }
+  /* 794 px = A4 width at 96 dpi; height:auto so PDF captures only actual content, no blank gap */
+  .page { width:794px; height:auto; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; box-sizing:border-box; display:flex; flex-direction:column; }
   .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
   .corner.tl { top:4px; left:4px; }
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
-  /* flex:1 lets .inner fill remaining space; overflow:hidden clips table rows if too tall */
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
 
   /* ---------- header ---------- */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:10px; border-bottom:3px solid #0c1f4a; }
@@ -823,18 +820,15 @@ function buildCombinedMarksheetHtml(
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:'Poppins',Arial,sans-serif; background:#fff; padding:0; margin:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   @page { size:A4 portrait; margin:0; }
-  html, body { height:297mm; overflow:hidden; }
   @media print { html, body { background:#fff; padding:0; margin:0; height:297mm; overflow:hidden; } .page { page-break-after:avoid; break-after:avoid; } }
-  /* 794 px = A4 width at 96 dpi; 297mm = exact A4 height */
-  /* flex-column so .sigs and .footer are always pinned at the bottom, never clipped */
-  .page { width:794px; height:297mm; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; overflow:hidden; box-sizing:border-box; display:flex; flex-direction:column; }
+  /* 794 px = A4 width at 96 dpi; height:auto so PDF captures only actual content, no blank gap */
+  .page { width:794px; height:auto; margin:0 auto; background:#fdfefb; border:5px solid #0c1f4a; border-radius:10px; padding:9px; position:relative; box-sizing:border-box; display:flex; flex-direction:column; }
   .corner { position:absolute; width:56px; height:56px; pointer-events:none; }
   .corner.tl { top:4px; left:4px; }
   .corner.tr { top:4px; right:4px; transform:rotate(90deg); transform-origin:100% 0; }
   .corner.bl { bottom:4px; left:4px; transform:rotate(-90deg); transform-origin:0 100%; }
   .corner.br { bottom:4px; right:4px; transform:rotate(180deg); }
-  /* flex:1 lets .inner fill remaining space; overflow:hidden clips table rows if too tall */
-  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
+  .inner { border:1.5px solid #c8a040; border-radius:6px; padding:12px; overflow:hidden; display:flex; flex-direction:column; ${_innerZoomCss} }
   /* header */
   .hdr { display:flex; align-items:flex-start; gap:18px; padding-bottom:8px; border-bottom:3px solid #0c1f4a; }
   .hdr-center { flex:1; text-align:center; }
