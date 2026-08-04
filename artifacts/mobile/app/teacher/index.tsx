@@ -14,7 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/AuthContext';
 import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { isBirthdayToday, daysUntilBirthday, extractMMDD } from '@/utils/dateUtils';
-import { sendReminderWhatsApp, shareBirthdayCardImage } from '@/utils/reminder';
+import { sendReminderWhatsApp } from '@/utils/reminder';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function calcFinalPayable(annualFee: string, discountType: 'fixed' | 'percent', discountValue: string) {
@@ -306,113 +306,7 @@ export default function TeacherDashboard() {
   const sendBirthdayWhatsApp = async (student: Student): Promise<void> => {
     const caption =
 `🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
-    const fileName = `BirthdayCard_${student.name.replace(/\s+/g, '_')}.png`;
-
-    if (Platform.OS !== 'web' && birthdayCardRef.current) {
-      await shareBirthdayCardImage(birthdayCardRef, student);
-      return;
-    }
-
-    // The dashboard action can be pressed before the birthday card modal is
-    // mounted. In that web-only case, send the birthday wish directly through
-    // the existing WhatsApp helper instead of trying to capture an unavailable card.
-    if (!birthdayCardRef.current) {
-      await sendReminderWhatsApp(student, caption);
-      return;
-    }
-
-    // ── Step 1: Resolve the card DOM element from the React ref ──────────────
-    console.log('[BirthdayShare] Step 1 – resolving card element from ref');
-    const cardEl = birthdayCardRef.current as unknown as HTMLElement | null;
-    if (!cardEl) {
-      throw new Error('Birthday card element is not mounted. Please open the card and try again.');
-    }
-    console.log('[BirthdayShare] Card element found — tag:', cardEl.tagName,
-      'size:', cardEl.offsetWidth, 'x', cardEl.offsetHeight);
-
-    // ── Step 2: Capture with html2canvas → PNG blob ───────────────────────────
-    console.log('[BirthdayShare] Step 2 – running html2canvas');
-    let blob: Blob | null = null;
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(cardEl, {
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null,
-        scale: 2,
-        logging: false,
-      });
-      console.log('[BirthdayShare] Canvas captured:', canvas.width, 'x', canvas.height);
-      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      console.log('[BirthdayShare] PNG blob size:', blob?.size ?? 0, 'bytes');
-    } catch (captureErr: any) {
-      console.error('[BirthdayShare] html2canvas error:', captureErr);
-      throw new Error(`Image capture failed: ${captureErr?.message ?? String(captureErr)}`);
-    }
-
-    if (!blob || blob.size === 0) {
-      throw new Error('Generated image blob is empty — html2canvas may have failed silently.');
-    }
-
-    // ── Step 3: Create File ───────────────────────────────────────────────────
-    console.log('[BirthdayShare] Step 3 – creating File');
-    const file = new File([blob], fileName, { type: 'image/png' });
-    console.log('[BirthdayShare] File ready — name:', file.name, 'size:', file.size, 'type:', file.type);
-
-    // ── Step 4: Web Share API with file ──────────────────────────────────────
-    const nav = navigator as any;
-    const hasShare    = typeof nav?.share    === 'function';
-    const hasCanShare = typeof nav?.canShare === 'function';
-    console.log('[BirthdayShare] Step 4 – navigator.share:', hasShare,
-      '| navigator.canShare:', hasCanShare);
-
-    let canShareFiles = false;
-    if (hasCanShare) {
-      try {
-        canShareFiles = nav.canShare({ files: [file] });
-      } catch (csErr) {
-        console.error('[BirthdayShare] navigator.canShare threw:', csErr);
-      }
-    }
-    console.log('[BirthdayShare] navigator.canShare({ files }) =>', canShareFiles);
-
-    if (hasShare && canShareFiles) {
-      console.log('[BirthdayShare] Calling navigator.share with image file…');
-      try {
-        await nav.share({ files: [file], title: `Happy Birthday ${student.name}!`, text: caption });
-        console.log('[BirthdayShare] navigator.share completed — user shared or dismissed');
-      } catch (shareErr: any) {
-        if (shareErr?.name === 'AbortError') {
-          console.log('[BirthdayShare] Share sheet dismissed by user (AbortError)');
-        } else {
-          console.error('[BirthdayShare] navigator.share failed —',
-            'name:', shareErr?.name, 'message:', shareErr?.message, shareErr);
-          throw new Error(`Share failed (${shareErr?.name ?? 'unknown'}): ${shareErr?.message ?? shareErr}`);
-        }
-      }
-      return;
-    }
-
-    // ── Step 5: Fallback — download PNG, show clear message ──────────────────
-    console.log('[BirthdayShare] Step 5 – file sharing not supported in this browser, downloading PNG');
-    try {
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
-      console.log('[BirthdayShare] Download triggered:', fileName);
-    } catch (dlErr: any) {
-      console.error('[BirthdayShare] Download failed:', dlErr);
-      throw new Error(`Download failed: ${dlErr?.message ?? String(dlErr)}`);
-    }
-    Alert.alert(
-      'Image Downloaded',
-      'Direct WhatsApp image sharing is not supported in this browser. Please share the downloaded image manually.',
-    );
+    await sendReminderWhatsApp(student, caption);
   };
 
   const handlePickImage = async () => {

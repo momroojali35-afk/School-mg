@@ -3,7 +3,7 @@ name: Birthday wish sharing
 description: Platform constraint for birthday wish actions on the admin and teacher dashboards.
 ---
 
-The birthday dashboard action uses direct WhatsApp messaging when the card ref is not mounted; the explicitly opened card's send action shares the rendered PNG through the native share sheet on mobile and Web Share API on web.
+All birthday wish actions on the admin and teacher dashboards open a direct WhatsApp chat to the registered student or guardian mobile number. The birthday card remains a visual preview and is not sent through the generic image share sheet.
 
 **Why:** Dashboard buttons can be pressed before the card modal mounts, while native WhatsApp text URLs can be routed to SMS on some Android devices. Sharing a typed PNG file lets WhatsApp receive the birthday card as an image.
 

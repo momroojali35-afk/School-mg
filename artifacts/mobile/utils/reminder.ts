@@ -36,17 +36,28 @@ Regards,
 
 // ─── Send via WhatsApp ────────────────────────────────────────────────────────
 export async function sendReminderWhatsApp(student: Student, message: string): Promise<void> {
-  const phone = student.mobileNumber?.replace(/\D/g, '');
-  if (!phone || phone.length < 7) {
+  const digits = student.mobileNumber?.replace(/\D/g, '') ?? '';
+  const phone = digits.startsWith('91') && digits.length > 10 ? digits : `91${digits}`;
+  if (!digits || digits.length < 7) {
     Alert.alert('No Mobile Number', `${student.name} does not have a mobile number on record.`);
     return;
   }
-  // Prefer direct chat to the number; fallback to share (no recipient)
-  const directUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
-  const shareUrl  = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  // Open a direct WhatsApp chat for the registered student/guardian number.
+  // Prefer the native scheme so Android opens WhatsApp instead of a generic
+  // browser/share surface; keep the web URL as a fallback.
+  const nativeUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`;
+  const webUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   try {
-    const canDirect = await Linking.canOpenURL(directUrl);
-    await Linking.openURL(canDirect ? directUrl : shareUrl);
+    if (Platform.OS !== 'web') {
+      try {
+        await Linking.openURL(nativeUrl);
+        return;
+      } catch {
+        await Linking.openURL(webUrl);
+      }
+    } else {
+      await Linking.openURL(webUrl);
+    }
   } catch {
     Alert.alert('WhatsApp Unavailable', 'Could not open WhatsApp. Please try SMS instead.');
   }
@@ -117,9 +128,8 @@ export async function shareReminderImage(imageUri: string, student: Student): Pr
 }
 
 // ─── Share birthday card image via native share sheet ─────────────────────────
-// WhatsApp text URLs can be handled by the SMS app on some Android devices.
-// Capturing the rendered card and sharing it as image/png gives Android the
-// correct file type so WhatsApp is offered as an image-sharing destination.
+// Kept for other image-sharing flows. Birthday wish buttons use the direct
+// registered-number WhatsApp helper above instead of opening the share sheet.
 export async function shareBirthdayCardImage(cardRef: any, student: Student): Promise<void> {
   if (!cardRef?.current) {
     throw new Error('Birthday card is not ready to share. Please try again.');
