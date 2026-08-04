@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal,
-  Switch, Alert, Platform,
+  Switch, Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +27,7 @@ export default function PromoteScreen() {
   const [showToPicker, setShowToPicker] = useState(false);
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [showIndividualPicker, setShowIndividualPicker] = useState<string | null>(null);
+  const [promotionSuccess, setPromotionSuccess] = useState<{ count: number; toClass: string } | null>(null);
 
   const studentsInFromClass = useMemo(
     () => (fromClass ? students.filter(s => s.class === fromClass && isActiveStudent(s)) : []),
@@ -41,10 +43,10 @@ export default function PromoteScreen() {
     if (!fromClass || !toClass) return;
     const count = bulkPromoteClass(fromClass, toClass, 'Admin');
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('Success', `${count} student${count !== 1 ? 's' : ''} promoted to ${toClass}`);
     setConfirmBulk(false);
     setFromClass('');
     setToClass('');
+    setPromotionSuccess({ count, toClass });
   };
 
   const handleIndividualPromote = async (studentId: string, targetClass: string) => {
@@ -407,6 +409,60 @@ export default function PromoteScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Bulk promotion success ─────────────────────────────────────────── */}
+      <Modal visible={!!promotionSuccess} animationType="fade" transparent onRequestClose={() => setPromotionSuccess(null)}>
+        <View style={success.overlay}>
+          <View style={[success.sheet, { backgroundColor: c.card }]}>
+            <LinearGradient
+              colors={[c.primary, '#2563C7']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={success.hero}
+            >
+              <View style={success.decorativeCircle} />
+              <View style={[success.orbRing, { borderColor: 'rgba(255,255,255,0.22)' }]}>
+                <View style={[success.orb, { backgroundColor: c.success }]}>
+                  <Feather name="check" size={30} color="#fff" strokeWidth={3} />
+                </View>
+              </View>
+              <Text style={success.heroTitle}>Promotion complete</Text>
+              <Text style={success.heroSubtitle}>Your student records are up to date</Text>
+            </LinearGradient>
+
+            <View style={success.body}>
+              <View style={[success.summary, { backgroundColor: c.success + '10', borderColor: c.success + '30' }]}>
+                <View style={[success.summaryIcon, { backgroundColor: c.success + '20' }]}>
+                  <Feather name="trending-up" size={16} color={c.success} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[success.summaryTitle, { color: c.success }]}>
+                    {promotionSuccess?.count ?? 0} student{promotionSuccess?.count !== 1 ? 's' : ''} promoted
+                  </Text>
+                  <Text style={[success.summarySubtitle, { color: c.mutedForeground }]}>
+                    Moved successfully to {promotionSuccess?.toClass}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[success.primaryButton, { backgroundColor: c.primary }]}
+                onPress={() => setPromotionSuccess(null)}
+                activeOpacity={0.85}
+              >
+                <Text style={success.primaryButtonText}>Continue</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={success.secondaryButton}
+                onPress={() => setPromotionSuccess(null)}
+                activeOpacity={0.8}
+              >
+                <Text style={[success.secondaryButtonText, { color: c.mutedForeground }]}>View promotion history</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -505,4 +561,97 @@ const mo = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, borderWidth: 1, borderRadius: 12, paddingVertical: 13,
   },
+});
+
+const success = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(4,17,46,0.66)',
+  },
+  sheet: {
+    width: '100%',
+    maxWidth: 356,
+    overflow: 'hidden',
+    borderRadius: 26,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.28,
+    shadowRadius: 30,
+    elevation: 14,
+  },
+  hero: {
+    position: 'relative',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingTop: 28,
+    paddingBottom: 24,
+  },
+  decorativeCircle: {
+    position: 'absolute',
+    right: -35,
+    top: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.11)',
+  },
+  orbRing: {
+    width: 66,
+    height: 66,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 7,
+    borderRadius: 33,
+    marginBottom: 14,
+  },
+  orb: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 26,
+    shadowColor: '#031A52',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  heroTitle: { color: '#fff', fontSize: 21, fontWeight: '800', letterSpacing: -0.3 },
+  heroSubtitle: { color: 'rgba(255,255,255,0.82)', fontSize: 13, marginTop: 7 },
+  body: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 18 },
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+  },
+  summaryIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  summaryTitle: { fontSize: 13, fontWeight: '800' },
+  summarySubtitle: { fontSize: 11, lineHeight: 15, marginTop: 2 },
+  primaryButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+    paddingVertical: 13,
+    marginTop: 17,
+    shadowColor: '#173F92',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  secondaryButton: { alignItems: 'center', paddingVertical: 5, marginTop: 10 },
+  secondaryButtonText: { fontSize: 12, fontWeight: '700' },
 });
