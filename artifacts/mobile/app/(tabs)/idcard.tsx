@@ -78,9 +78,12 @@ function qrEl(student: Student, size: number, color: string, bg: string): string
   return `<img src="https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&color=${col}&bgcolor=${bgCol}&data=${data}" width="${size}" height="${size}" style="border-radius:4px;display:block;" onerror="this.style.display='none'" alt="QR"/>`;
 }
 
-function buildVerticalCard(student: Student, _tpl: typeof TPL[Template]): string {
+function buildVerticalCard(student: Student, tpl: typeof TPL[Template]): string {
   const acYear = getAcademicYear();
   const classSection = [student.class, student.section].filter(Boolean).join(' • ');
+  const primary = tpl.primary;
+  const secondary = tpl.secondary;
+  const accent = tpl.accent;
   const fields: [string, string][] = [
     ["Father's Name", student.fatherName ?? '—'],
     ["Mother's Name", student.motherName ?? '—'],
@@ -90,62 +93,62 @@ function buildVerticalCard(student: Student, _tpl: typeof TPL[Template]): string
     ['Address', student.address ?? '—'],
     ['Contact No.', student.mobileNumber ?? '—'],
   ];
-  const W = 204, H_HDR = 146, PHOTO = 72, PHOTO_OFFSET = 34, SPACE = 40;
-  const CREST = 42, CORNER_W = 54, CORNER_H = 28;
+  const W = 220, H_HDR = 154, PHOTO = 76, PHOTO_OFFSET = 36, SPACE = 42;
+  const CREST = 42, CORNER_W = 58, CORNER_H = 30;
   return `
-  <div style="width:${W}px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:inline-flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid;position:relative;">
+  <div style="width:${W}px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:inline-flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid;position:relative;border:1px solid rgba(15,23,42,0.12);">
     <!-- Header -->
-    <div style="background:#165C49;height:${H_HDR}px;position:relative;overflow:hidden;flex-shrink:0;">
+    <div style="background:${primary};height:${H_HDR}px;position:relative;overflow:hidden;flex-shrink:0;">
       <!-- Lime left chevron -->
-      <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 204 ${H_HDR}" preserveAspectRatio="none">
-        <polygon points="0,0 51,0 31,${H_HDR} 0,${H_HDR}" fill="#C9E840"/>
-        <polygon points="0,0 35,0 16,${H_HDR} 0,${H_HDR}" fill="#B0D020" opacity="0.65"/>
-        <polygon points="133,0 204,0 204,68 163,${H_HDR} 123,${H_HDR} 160,54" fill="white" opacity="0.11"/>
+      <svg style="position:absolute;top:0;left:0;width:100%;height:100%;" viewBox="0 0 ${W} ${H_HDR}" preserveAspectRatio="none">
+        <polygon points="0,0 58,0 32,${H_HDR} 0,${H_HDR}" fill="${accent}"/>
+        <polygon points="0,0 38,0 15,${H_HDR} 0,${H_HDR}" fill="${secondary}" opacity="0.72"/>
+        <polygon points="${W - 78},0 ${W},0 ${W},62 ${W - 42},${H_HDR} ${W - 86},${H_HDR} ${W - 48},48" fill="#fff" opacity="0.12"/>
+        <polygon points="0,${H_HDR - 34} 35,${H_HDR - 62} 72,${H_HDR} 0,${H_HDR}" fill="#fff" opacity="0.16"/>
       </svg>
       <!-- School crest -->
-      <div style="position:absolute;top:18px;left:6px;width:${CREST}px;height:${CREST}px;border-radius:50%;background:white;border:2px solid #C9E840;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.25);z-index:10;">
+      <div style="position:absolute;top:14px;left:8px;width:${CREST}px;height:${CREST}px;border-radius:50%;background:white;border:2px solid ${accent};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.25);z-index:10;">
         <svg width="30" height="30" viewBox="0 0 44 44">
-          <circle cx="22" cy="22" r="21" fill="none" stroke="#165C49" stroke-width="1.5" stroke-dasharray="3 2"/>
-          <circle cx="22" cy="22" r="17" fill="#165C49"/>
+          <circle cx="22" cy="22" r="21" fill="none" stroke="${primary}" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <circle cx="22" cy="22" r="17" fill="${primary}"/>
           <rect x="13" y="17" width="8" height="10" rx="1.5" fill="white" opacity="0.9"/>
           <rect x="23" y="17" width="8" height="10" rx="1.5" fill="white" opacity="0.9"/>
-          <rect x="21" y="16" width="2" height="12" fill="#C9E840"/>
-          <polygon points="22,8 23.5,12.5 28.5,12.5 24.5,15.2 26,19.5 22,16.8 18,19.5 19.5,15.2 15.5,12.5 20.5,12.5" fill="#C9E840"/>
+          <rect x="21" y="16" width="2" height="12" fill="${accent}"/>
+          <polygon points="22,8 23.5,12.5 28.5,12.5 24.5,15.2 26,19.5 22,16.8 18,19.5 19.5,15.2 15.5,12.5 20.5,12.5" fill="${accent}"/>
         </svg>
       </div>
       <!-- School name + contact -->
-      <div style="position:absolute;top:12px;left:53px;right:52px;z-index:10;">
-        <div style="font-size:8.5px;font-weight:900;color:#F5E233;line-height:1.25;text-shadow:0 1px 3px rgba(0,0,0,0.5);">DR. APJ ABDUL KALAM</div>
-        <div style="font-size:8.5px;font-weight:900;color:#F5E233;line-height:1.25;text-shadow:0 1px 3px rgba(0,0,0,0.5);">JATIYA VIDYALAYA</div>
+      <div style="position:absolute;top:12px;left:57px;right:47px;z-index:10;">
+        <div style="font-size:8.8px;font-weight:900;color:${accent};line-height:1.25;text-shadow:0 1px 3px rgba(0,0,0,0.5);">${SCHOOL_INFO.name}</div>
         <div style="font-size:5px;color:rgba(255,255,255,0.9);margin-top:4px;line-height:1.6;">Bundura Ati, Assam</div>
         <div style="font-size:4.5px;color:rgba(255,255,255,0.85);line-height:1.6;">MOB: ${SCHOOL_INFO.contact}</div>
         <div style="font-size:4.5px;color:rgba(255,255,255,0.85);line-height:1.6;">Email: ${SCHOOL_INFO.email}</div>
       </div>
       <!-- Session badge -->
       <div style="position:absolute;top:12px;right:5px;z-index:20;text-align:center;">
-        <div style="background:#F5E233;border-radius:5px;padding:1px 6px;font-size:5px;font-weight:800;color:#165C49;">Session:-</div>
-        <div style="background:#F5E233;border-radius:5px;padding:2px 6px;font-size:6.5px;font-weight:900;color:#165C49;margin-top:1px;">${acYear}</div>
+        <div style="background:${accent};border-radius:5px;padding:1px 6px;font-size:5px;font-weight:800;color:${primary};">Session:-</div>
+        <div style="background:${accent};border-radius:5px;padding:2px 6px;font-size:6.5px;font-weight:900;color:${primary};margin-top:1px;">${acYear}</div>
       </div>
       <!-- Photo ring -->
-      <div style="position:absolute;bottom:-${PHOTO_OFFSET}px;left:50%;transform:translateX(-50%);z-index:30;width:${PHOTO}px;height:${PHOTO}px;border-radius:50%;background:linear-gradient(135deg,#165C49 0%,#C9E840 100%);padding:3px;box-shadow:0 4px 14px rgba(0,0,0,0.3);">
+      <div style="position:absolute;bottom:-${PHOTO_OFFSET}px;left:50%;transform:translateX(-50%);z-index:30;width:${PHOTO}px;height:${PHOTO}px;border-radius:50%;background:linear-gradient(135deg,${primary} 0%,${accent} 100%);padding:3px;box-shadow:0 4px 14px rgba(0,0,0,0.3);">
         <div style="width:100%;height:100%;border-radius:50%;border:2px solid white;overflow:hidden;background:#b8ccb8;display:flex;align-items:center;justify-content:center;">
           ${student.photo
             ? `<img src="${student.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`
-            : `<div style="width:100%;height:100%;background:#165C49;display:flex;align-items:center;justify-content:center;border-radius:50%;"><span style="color:#fff;font-size:${Math.round(PHOTO*0.28)}px;font-weight:900;font-family:Arial;">${getInitials(student.name)}</span></div>`}
+            : `<div style="width:100%;height:100%;background:${primary};display:flex;align-items:center;justify-content:center;border-radius:50%;"><span style="color:#fff;font-size:${Math.round(PHOTO*0.28)}px;font-weight:900;font-family:Arial;">${getInitials(student.name)}</span></div>`}
         </div>
       </div>
     </div>
     <!-- Space for photo -->
     <div style="height:${SPACE}px;background:#fff;flex-shrink:0;"></div>
     <!-- Name banner -->
-    <div style="background:#165C49;padding:6px 10px;text-align:center;flex-shrink:0;">
+    <div style="background:${primary};padding:6px 10px;text-align:center;flex-shrink:0;border-left:12px solid ${accent};border-right:12px solid ${accent};">
       <span style="font-size:9px;font-weight:800;color:#fff;letter-spacing:0.8px;">${student.name}</span>
     </div>
     <!-- Details -->
     <div style="padding:8px 10px 6px;background:#fff;flex:1;">
       ${fields.map(([l, v]) => `
       <div style="display:flex;margin-bottom:4px;align-items:flex-start;">
-        <span style="font-size:6px;font-weight:700;color:#111;width:58px;flex-shrink:0;line-height:1.4;">${l}</span>
+        <span style="font-size:6px;font-weight:700;color:#111;width:62px;flex-shrink:0;line-height:1.4;">${l}</span>
         <span style="font-size:6px;color:#111;margin-right:3px;flex-shrink:0;line-height:1.4;">:</span>
         <span style="font-size:6px;color:#111;line-height:1.4;">${v}</span>
       </div>`).join('')}
@@ -153,92 +156,93 @@ function buildVerticalCard(student: Student, _tpl: typeof TPL[Template]): string
     <!-- Bottom corner triangles -->
     <div style="position:relative;height:${CORNER_H}px;background:#fff;overflow:hidden;flex-shrink:0;">
       <svg style="position:absolute;bottom:0;left:0;" width="${CORNER_W}" height="${CORNER_H}" viewBox="0 0 ${CORNER_W} ${CORNER_H}">
-        <polygon points="0,${CORNER_H} ${CORNER_W},${CORNER_H} 0,0" fill="#165C49"/>
+        <polygon points="0,${CORNER_H} ${CORNER_W},${CORNER_H} 0,0" fill="${primary}"/>
       </svg>
       <svg style="position:absolute;bottom:0;left:0;" width="${Math.round(CORNER_W*0.68)}" height="${Math.round(CORNER_H*0.71)}" viewBox="0 0 ${Math.round(CORNER_W*0.68)} ${Math.round(CORNER_H*0.71)}">
-        <polygon points="0,${Math.round(CORNER_H*0.71)} ${Math.round(CORNER_W*0.68)},${Math.round(CORNER_H*0.71)} 0,0" fill="#C9E840" opacity="0.8"/>
+        <polygon points="0,${Math.round(CORNER_H*0.71)} ${Math.round(CORNER_W*0.68)},${Math.round(CORNER_H*0.71)} 0,0" fill="${accent}" opacity="0.8"/>
       </svg>
       <svg style="position:absolute;bottom:0;right:0;" width="${CORNER_W}" height="${CORNER_H}" viewBox="0 0 ${CORNER_W} ${CORNER_H}">
-        <polygon points="${CORNER_W},${CORNER_H} 0,${CORNER_H} ${CORNER_W},0" fill="#165C49"/>
+        <polygon points="${CORNER_W},${CORNER_H} 0,${CORNER_H} ${CORNER_W},0" fill="${primary}"/>
       </svg>
       <svg style="position:absolute;bottom:0;right:0;" width="${Math.round(CORNER_W*0.68)}" height="${Math.round(CORNER_H*0.71)}" viewBox="0 0 ${Math.round(CORNER_W*0.68)} ${Math.round(CORNER_H*0.71)}">
-        <polygon points="${Math.round(CORNER_W*0.68)},${Math.round(CORNER_H*0.71)} 0,${Math.round(CORNER_H*0.71)} ${Math.round(CORNER_W*0.68)},0" fill="#C9E840" opacity="0.8"/>
+        <polygon points="${Math.round(CORNER_W*0.68)},${Math.round(CORNER_H*0.71)} 0,${Math.round(CORNER_H*0.71)} ${Math.round(CORNER_W*0.68)},0" fill="${accent}" opacity="0.8"/>
       </svg>
     </div>
   </div>`;
 }
 
-function buildHorizontalCard(student: Student, _tpl: typeof TPL[Template]): string {
+function buildHorizontalCard(student: Student, tpl: typeof TPL[Template]): string {
   const acYear = getAcademicYear();
   const classSection = [student.class, student.section].filter(Boolean).join(' • ');
+  const primary = tpl.primary;
+  const secondary = tpl.secondary;
+  const accent = tpl.accent;
   const fields: [string, string][] = [
     ['Name', student.name],
-    ['Class/Section', classSection || '—'],
     ["Father's Name", student.fatherName ?? '—'],
     ["Mother's Name", student.motherName ?? '—'],
+    ['Class', classSection || '—'],
+    ['Roll No.', student.rollNumber ?? '—'],
+    ['Admi. No.', student.admissionNo ?? '—'],
     ['Date of Birth', fmtDob(student.dateOfBirth)],
     ['Address', student.address ?? '—'],
-    ['Mobile No.', student.mobileNumber ?? '—'],
+    ['Contact No.', student.mobileNumber ?? '—'],
   ];
-  const stackColors = ['#7f1d1d','#c2410c','#ec4899','#fca5a5','#cbd5e1'];
   return `
-  <div style="width:320px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:inline-flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid;">
+  <div style="width:350px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:inline-flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid;border:1px solid rgba(15,23,42,0.16);">
     <!-- Header -->
-    <div style="background:linear-gradient(90deg,#1e3a8a 0%,#2648c0 65%,#2d55d8 100%);position:relative;height:45px;overflow:hidden;display:flex;align-items:center;gap:8px;padding:0 8px;flex-shrink:0;">
-      <svg style="position:absolute;right:0;top:0;width:100px;height:45px;" viewBox="0 0 100 45" preserveAspectRatio="none">
-        <polygon points="28,0 100,0 100,45 6,45" fill="#ea580c" opacity="0.95"/>
-        <polygon points="44,0 100,0 100,45 22,45" fill="#f97316" opacity="0.7"/>
-        <polygon points="60,0 100,0 100,45 38,45" fill="#fb923c" opacity="0.5"/>
+    <div style="background:${primary};position:relative;height:58px;overflow:hidden;display:flex;align-items:center;gap:9px;padding:0 12px;flex-shrink:0;">
+      <svg style="position:absolute;right:0;top:0;width:170px;height:58px;" viewBox="0 0 170 58" preserveAspectRatio="none">
+        <path d="M30 34 C75 7 112 16 170 4 L170 58 L0 58 Z" fill="${secondary}" opacity="0.85"/>
+        <path d="M80 42 C116 23 142 27 170 20 L170 58 L56 58 Z" fill="${accent}" opacity="0.8"/>
       </svg>
-      <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:#F5C518;z-index:10;"></div>
-      <div style="width:33px;height:33px;border-radius:50%;background:white;border:2px solid #F5C518;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 6px rgba(0,0,0,0.3);z-index:10;flex-shrink:0;">
+      <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${accent};z-index:10;"></div>
+      <div style="width:38px;height:38px;border-radius:50%;background:white;border:2px solid ${accent};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 6px rgba(0,0,0,0.3);z-index:10;flex-shrink:0;">
         <svg width="24" height="24" viewBox="0 0 44 44">
-          <circle cx="22" cy="22" r="21" fill="none" stroke="#1e3a8a" stroke-width="1.5" stroke-dasharray="3 2"/>
-          <circle cx="22" cy="22" r="17" fill="#1e3a8a"/>
+          <circle cx="22" cy="22" r="21" fill="none" stroke="${primary}" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <circle cx="22" cy="22" r="17" fill="${primary}"/>
           <rect x="13" y="16" width="7" height="10" rx="1" fill="white" opacity="0.9"/>
           <rect x="24" y="16" width="7" height="10" rx="1" fill="white" opacity="0.9"/>
-          <rect x="21.5" y="15" width="2" height="12" fill="#F5C518"/>
-          <polygon points="22,8 23.3,12 27.7,12 24.2,14.4 25.5,18.5 22,16 18.5,18.5 19.8,14.4 16.3,12 20.7,12" fill="#F5C518"/>
+          <rect x="21.5" y="15" width="2" height="12" fill="${accent}"/>
+          <polygon points="22,8 23.3,12 27.7,12 24.2,14.4 25.5,18.5 22,16 18.5,18.5 19.8,14.4 16.3,12 20.7,12" fill="${accent}"/>
         </svg>
       </div>
       <div style="z-index:10;">
-        <div style="font-size:9px;font-weight:900;color:#fff;line-height:1.2;text-shadow:0 1px 3px rgba(0,0,0,0.4);">DR. APJ ABDUL KALAM JATIYA VIDYALAYA</div>
-        <div style="font-size:6px;color:rgba(255,255,255,0.85);margin-top:2px;">Session : ${acYear}</div>
+        <div style="font-size:10px;font-weight:900;color:#fff;line-height:1.15;text-shadow:0 1px 3px rgba(0,0,0,0.4);">${SCHOOL_INFO.name}</div>
+        <div style="font-size:5.5px;color:rgba(255,255,255,0.85);margin-top:3px;">Session : ${acYear}  •  ${SCHOOL_INFO.contact}</div>
       </div>
     </div>
     <!-- Identity Card title -->
-    <div style="text-align:center;padding:6px 0 4px;letter-spacing:4px;font-size:7px;font-weight:800;color:#1e293b;">IDENTITY CARD</div>
-    <div style="height:1px;background:#e2e8f0;margin:0 10px 6px;"></div>
+    <div style="padding:7px 12px 4px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="background:${primary};border-radius:4px;padding:3px 8px;font-size:7px;font-weight:900;letter-spacing:1px;color:#fff;">IDENTITY CARD</div>
+      <div style="font-size:6px;font-weight:800;color:${primary};letter-spacing:0.8px;">STUDENT • ${acYear}</div>
+    </div>
     <!-- Body -->
-    <div style="display:flex;padding:0 10px 8px;gap:8px;align-items:flex-start;">
+    <div style="display:flex;padding:0 12px 8px;gap:10px;align-items:flex-start;">
       <!-- Photo + Signature -->
       <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:5px;">
-        <div style="width:58px;height:66px;border-radius:5px;border:2px solid #1e3a8a;overflow:hidden;background:#dbeafe;display:flex;align-items:center;justify-content:center;">
+        <div style="width:76px;height:86px;border-radius:7px;border:3px solid ${primary};overflow:hidden;background:${tpl.bg};display:flex;align-items:center;justify-content:center;">
           ${student.photo
             ? `<img src="${student.photo}" style="width:100%;height:100%;object-fit:cover;"/>`
-            : `<div style="width:100%;height:100%;background:#93c5fd;display:flex;align-items:center;justify-content:center;"><span style="font-size:16px;font-weight:900;color:#1e3a8a;font-family:Arial;">${getInitials(student.name)}</span></div>`}
+            : `<div style="width:100%;height:100%;background:${tpl.bg};display:flex;align-items:center;justify-content:center;"><span style="font-size:20px;font-weight:900;color:${primary};font-family:Arial;">${getInitials(student.name)}</span></div>`}
         </div>
-        <div style="border-top:1px solid #94a3b8;width:55px;padding-top:3px;text-align:center;">
-          <span style="font-size:6px;font-style:italic;color:#1e3a8a;font-weight:700;">Signature</span>
+        <div style="border-top:1px solid #94a3b8;width:68px;padding-top:3px;text-align:center;">
+          <span style="font-size:6px;font-style:italic;color:${primary};font-weight:700;">Signature</span>
         </div>
       </div>
       <!-- Details -->
       <div style="flex:1;padding-top:1px;">
         ${fields.map(([l, v]) => `
         <div style="display:flex;margin-bottom:4px;align-items:flex-start;">
-          <span style="font-size:6px;font-weight:800;color:#b91c1c;width:60px;flex-shrink:0;line-height:1.4;">${l}</span>
-          <span style="font-size:6px;color:#1e293b;margin-right:3px;flex-shrink:0;line-height:1.4;font-weight:700;">:</span>
-          <span style="font-size:6px;color:#1e293b;line-height:1.4;">${v}</span>
+          <span style="font-size:6.2px;font-weight:800;color:${primary};width:66px;flex-shrink:0;line-height:1.35;">${l}</span>
+          <span style="font-size:6.2px;color:#1e293b;margin-right:3px;flex-shrink:0;line-height:1.35;font-weight:700;">:</span>
+          <span style="font-size:6.2px;color:#1e293b;line-height:1.35;">${v}</span>
         </div>`).join('')}
-      </div>
-      <!-- Stacked shapes -->
-      <div style="width:30px;flex-shrink:0;position:relative;height:90px;overflow:visible;">
-        ${stackColors.map((c, i) => `<div style="position:absolute;top:${i*8}px;left:0;width:24px;height:55px;background:${c};border-radius:3px;transform:rotate(20deg);transform-origin:top left;"></div>`).join('')}
       </div>
     </div>
     <!-- Bottom stripes -->
-    <div style="height:5px;background:#db2777;flex-shrink:0;"></div>
-    <div style="height:5px;background:#0284c7;flex-shrink:0;"></div>
+    <div style="height:6px;background:${primary};flex-shrink:0;"></div>
+    <div style="height:3px;background:${accent};flex-shrink:0;"></div>
   </div>`;
 }
 
@@ -288,12 +292,22 @@ function NativeVerticalCard({ student, tpl }: { student: Student; tpl: typeof TP
   return (
     <View style={[nvc.card, { shadowColor: tpl.primary }]}>
       {/* Header */}
-      <LinearGradient colors={[tpl.primary, tpl.secondary]} style={nvc.header} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <View style={[nvc.header, { backgroundColor: tpl.primary }]}>
+        <View style={[nvc.headerShapeLeft, { backgroundColor: tpl.accent }]} />
+        <View style={[nvc.headerShapeRight, { backgroundColor: tpl.secondary }]} />
+        <View style={[nvc.crest, { borderColor: tpl.accent }]}>
+          <Feather name="book-open" size={14} color={tpl.primary} />
+        </View>
+        <View style={nvc.headerCopy}>
+          <Text style={[nvc.schoolName, { color: tpl.accent }]} numberOfLines={2}>{SCHOOL_INFO.name}</Text>
+          <Text style={nvc.contactText}>{SCHOOL_INFO.contact} · {SCHOOL_INFO.email}</Text>
+        </View>
+        <View style={[nvc.sessionBadge, { backgroundColor: tpl.accent }]}>
+          <Text style={[nvc.sessionLabel, { color: tpl.primary }]}>SESSION</Text>
+          <Text style={[nvc.sessionYear, { color: tpl.primary }]}>{acYear}</Text>
+        </View>
         <View style={[nvc.accentBar, { backgroundColor: tpl.accent }]} />
-        <Text style={nvc.cardLabel}>STUDENT ID CARD</Text>
-        <Text style={nvc.schoolName} numberOfLines={2}>{SCHOOL_INFO.name}</Text>
-        <Text style={nvc.yearText}>{acYear}</Text>
-      </LinearGradient>
+      </View>
       {/* Photo */}
       <View style={nvc.photoWrap}>
         <View style={[nvc.photoRing, { borderColor: tpl.primary }]}>
@@ -306,7 +320,9 @@ function NativeVerticalCard({ student, tpl }: { student: Student; tpl: typeof TP
       </View>
       {/* Details */}
       <View style={nvc.details}>
-        <Text style={[nvc.studentName, { color: tpl.primary }]} numberOfLines={1}>{student.name}</Text>
+        <View style={[nvc.nameBand, { backgroundColor: tpl.primary, borderLeftColor: tpl.accent, borderRightColor: tpl.accent }]}>
+          <Text style={nvc.studentName} numberOfLines={1}>{student.name}</Text>
+        </View>
         <View style={[nvc.divider, { backgroundColor: tpl.primary + '25' }]} />
         {[
           ['Class', classSection],
@@ -322,119 +338,134 @@ function NativeVerticalCard({ student, tpl }: { student: Student; tpl: typeof TP
         ))}
       </View>
       {/* Footer */}
-      <LinearGradient colors={[tpl.primary, tpl.secondary]} style={nvc.footer} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <View style={nvc.footer}>
+        <View style={[nvc.cornerLeft, { backgroundColor: tpl.primary }]} />
+        <View style={[nvc.cornerRight, { backgroundColor: tpl.primary }]} />
         <View style={[nvc.qrBox, { borderColor: tpl.accent + '60' }]}>
           <Feather name="grid" size={14} color={tpl.accent} />
         </View>
         <View>
           <Text style={[nvc.validLabel, { color: tpl.accent }]}>VALID UNTIL</Text>
-          <Text style={nvc.validYear}>{acYear}</Text>
-          <Text style={nvc.footerContact}>{SCHOOL_INFO.contact}</Text>
+          <Text style={[nvc.validYear, { color: tpl.primary }]}>{acYear}</Text>
+          <Text style={[nvc.footerContact, { color: '#64748B' }]}>{SCHOOL_INFO.contact}</Text>
         </View>
-      </LinearGradient>
+      </View>
     </View>
   );
 }
 
 const nvc = StyleSheet.create({
-  card: { width: 175, borderRadius: 14, overflow: 'hidden', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 8 },
-  header: { padding: 10, alignItems: 'center' },
-  accentBar: { height: 2, width: '80%', borderRadius: 2, marginBottom: 5 },
-  cardLabel: { fontSize: 6.5, fontWeight: '900', color: 'rgba(255,255,255,0.7)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 2 },
-  schoolName: { fontSize: 7, fontWeight: '800', color: '#fff', textAlign: 'center', lineHeight: 10 },
-  yearText: { fontSize: 6, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
-  photoWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 6, backgroundColor: '#fff' },
-  photoRing: { borderRadius: 30, borderWidth: 2, padding: 2 },
-  photoImg: { width: 48, height: 48, borderRadius: 24 },
-  photoFallback: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  photoInitials: { fontSize: 16, fontWeight: '900', color: '#fff' },
-  details: { backgroundColor: '#fff', paddingHorizontal: 10, paddingBottom: 8 },
-  studentName: { fontSize: 10, fontWeight: '900', textAlign: 'center', marginBottom: 5 },
+  card: { width: 190, borderRadius: 16, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(15,23,42,0.12)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 8 },
+  header: { height: 92, padding: 9, position: 'relative', overflow: 'hidden' },
+  headerShapeLeft: { position: 'absolute', left: -18, top: -8, width: 54, height: 118, transform: [{ rotate: '18deg' }], opacity: 0.95 },
+  headerShapeRight: { position: 'absolute', right: -28, top: -22, width: 94, height: 124, transform: [{ rotate: '38deg' }], opacity: 0.42 },
+  crest: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', position: 'absolute', left: 8, top: 10, zIndex: 2 },
+  headerCopy: { position: 'absolute', left: 47, top: 11, right: 34, zIndex: 2 },
+  schoolName: { fontSize: 7.4, fontWeight: '900', lineHeight: 9, textAlign: 'left' },
+  contactText: { fontSize: 4.5, color: 'rgba(255,255,255,0.82)', marginTop: 3, lineHeight: 6 },
+  sessionBadge: { position: 'absolute', right: 6, top: 10, borderRadius: 5, paddingHorizontal: 4, paddingVertical: 3, alignItems: 'center', zIndex: 3 },
+  sessionLabel: { fontSize: 4.2, fontWeight: '900' },
+  sessionYear: { fontSize: 5.2, fontWeight: '900', marginTop: 1 },
+  accentBar: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3 },
+  photoWrap: { alignItems: 'center', paddingTop: 8, paddingBottom: 6, backgroundColor: '#fff' },
+  photoRing: { borderRadius: 35, borderWidth: 2.5, padding: 2, backgroundColor: '#fff' },
+  photoImg: { width: 58, height: 58, borderRadius: 29 },
+  photoFallback: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
+  photoInitials: { fontSize: 18, fontWeight: '900', color: '#fff' },
+  details: { backgroundColor: '#fff', paddingHorizontal: 11, paddingBottom: 8 },
+  nameBand: { paddingVertical: 5, paddingHorizontal: 6, borderLeftWidth: 8, borderRightWidth: 8, marginBottom: 6 },
+  studentName: { fontSize: 10, fontWeight: '900', textAlign: 'center', color: '#fff' },
   divider: { height: 1, marginBottom: 5 },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
   rowLabel: { fontSize: 6.5, color: '#94A3B8', fontWeight: '700', textTransform: 'uppercase' },
   rowValue: { fontSize: 7, color: '#0F172A', fontWeight: '800', maxWidth: 100, textAlign: 'right' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 7 },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 7, position: 'relative', overflow: 'hidden' },
+  cornerLeft: { position: 'absolute', left: -12, bottom: -18, width: 48, height: 38, transform: [{ rotate: '45deg' }] },
+  cornerRight: { position: 'absolute', right: -12, bottom: -18, width: 48, height: 38, transform: [{ rotate: '-45deg' }] },
   qrBox: { width: 26, height: 26, borderRadius: 5, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)' },
   validLabel: { fontSize: 5.5, fontWeight: '800', letterSpacing: 0.8 },
-  validYear: { fontSize: 7, color: '#fff', fontWeight: '700' },
-  footerContact: { fontSize: 5.5, color: 'rgba(255,255,255,0.6)', marginTop: 1 },
+  validYear: { fontSize: 7, fontWeight: '700' },
+  footerContact: { fontSize: 5.5, marginTop: 1 },
 });
 
 function NativeHorizontalCard({ student, tpl }: { student: Student; tpl: typeof TPL[Template] }) {
   const classSection = [student.class, student.section].filter(Boolean).join(' · ');
   const acYear = getAcademicYear();
-  const ini = getInitials(SCHOOL_INFO.name);
   return (
     <View style={[nhc.card, { shadowColor: tpl.primary }]}>
-      {/* Left strip */}
-      <LinearGradient colors={[tpl.primary, tpl.secondary]} style={nhc.strip} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
-        <View style={[nhc.stripBadge, { borderColor: tpl.accent }]}>
-          <Text style={[nhc.stripIni, { color: tpl.accent }]}>{ini}</Text>
+      <View style={[nhc.header, { backgroundColor: tpl.primary }]}>
+        <View style={[nhc.headerArc, { backgroundColor: tpl.secondary }]} />
+        <View style={[nhc.headerAccent, { backgroundColor: tpl.accent }]} />
+        <View style={[nhc.headerBadge, { borderColor: tpl.accent }]}>
+          <Feather name="book-open" size={15} color={tpl.primary} />
         </View>
-        <Text style={[nhc.stripLabel, { color: tpl.accent }]}>{'ID\nCARD'}</Text>
-        <View style={[nhc.stripDot, { backgroundColor: tpl.accent }]} />
-      </LinearGradient>
-      {/* Body */}
-      <View style={nhc.body}>
-        <Text style={[nhc.schoolName, { color: tpl.primary }]} numberOfLines={2}>{SCHOOL_INFO.name}</Text>
-        <View style={[nhc.accentBar, { backgroundColor: tpl.accent }]} />
-        <Text style={nhc.studentName} numberOfLines={1}>{student.name}</Text>
-        {[
-          ['Class', classSection],
-          ['Roll', student.rollNumber],
-          ['Adm No', student.admissionNo ?? '—'],
-          ['Father', student.fatherName],
-          ['DOB', fmtDob(student.dateOfBirth)],
-        ].map(([l, v]) => (
-          <View key={l} style={nhc.row}>
-            <Text style={nhc.rowLabel}>{l}:</Text>
-            <Text style={nhc.rowValue} numberOfLines={1}>{v}</Text>
-          </View>
-        ))}
-        <View style={[nhc.validBadge, { backgroundColor: tpl.primary }]}>
-          <Text style={[nhc.validText, { color: tpl.accent }]}>VALID {acYear}</Text>
-        </View>
+        <Text style={nhc.headerSchool} numberOfLines={1}>{SCHOOL_INFO.name}</Text>
+        <Text style={nhc.headerSub}>SESSION {acYear} · {SCHOOL_INFO.contact}</Text>
       </View>
-      {/* Right panel */}
-      <View style={[nhc.right, { backgroundColor: tpl.bg }]}>
+      <View style={nhc.content}>
+        <View style={nhc.photoColumn}>
         <View style={[nhc.photoRing, { borderColor: tpl.primary }]}>
           {student.photo
             ? <Image source={{ uri: student.photo }} style={nhc.photoImg} />
-            : <View style={[nhc.photoFallback, { backgroundColor: tpl.primary }]}>
-                <Text style={nhc.photoInitials}>{getInitials(student.name)}</Text>
+            : <View style={[nhc.photoFallback, { backgroundColor: tpl.bg }]}>
+                <Text style={[nhc.photoInitials, { color: tpl.primary }]}>{getInitials(student.name)}</Text>
               </View>}
         </View>
-        <View style={[nhc.qrBox, { borderColor: tpl.primary + '40', backgroundColor: '#fff' }]}>
-          <Feather name="grid" size={18} color={tpl.primary} />
+          <View style={[nhc.signature, { borderTopColor: tpl.accent }]}>
+            <Text style={[nhc.signatureText, { color: tpl.primary }]}>Signature</Text>
+          </View>
         </View>
+        <View style={nhc.body}>
+          <View style={[nhc.identityPill, { backgroundColor: tpl.primary }]}>
+            <Text style={nhc.identityPillText}>IDENTITY CARD</Text>
+          </View>
+          <Text style={[nhc.studentName, { color: tpl.primary }]} numberOfLines={1}>{student.name}</Text>
+          {[
+            ['Class', classSection],
+            ['Roll', student.rollNumber],
+            ['Adm No', student.admissionNo ?? '—'],
+            ['Father', student.fatherName],
+            ['DOB', fmtDob(student.dateOfBirth)],
+          ].map(([l, v]) => (
+            <View key={l} style={nhc.row}>
+              <Text style={nhc.rowLabel}>{l}:</Text>
+              <Text style={nhc.rowValue} numberOfLines={1}>{v}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+      <View style={[nhc.footerRule, { backgroundColor: tpl.primary }]}>
+        <View style={[nhc.footerRuleAccent, { backgroundColor: tpl.accent }]} />
       </View>
     </View>
   );
 }
 
 const nhc = StyleSheet.create({
-  card: { flexDirection: 'row', width: 310, height: 170, borderRadius: 14, overflow: 'hidden', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 8 },
-  strip: { width: 48, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
-  stripBadge: { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)' },
-  stripIni: { fontSize: 10, fontWeight: '900' },
-  stripLabel: { fontSize: 7, fontWeight: '900', textAlign: 'center', letterSpacing: 1, lineHeight: 10 },
-  stripDot: { width: 6, height: 6, borderRadius: 3 },
-  body: { flex: 1, backgroundColor: '#fff', padding: 10, justifyContent: 'space-between' },
-  schoolName: { fontSize: 7, fontWeight: '800', lineHeight: 10, marginBottom: 3 },
-  accentBar: { height: 1.5, borderRadius: 1, width: '60%', marginBottom: 4 },
-  studentName: { fontSize: 11, fontWeight: '900', color: '#0F172A', marginBottom: 4 },
+  card: { width: 310, borderRadius: 14, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(15,23,42,0.14)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 8 },
+  header: { height: 54, paddingHorizontal: 10, justifyContent: 'center', position: 'relative', overflow: 'hidden' },
+  headerArc: { position: 'absolute', right: -26, bottom: -30, width: 178, height: 62, borderRadius: 70, transform: [{ rotate: '-6deg' }], opacity: 0.76 },
+  headerAccent: { position: 'absolute', right: -4, bottom: 0, width: 122, height: 7, transform: [{ skewX: '-25deg' }] },
+  headerBadge: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', position: 'absolute', left: 10, top: 9, zIndex: 2 },
+  headerSchool: { color: '#fff', fontSize: 9.2, fontWeight: '900', marginLeft: 45, marginRight: 8 },
+  headerSub: { color: 'rgba(255,255,255,0.82)', fontSize: 5.3, marginLeft: 45, marginTop: 2 },
+  content: { flexDirection: 'row', padding: 10, gap: 10, backgroundColor: '#fff' },
+  photoColumn: { width: 76, alignItems: 'center', paddingTop: 3 },
+  body: { flex: 1, paddingTop: 1 },
+  identityPill: { alignSelf: 'flex-start', borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3, marginBottom: 5 },
+  identityPillText: { color: '#fff', fontSize: 6, fontWeight: '900', letterSpacing: 0.8 },
+  studentName: { fontSize: 10, fontWeight: '900', marginBottom: 4 },
   row: { flexDirection: 'row', gap: 4, marginBottom: 1.5 },
   rowLabel: { fontSize: 6, color: '#94A3B8', fontWeight: '700', textTransform: 'uppercase', flexShrink: 0 },
   rowValue: { fontSize: 6.5, color: '#1E293B', fontWeight: '800', flex: 1 },
-  validBadge: { alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2, marginTop: 3 },
-  validText: { fontSize: 6, fontWeight: '800', letterSpacing: 0.5 },
-  right: { width: 62, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 8 },
-  photoRing: { borderRadius: 24, borderWidth: 2, padding: 2 },
-  photoImg: { width: 40, height: 40, borderRadius: 20 },
-  photoFallback: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  photoInitials: { fontSize: 13, fontWeight: '900', color: '#fff' },
-  qrBox: { width: 32, height: 32, borderRadius: 6, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  photoRing: { borderRadius: 31, borderWidth: 2.5, padding: 2, backgroundColor: '#fff' },
+  photoImg: { width: 56, height: 56, borderRadius: 28 },
+  photoFallback: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  photoInitials: { fontSize: 17, fontWeight: '900' },
+  signature: { width: 65, borderTopWidth: 1, marginTop: 7, paddingTop: 3, alignItems: 'center' },
+  signatureText: { fontSize: 6, fontStyle: 'italic', fontWeight: '700' },
+  footerRule: { height: 7, position: 'relative' },
+  footerRuleAccent: { position: 'absolute', left: 0, bottom: 0, width: '42%', height: 3 },
 });
 
 // ─── Preview Modal ─────────────────────────────────────────────────────────────
