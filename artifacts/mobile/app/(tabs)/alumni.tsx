@@ -1,841 +1,550 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  Modal, ScrollView, Alert, Platform, Image, SectionList,
-  FlatList, ActivityIndicator,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Alumni, Student } from '@/context/AppContext';
+import { Alumni, Student, useApp } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
-const CURRENT_STATUS_OPTIONS = ['Studying', 'Working', 'Self-Employed', 'Other'];
-
-const BLANK: Omit<Alumni, 'id' | 'createdAt'> = {
-  name: '', fatherName: '', mobileNumber: '', batch: '',
-  passOutClass: '', rollNumber: '', admissionNo: '',
-  dateOfBirth: '', address: '', achievements: '', currentStatus: '',
-  photo: undefined,
+const STATUS_OPTIONS = ['Studying', 'Working', 'Self-Employed', 'Other'];
+const EMPTY_FORM = {
+  name: '',
+  fatherName: '',
+  mobileNumber: '',
+  batch: '',
+  passOutClass: '',
+  rollNumber: '',
+  admissionNo: '',
+  dateOfBirth: '',
+  address: '',
+  achievements: '',
+  currentStatus: '',
+  photo: undefined as string | undefined,
 };
 
-// Map a Student → Alumni draft (no id/batch yet)
-function studentToAlumniDraft(s: Student, passOutClass: string): Omit<Alumni, 'id' | 'batch'> {
+type AlumniForm = typeof EMPTY_FORM;
+
+function studentToAlumni(student: Student, batch: string): Omit<Alumni, 'id' | 'batch'> {
   return {
-    studentId: s.id,
-    studentName: s.name,
-    class: s.class,
-    section: s.section,
-    name: s.name,
-    fatherName: s.fatherName ?? '',
-    mobileNumber: s.mobileNumber ?? '',
-    passOutClass,
-    rollNumber: s.rollNumber ?? '',
-    admissionNo: s.admissionNo,
-    dateOfBirth: s.dateOfBirth ?? '',
-    address: s.address,
+    studentId: student.id,
+    studentName: student.name,
+    class: student.class,
+    section: student.section,
+    graduationYear: batch,
+    name: student.name,
+    fatherName: student.fatherName ?? '',
+    mobileNumber: student.mobileNumber ?? '',
+    passOutClass: student.class,
+    rollNumber: student.rollNumber ?? '',
+    admissionNo: student.admissionNo,
+    dateOfBirth: student.dateOfBirth ?? '',
+    address: student.address,
     achievements: '',
     currentStatus: '',
-    photo: s.photo,
+    photo: student.photo,
   };
+}
+
+function sortAlumni(a: Alumni, b: Alumni) {
+  return String(b.batch ?? '').localeCompare(String(a.batch ?? ''), undefined, { numeric: true })
+    || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 }
 
 export default function AlumniScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { alumni, students, classes, addAlumni, updateAlumni, deleteAlumni, bulkAddAlumni } = useApp();
+  const {
+    alumni,
+    students,
+    classes,
+    addAlumni,
+    updateAlumni,
+    deleteAlumni,
+    bulkAddAlumni,
+  } = useApp();
 
-  // ── list state ──
   const [search, setSearch] = useState('');
   const [batchFilter, setBatchFilter] = useState('All');
-
-  // ── single add/edit ──
-  const [showModal, setShowModal] = useState(false);
+  const [selectedAlumni, setSelectedAlumni] = useState<Alumni | null>(null);
   const [editing, setEditing] = useState<Alumni | null>(null);
-  const [detailAlumni, setDetailAlumni] = useState<Alumni | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<Alumni | null>(null);
-  const [form, setForm] = useState({ ...BLANK });
-  const [showStatusPicker, setShowStatusPicker] = useState(false);
-
-  // ── bulk import state ──
-  const [importStep, setImportStep] = useState<0 | 1 | 2>(0); // 0=closed 1=pick class+batch 2=confirm students
+  const [form, setForm] = useState<AlumniForm>({ ...EMPTY_FORM });
+  const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [reviewImport, setReviewImport] = useState(false);
   const [importClass, setImportClass] = useState('');
   const [importBatch, setImportBatch] = useState('');
-  const [importSelected, setImportSelected] = useState<Set<string>>(new Set());
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [importLoading, setImportLoading] = useState(false);
-  const [showClassPicker, setShowClassPicker] = useState(false);
 
-  // Students in chosen class (active only)
-  const classStudents = useMemo(() =>
-    students.filter(s => s.class === importClass && (!s.status || s.status === 'active')),
-    [students, importClass]);
+  const batches = useMemo(
+    () => ['All', ...Array.from(new Set(alumni.map(item => item.batch).filter(Boolean))).sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true }))],
+    [alumni],
+  );
 
-  // All unique batches sorted descending
-  const allBatches = useMemo(() => {
-    const batches = Array.from(new Set(alumni.map(a => a.batch))).sort((a, b) => b.localeCompare(a));
-    return ['All', ...batches];
-  }, [alumni]);
+  const visibleAlumni = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return alumni
+      .filter(item => {
+        const matchesBatch = batchFilter === 'All' || item.batch === batchFilter;
+        if (!query) return matchesBatch;
+        const haystack = [
+          item.name, item.batch, item.passOutClass, item.rollNumber,
+          item.admissionNo, item.mobileNumber, item.fatherName,
+        ].filter(Boolean).join(' ').toLowerCase();
+        return matchesBatch && haystack.includes(query);
+      })
+      .sort(sortAlumni);
+  }, [alumni, batchFilter, search]);
 
-  const filtered = useMemo(() => alumni.filter(a => {
-    const matchBatch = batchFilter === 'All' || a.batch === batchFilter;
-    const q = search.toLowerCase();
-    const matchSearch = !q || a.name.toLowerCase().includes(q) ||
-      a.batch.toLowerCase().includes(q) || a.passOutClass.toLowerCase().includes(q) ||
-      (a.admissionNo ?? '').toLowerCase().includes(q) || a.rollNumber.toLowerCase().includes(q);
-    return matchBatch && matchSearch;
-  }), [alumni, search, batchFilter]);
+  const importStudents = useMemo(
+    () => students.filter(student => student.class === importClass && (!student.status || student.status === 'active')),
+    [students, importClass],
+  );
 
-  const sections = useMemo(() => {
-    const groups: Record<string, Alumni[]> = {};
-    filtered.forEach(a => { if (!groups[a.batch]) groups[a.batch] = []; groups[a.batch].push(a); });
-    return Object.entries(groups)
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([title, data]) => ({ title, data }));
-  }, [filtered]);
+  const bottomPadding = Platform.OS === 'web' ? 84 : insets.bottom + 88;
+  const setField = (key: keyof AlumniForm, value: string) => {
+    setForm(previous => ({ ...previous, [key]: value }));
+  };
 
-  // ── helpers ──
-  const openAdd = () => { setEditing(null); setForm({ ...BLANK }); setShowModal(true); };
-  const openEdit = (a: Alumni) => {
-    setEditing(a);
+  const closeForm = () => {
+    setShowForm(false);
+    setEditing(null);
+    setForm({ ...EMPTY_FORM });
+  };
+
+  const openAdd = () => {
+    setEditing(null);
+    setForm({ ...EMPTY_FORM });
+    setShowForm(true);
+  };
+
+  const openEdit = (item: Alumni) => {
+    setEditing(item);
     setForm({
-      name: a.name, fatherName: a.fatherName, mobileNumber: a.mobileNumber,
-      batch: a.batch, passOutClass: a.passOutClass, rollNumber: a.rollNumber,
-      admissionNo: a.admissionNo ?? '', dateOfBirth: a.dateOfBirth,
-      address: a.address ?? '', achievements: a.achievements ?? '',
-      currentStatus: a.currentStatus ?? '', photo: a.photo,
+      name: item.name,
+      fatherName: item.fatherName ?? '',
+      mobileNumber: item.mobileNumber ?? '',
+      batch: item.batch ?? '',
+      passOutClass: item.passOutClass ?? item.class ?? '',
+      rollNumber: item.rollNumber ?? '',
+      admissionNo: item.admissionNo ?? '',
+      dateOfBirth: item.dateOfBirth ?? '',
+      address: item.address ?? '',
+      achievements: item.achievements ?? '',
+      currentStatus: item.currentStatus ?? '',
+      photo: item.photo,
     });
-    setShowModal(true);
+    setSelectedAlumni(null);
+    setShowForm(true);
   };
 
-  const openImport = () => {
-    setImportClass(''); setImportBatch('');
-    setImportSelected(new Set()); setImportStep(1);
-  };
-
-  const handleSave = async () => {
-    if (!form.name.trim()) { Alert.alert('Validation', 'Name is required'); return; }
-    if (!form.batch.trim()) { Alert.alert('Validation', 'Batch year is required (e.g. 2023-24)'); return; }
-    if (!form.passOutClass.trim()) { Alert.alert('Validation', 'Pass-out class is required'); return; }
+  const saveAlumni = async () => {
+    if (!form.name.trim() || !form.batch.trim() || !form.passOutClass.trim()) {
+      Alert.alert('Missing information', 'Name, batch, and pass-out class are required.');
+      return;
+    }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const data = {
-      name: form.name.trim(), fatherName: form.fatherName.trim(),
-      mobileNumber: form.mobileNumber.trim(), batch: form.batch.trim(),
-      passOutClass: form.passOutClass.trim(), rollNumber: form.rollNumber.trim(),
-      admissionNo: (form.admissionNo ?? '').trim() || undefined,
-      dateOfBirth: form.dateOfBirth.trim(), address: (form.address ?? '').trim() || undefined,
-      achievements: (form.achievements ?? '').trim() || undefined,
-      currentStatus: form.currentStatus || undefined, photo: form.photo,
+      studentId: editing?.studentId ?? `manual-${Date.now()}`,
+      studentName: form.name.trim(),
+      class: editing?.class ?? form.passOutClass.trim(),
+      section: editing?.section,
+      graduationYear: form.batch.trim(),
+      name: form.name.trim(),
+      fatherName: form.fatherName.trim(),
+      mobileNumber: form.mobileNumber.trim(),
+      batch: form.batch.trim(),
+      passOutClass: form.passOutClass.trim(),
+      rollNumber: form.rollNumber.trim(),
+      admissionNo: form.admissionNo.trim() || undefined,
+      dateOfBirth: form.dateOfBirth.trim(),
+      address: form.address.trim() || undefined,
+      achievements: form.achievements.trim() || undefined,
+      currentStatus: form.currentStatus || undefined,
+      photo: form.photo,
     };
     if (editing) updateAlumni(editing.id, data);
     else addAlumni(data);
-    setShowModal(false);
+    closeForm();
   };
 
-  const handlePickImage = async () => {
+  const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]?.base64) {
-      setForm(prev => ({ ...prev, photo: 'data:image/jpeg;base64,' + result.assets[0].base64 }));
+      setField('photo', `data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
 
-  // Step 1 → Step 2: validate then show student list
-  const proceedToStudentList = () => {
-    if (!importClass) { Alert.alert('Select a class first'); return; }
-    if (!importBatch.trim()) { Alert.alert('Enter batch year', 'e.g. 2023-24'); return; }
-    if (classStudents.length === 0) {
-      Alert.alert('No Students', `No active students found in ${importClass}.`); return;
+  const confirmDelete = (item: Alumni) => {
+    Alert.alert(
+      'Delete Alumni',
+      `Remove ${item.name} from alumni records? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteAlumni(item.id);
+            setSelectedAlumni(null);
+          },
+        },
+      ],
+    );
+  };
+
+  const openImport = () => {
+    setImportClass('');
+    setImportBatch('');
+    setSelectedStudentIds([]);
+    setReviewImport(false);
+    setShowImport(true);
+  };
+
+  const continueImport = () => {
+    if (!importClass) {
+      Alert.alert('Select a class', 'Choose the class whose students should become alumni.');
+      return;
     }
-    // pre-select all
-    setImportSelected(new Set(classStudents.map(s => s.id)));
-    setImportStep(2);
+    if (!importBatch.trim()) {
+      Alert.alert('Enter a batch', 'Enter the graduation batch, for example 2023-24.');
+      return;
+    }
+    if (importStudents.length === 0) {
+      Alert.alert('No active students', `There are no active students in ${importClass}.`);
+      return;
+    }
+    setSelectedStudentIds(importStudents.map(student => student.id));
+    setReviewImport(true);
   };
 
-  const toggleImportStudent = (id: string) => {
-    setImportSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const toggleStudent = (id: string) => {
+    setSelectedStudentIds(previous =>
+      previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id],
+    );
   };
 
-  const handleBulkImport = async () => {
-    const toImport = classStudents.filter(s => importSelected.has(s.id));
-    if (toImport.length === 0) { Alert.alert('Select at least one student'); return; }
+  const runImport = async () => {
+    const selected = importStudents.filter(student => selectedStudentIds.includes(student.id));
+    if (selected.length === 0) {
+      Alert.alert('Select students', 'Choose at least one student to import.');
+      return;
+    }
     setImportLoading(true);
     try {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const records = toImport.map(s => studentToAlumniDraft(s, importClass));
-      await bulkAddAlumni(records, importBatch.trim());
-      setImportStep(0);
-      Alert.alert('Import Complete', `${toImport.length} student${toImport.length !== 1 ? 's' : ''} added to alumni.`);
-    } catch (e) {
-      const message = e instanceof Error && e.message
-        ? e.message.replace(/^POST \/api\/alumni\/bulk failed: \d+\s*—?\s*/, '')
-        : 'Please try again.';
-      Alert.alert('Import Failed', message);
+      await bulkAddAlumni(selected.map(student => studentToAlumni(student, importBatch.trim())), importBatch.trim());
+      setShowImport(false);
+      setReviewImport(false);
+      Alert.alert('Import complete', `${selected.length} student${selected.length === 1 ? '' : 's'} added to alumni.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      Alert.alert('Import failed', message.replace(/^POST \/api\/alumni\/bulk failed: \d+\s*—?\s*/, ''));
     } finally {
       setImportLoading(false);
     }
   };
 
-  const s = styles(colors);
-  const botPad = Platform.OS === 'web' ? 84 : insets.bottom + 80;
+  const renderAlumni = ({ item }: { item: Alumni }) => (
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.card }]}
+      onPress={() => setSelectedAlumni(item)}
+      activeOpacity={0.85}
+    >
+      <View style={[styles.avatar, { backgroundColor: colors.secondary }]}>
+        {item.photo
+          ? <Image source={{ uri: item.photo }} style={styles.avatarImage} />
+          : <Text style={[styles.avatarText, { color: colors.primary }]}>{item.name.charAt(0).toUpperCase()}</Text>}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+        <Text style={[styles.meta, { color: colors.mutedForeground }]}>{item.passOutClass} · Batch {item.batch}</Text>
+        <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+          {item.rollNumber ? `Roll ${item.rollNumber}` : 'No roll number'}
+          {item.mobileNumber ? ` · ${item.mobileNumber}` : ''}
+        </Text>
+      </View>
+      <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={[s.root, { backgroundColor: colors.background }]}>
-
-      {/* ── Top bar ── */}
-      <View style={[s.topBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={[s.searchRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <Feather name="search" size={15} color={colors.mutedForeground} />
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View style={[styles.searchBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          <Feather name="search" size={16} color={colors.mutedForeground} />
           <TextInput
-            style={[s.searchInput, { color: colors.text }]}
-            value={search} onChangeText={setSearch}
-            placeholder="Search alumni…" placeholderTextColor={colors.mutedForeground}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search alumni"
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.searchInput, { color: colors.text }]}
           />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Feather name="x" size={14} color={colors.mutedForeground} />
-            </TouchableOpacity>
-          )}
+          {!!search && <TouchableOpacity onPress={() => setSearch('')}><Feather name="x" size={15} color={colors.mutedForeground} /></TouchableOpacity>}
         </View>
-        <TouchableOpacity
-          style={[s.iconBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-          onPress={openImport} activeOpacity={0.8}
-        >
-          <Feather name="upload" size={17} color={colors.primary} />
+        <TouchableOpacity style={[styles.headerIcon, { backgroundColor: colors.secondary }]} onPress={openImport}>
+          <Feather name="upload" size={18} color={colors.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={[s.addBtn, { backgroundColor: colors.primary }]} onPress={openAdd} activeOpacity={0.8}>
+        <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={openAdd}>
           <Feather name="plus" size={18} color="#fff" />
-          <Text style={s.addBtnText}>Add</Text>
+          <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── Batch filter chips ── */}
-      {allBatches.length > 1 && (
-        <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
-          style={[s.chipBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
-          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}
-        >
-          {allBatches.map(b => (
-            <TouchableOpacity
-              key={b}
-              style={[s.chip, batchFilter === b && { backgroundColor: colors.primary }]}
-              onPress={() => setBatchFilter(b)} activeOpacity={0.8}
-            >
-              <Text style={[s.chipText, { color: batchFilter === b ? '#fff' : colors.text }]}>{b}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.filterBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]} contentContainerStyle={styles.filterContent}>
+        {batches.map(batch => (
+          <TouchableOpacity key={batch} style={[styles.filter, { backgroundColor: batchFilter === batch ? colors.primary : colors.muted }]} onPress={() => setBatchFilter(batch)}>
+            <Text style={{ color: batchFilter === batch ? '#fff' : colors.text, fontSize: 12, fontWeight: '700' }}>{batch}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
-      {/* ── Stats banner ── */}
-      <View style={[s.statsBanner, { backgroundColor: colors.secondary }]}>
-        <View style={s.statItem}>
-          <Text style={[s.statValue, { color: colors.primary }]}>{alumni.length}</Text>
-          <Text style={[s.statLabel, { color: colors.mutedForeground }]}>Total</Text>
-        </View>
-        <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-        <View style={s.statItem}>
-          <Text style={[s.statValue, { color: colors.primary }]}>{allBatches.length - 1}</Text>
-          <Text style={[s.statLabel, { color: colors.mutedForeground }]}>Batches</Text>
-        </View>
-        <View style={[s.statDivider, { backgroundColor: colors.border }]} />
-        <View style={s.statItem}>
-          <Text style={[s.statValue, { color: colors.primary }]}>{filtered.length}</Text>
-          <Text style={[s.statLabel, { color: colors.mutedForeground }]}>Showing</Text>
-        </View>
+      <View style={[styles.summary, { backgroundColor: colors.secondary }]}>
+        <View style={styles.summaryItem}><Text style={[styles.summaryValue, { color: colors.primary }]}>{alumni.length}</Text><Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Total</Text></View>
+        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+        <View style={styles.summaryItem}><Text style={[styles.summaryValue, { color: colors.primary }]}>{batches.length - 1}</Text><Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Batches</Text></View>
+        <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+        <View style={styles.summaryItem}><Text style={[styles.summaryValue, { color: colors.primary }]}>{visibleAlumni.length}</Text><Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>Showing</Text></View>
       </View>
 
-      {/* ── List ── */}
-      {sections.length === 0 ? (
-        <EmptyState
-          icon="award" title="No Alumni Records"
-          subtitle={search ? 'No alumni match your search' : 'Add individually or import a whole class'}
-          onAction={search ? undefined : openImport}
-          actionLabel="Import Class"
-        />
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: botPad }}
-          stickySectionHeadersEnabled={false}
-          renderSectionHeader={({ section }) => (
-            <View style={[s.sectionHeader, { backgroundColor: colors.background }]}>
-              <View style={[s.batchBadge, { backgroundColor: colors.primary + '15' }]}>
-                <Feather name="award" size={13} color={colors.primary} />
-                <Text style={[s.batchBadgeText, { color: colors.primary }]}>Batch {section.title}</Text>
-              </View>
-              <Text style={[s.batchCount, { color: colors.mutedForeground }]}>
-                {section.data.length} student{section.data.length !== 1 ? 's' : ''}
-              </Text>
-            </View>
-          )}
-          renderItem={({ item: a }) => (
-            <TouchableOpacity
-              style={[card.container, { backgroundColor: colors.card }]}
-              onPress={() => setDetailAlumni(a)} activeOpacity={0.85}
-            >
-              <View style={card.row}>
-                <View style={[card.avatar, { backgroundColor: colors.secondary }]}>
-                  {a.photo
-                    ? <Image source={{ uri: a.photo }} style={card.avatarImage} />
-                    : <Text style={[card.avatarText, { color: colors.primary }]}>{a.name.charAt(0).toUpperCase()}</Text>}
+      <FlatList
+        data={visibleAlumni}
+        keyExtractor={item => item.id}
+        renderItem={renderAlumni}
+        contentContainerStyle={{ padding: 16, paddingBottom: bottomPadding, flexGrow: visibleAlumni.length === 0 ? 1 : undefined }}
+        ListEmptyComponent={<EmptyState icon="award" title="No Alumni Records" subtitle={search ? 'No alumni match your search.' : 'Add an alumnus or import a class to get started.'} actionLabel={search ? undefined : 'Import Class'} onAction={search ? undefined : openImport} />}
+      />
+
+      <Modal visible={!!selectedAlumni} animationType="slide" transparent onRequestClose={() => setSelectedAlumni(null)}>
+        <View style={styles.overlay}>
+          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+            {selectedAlumni && (
+              <>
+                <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>Alumni Details</Text>
+                  <TouchableOpacity onPress={() => setSelectedAlumni(null)}><Feather name="x" size={24} color={colors.mutedForeground} /></TouchableOpacity>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[card.name, { color: colors.text }]}>{a.name}</Text>
-                  <Text style={[card.sub, { color: colors.mutedForeground }]}>{a.passOutClass} · Roll {a.rollNumber || '—'}</Text>
-                  {a.fatherName ? <Text style={[card.sub, { color: colors.mutedForeground }]}>S/O {a.fatherName}</Text> : null}
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                  {a.currentStatus ? (
-                    <View style={[card.statusBadge, { backgroundColor: colors.info + '18' }]}>
-                      <Text style={[card.statusText, { color: colors.info }]}>{a.currentStatus}</Text>
+                <ScrollView contentContainerStyle={styles.detailContent}>
+                  <View style={[styles.profile, { backgroundColor: colors.secondary }]}>
+                    <View style={[styles.profileAvatar, { backgroundColor: colors.primary }]}>
+                      {selectedAlumni.photo
+                        ? <Image source={{ uri: selectedAlumni.photo }} style={styles.profileImage} />
+                        : <Text style={styles.profileInitial}>{selectedAlumni.name.charAt(0).toUpperCase()}</Text>}
                     </View>
-                  ) : null}
-                  {a.mobileNumber ? <Text style={[card.mobile, { color: colors.mutedForeground }]}>{a.mobileNumber}</Text> : null}
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
-        />
-      )}
-
-      {/* ════════════════════════════════════════════════════════
-          IMPORT CLASS MODAL — Step 1: Choose class + batch
-         ════════════════════════════════════════════════════════ */}
-      <Modal visible={importStep === 1} animationType="slide" transparent>
-        <View style={m.overlay}>
-          <View style={[m.sheet, { backgroundColor: colors.card }]}>
-            <View style={[m.header, { borderBottomColor: colors.border }]}>
-              <View>
-                <Text style={[m.title, { color: colors.text }]}>Import Class as Alumni</Text>
-                <Text style={[m.subtitle, { color: colors.mutedForeground }]}>All students from a class become alumni</Text>
-              </View>
-              <TouchableOpacity onPress={() => setImportStep(0)}>
-                <Feather name="x" size={24} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-              {/* Class selector */}
-              <Text style={[inp.label, { color: colors.text }]}>Select Class *</Text>
-              <TouchableOpacity
-                style={[inp.input, { backgroundColor: colors.muted, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }]}
-                onPress={() => setShowClassPicker(true)}
-              >
-                <Text style={{ color: importClass ? colors.text : colors.mutedForeground, fontSize: 14 }}>
-                  {importClass || 'Choose a class…'}
-                </Text>
-                <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
-
-              {/* Batch year */}
-              <Text style={[inp.label, { color: colors.text }]}>Batch Year *</Text>
-              <TextInput
-                style={[inp.input, { backgroundColor: colors.muted, color: colors.text, borderColor: colors.border, marginBottom: 8 }]}
-                value={importBatch} onChangeText={setImportBatch}
-                placeholder="e.g. 2023-24" placeholderTextColor={colors.mutedForeground}
-              />
-              <Text style={[s.hint, { color: colors.mutedForeground }]}>
-                This will be recorded as the graduation batch for all imported students.
-              </Text>
-
-              {/* Preview count */}
-              {importClass ? (
-                <View style={[s.previewBanner, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
-                  <Feather name="users" size={16} color={colors.primary} />
-                  <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 14 }}>
-                    {classStudents.length} active student{classStudents.length !== 1 ? 's' : ''} in {importClass}
-                  </Text>
-                </View>
-              ) : null}
-            </ScrollView>
-
-            <View style={[m.footer, { borderTopColor: colors.border }]}>
-              <TouchableOpacity style={[m.footBtn, { borderColor: colors.border }]} onPress={() => setImportStep(0)}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[m.footBtn, { flex: 2, backgroundColor: colors.primary }]}
-                onPress={proceedToStudentList} activeOpacity={0.8}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Next — Review Students</Text>
-                <Feather name="arrow-right" size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Class picker */}
-      <Modal visible={showClassPicker} animationType="fade" transparent>
-        <TouchableOpacity style={m.overlay} activeOpacity={1} onPress={() => setShowClassPicker(false)}>
-          <View style={[m.pickerBox, { backgroundColor: colors.card }]}>
-            <Text style={[m.pickerTitle, { color: colors.text, borderBottomColor: colors.border }]}>Select Class</Text>
-            <ScrollView style={{ maxHeight: 320 }}>
-              {classes.map(cls => (
-                <TouchableOpacity
-                  key={cls}
-                  style={[m.pickerItem, { borderBottomColor: colors.border }, importClass === cls && { backgroundColor: colors.primary + '15' }]}
-                  onPress={() => { setImportClass(cls); setShowClassPicker(false); }}
-                >
-                  <Text style={{ color: importClass === cls ? colors.primary : colors.text, fontWeight: importClass === cls ? '700' : '400' }}>
-                    {cls}
-                  </Text>
-                  {importClass === cls && <Feather name="check" size={16} color={colors.primary} />}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* ════════════════════════════════════════════════════════
-          IMPORT CLASS MODAL — Step 2: Confirm / deselect students
-         ════════════════════════════════════════════════════════ */}
-      <Modal visible={importStep === 2} animationType="slide" transparent>
-        <View style={m.overlay}>
-          <View style={[m.sheet, { backgroundColor: colors.card }]}>
-            <View style={[m.header, { borderBottomColor: colors.border }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[m.title, { color: colors.text }]}>Review Students</Text>
-                <Text style={[m.subtitle, { color: colors.mutedForeground }]}>
-                  {importClass} · Batch {importBatch} · {importSelected.size}/{classStudents.length} selected
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setImportStep(1)}>
-                <Feather name="arrow-left" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Select all / none */}
-            <View style={[s.selAllRow, { borderBottomColor: colors.border }]}>
-              <TouchableOpacity
-                style={[s.selAllBtn, { borderColor: colors.primary }]}
-                onPress={() => setImportSelected(new Set(classStudents.map(s => s.id)))}
-              >
-                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Select All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.selAllBtn, { borderColor: colors.border }]}
-                onPress={() => setImportSelected(new Set())}
-              >
-                <Text style={{ color: colors.mutedForeground, fontSize: 13, fontWeight: '600' }}>Deselect All</Text>
-              </TouchableOpacity>
-            </View>
-
-            <FlatList
-              data={classStudents}
-              keyExtractor={item => item.id}
-              contentContainerStyle={{ paddingVertical: 8 }}
-              renderItem={({ item: st }) => {
-                const checked = importSelected.has(st.id);
-                return (
-                  <TouchableOpacity
-                    style={[s.studentRow, { borderBottomColor: colors.border }, checked && { backgroundColor: colors.primary + '08' }]}
-                    onPress={() => toggleImportStudent(st.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[s.checkbox, { borderColor: checked ? colors.primary : colors.border, backgroundColor: checked ? colors.primary : 'transparent' }]}>
-                      {checked && <Feather name="check" size={12} color="#fff" />}
+                    <Text style={[styles.profileName, { color: colors.text }]}>{selectedAlumni.name}</Text>
+                    <Text style={[styles.profileBatch, { color: colors.primary }]}>Batch {selectedAlumni.batch}</Text>
+                    <Text style={[styles.profileClass, { color: colors.mutedForeground }]}>{selectedAlumni.passOutClass}</Text>
+                  </View>
+                  {[
+                    ["Father's Name", selectedAlumni.fatherName],
+                    ['Mobile', selectedAlumni.mobileNumber],
+                    ['Roll Number', selectedAlumni.rollNumber],
+                    ['Admission No', selectedAlumni.admissionNo],
+                    ['Date of Birth', selectedAlumni.dateOfBirth],
+                    ['Current Status', selectedAlumni.currentStatus],
+                    ['Address', selectedAlumni.address],
+                    ['Achievements', selectedAlumni.achievements],
+                  ].filter(([, value]) => !!value).map(([label, value]) => (
+                    <View key={label} style={[styles.detailRow, { borderBottomColor: colors.border }]}>
+                      <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                      <Text style={[styles.detailValue, { color: colors.text }]}>{value}</Text>
                     </View>
-                    <View style={[s.stuAvatar, { backgroundColor: colors.secondary }]}>
-                      {st.photo
-                        ? <Image source={{ uri: st.photo }} style={s.stuAvatarImg} />
-                        : <Text style={[s.stuAvatarTxt, { color: colors.primary }]}>{st.name.charAt(0).toUpperCase()}</Text>}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[s.stuName, { color: colors.text }]}>{st.name}</Text>
-                      <Text style={[s.stuSub, { color: colors.mutedForeground }]}>
-                        Roll {st.rollNumber || '—'}{st.admissionNo ? ` · Adm ${st.admissionNo}` : ''}
-                      </Text>
-                    </View>
+                  ))}
+                </ScrollView>
+                <View style={[styles.footer, { borderTopColor: colors.border }]}>
+                  <TouchableOpacity style={[styles.footerButton, { borderColor: colors.destructive }]} onPress={() => confirmDelete(selectedAlumni)}>
+                    <Feather name="trash-2" size={16} color={colors.destructive} />
+                    <Text style={{ color: colors.destructive, fontWeight: '700' }}>Delete</Text>
                   </TouchableOpacity>
-                );
-              }}
-            />
-
-            <View style={[m.footer, { borderTopColor: colors.border }]}>
-              <TouchableOpacity style={[m.footBtn, { borderColor: colors.border }]} onPress={() => setImportStep(1)} disabled={importLoading}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>Back</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[m.footBtn, { flex: 2, backgroundColor: importSelected.size === 0 ? colors.muted : colors.primary }]}
-                onPress={handleBulkImport} activeOpacity={0.8}
-                disabled={importLoading || importSelected.size === 0}
-              >
-                {importLoading
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <>
-                      <Feather name="upload" size={16} color="#fff" />
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>
-                        Import {importSelected.size} Student{importSelected.size !== 1 ? 's' : ''}
-                      </Text>
-                    </>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ════ Detail Modal ════ */}
-      <Modal visible={!!detailAlumni} animationType="slide" transparent>
-        <View style={m.overlay}>
-          <View style={[m.sheet, { backgroundColor: colors.card }]}>
-            {detailAlumni && <>
-              <View style={[m.header, { borderBottomColor: colors.border }]}>
-                <Text style={[m.title, { color: colors.text }]}>Alumni Details</Text>
-                <TouchableOpacity onPress={() => setDetailAlumni(null)}>
-                  <Feather name="x" size={24} color={colors.mutedForeground} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={{ padding: 20 }}>
-                <View style={[detail.profileCard, { backgroundColor: colors.secondary }]}>
-                  <View style={[detail.bigAvatar, { backgroundColor: colors.primary }]}>
-                    {detailAlumni.photo
-                      ? <Image source={{ uri: detailAlumni.photo }} style={detail.bigAvatarImage} />
-                      : <Text style={detail.bigAvatarText}>{detailAlumni.name.charAt(0).toUpperCase()}</Text>}
-                  </View>
-                  <Text style={[detail.bigName, { color: colors.text }]}>{detailAlumni.name}</Text>
-                  <View style={[detail.batchPill, { backgroundColor: colors.primary }]}>
-                    <Text style={detail.batchPillText}>Batch {detailAlumni.batch}</Text>
-                  </View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 14, marginTop: 4 }}>{detailAlumni.passOutClass}</Text>
-                  {detailAlumni.currentStatus
-                    ? <Text style={{ color: colors.info, fontSize: 13, marginTop: 2 }}>{detailAlumni.currentStatus}</Text>
-                    : null}
+                  <TouchableOpacity style={[styles.footerButton, { flex: 2, backgroundColor: colors.primary }]} onPress={() => openEdit(selectedAlumni)}>
+                    <Feather name="edit-2" size={16} color="#fff" />
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>Edit</Text>
+                  </TouchableOpacity>
                 </View>
-                {[
-                  { label: "Father's Name", value: detailAlumni.fatherName },
-                  { label: 'Mobile', value: detailAlumni.mobileNumber },
-                  { label: 'Roll Number', value: detailAlumni.rollNumber },
-                  { label: 'Admission No', value: detailAlumni.admissionNo },
-                  { label: 'Date of Birth', value: detailAlumni.dateOfBirth },
-                  { label: 'Address', value: detailAlumni.address },
-                ].filter(r => r.value).map(r => (
-                  <View key={r.label} style={[detail.row, { borderBottomColor: colors.border }]}>
-                    <Text style={[detail.rowLabel, { color: colors.mutedForeground }]}>{r.label}</Text>
-                    <Text style={[detail.rowValue, { color: colors.text }]}>{r.value}</Text>
-                  </View>
-                ))}
-                {detailAlumni.achievements ? (
-                  <View style={{ marginTop: 16 }}>
-                    <Text style={[m.sectionLabel, { color: colors.text }]}>Achievements</Text>
-                    <View style={[detail.achieveBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-                      <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20 }}>{detailAlumni.achievements}</Text>
-                    </View>
-                  </View>
-                ) : null}
-              </ScrollView>
-              <View style={[m.footer, { borderTopColor: colors.border }]}>
-                <TouchableOpacity
-                  style={[m.footBtn, { borderColor: colors.destructive }]}
-                  onPress={() => { setDetailAlumni(null); setConfirmDelete(detailAlumni); }}
-                >
-                  <Feather name="trash-2" size={16} color={colors.destructive} />
-                  <Text style={{ color: colors.destructive, fontWeight: '600' }}>Delete</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[m.footBtn, { flex: 2, backgroundColor: colors.primary }]}
-                  onPress={() => { setDetailAlumni(null); openEdit(detailAlumni); }}
-                >
-                  <Feather name="edit-2" size={16} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>Edit</Text>
-                </TouchableOpacity>
-              </View>
-            </>}
+              </>
+            )}
           </View>
         </View>
       </Modal>
 
-      {/* ════ Confirm Delete ════ */}
-      <Modal visible={!!confirmDelete} animationType="fade" transparent>
-        <View style={m.overlay}>
-          <View style={[m.confirmBox, { backgroundColor: colors.card }]}>
-            <Text style={[m.confirmTitle, { color: colors.text }]}>Delete Alumni?</Text>
-            <Text style={[m.confirmMsg, { color: colors.mutedForeground }]}>
-              Remove {confirmDelete?.name} from alumni records? This cannot be undone.
-            </Text>
-            <View style={m.confirmBtns}>
-              <TouchableOpacity style={[m.footBtn, { borderColor: colors.border }]} onPress={() => setConfirmDelete(null)}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[m.footBtn, { flex: 1, backgroundColor: colors.destructive }]}
-                onPress={async () => {
-                  if (!confirmDelete) return;
-                  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                  deleteAlumni(confirmDelete.id);
-                  setConfirmDelete(null);
-                }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Delete</Text>
-              </TouchableOpacity>
+      <Modal visible={showForm} animationType="slide" transparent onRequestClose={closeForm}>
+        <View style={styles.overlay}>
+          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{editing ? 'Edit Alumni' : 'Add Alumni'}</Text>
+              <TouchableOpacity onPress={closeForm}><Feather name="x" size={24} color={colors.mutedForeground} /></TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ════ Add/Edit Modal ════ */}
-      <Modal visible={showModal} animationType="slide" transparent>
-        <View style={m.overlay}>
-          <View style={[m.sheet, { backgroundColor: colors.card }]}>
-            <View style={[m.header, { borderBottomColor: colors.border }]}>
-              <Text style={[m.title, { color: colors.text }]}>{editing ? 'Edit Alumni' : 'Add Alumni'}</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
-                <Feather name="x" size={24} color={colors.mutedForeground} />
+            <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
+              <TouchableOpacity style={[styles.photoButton, { backgroundColor: colors.secondary }]} onPress={pickPhoto}>
+                {form.photo ? <Image source={{ uri: form.photo }} style={styles.photoImage} /> : <><Feather name="camera" size={24} color={colors.primary} /><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>Photo</Text></>}
               </TouchableOpacity>
-            </View>
-            <ScrollView style={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-              <View style={{ alignItems: 'center', marginBottom: 20 }}>
-                <TouchableOpacity style={[m.photoUpload, { backgroundColor: colors.secondary }]} onPress={handlePickImage}>
-                  {form.photo
-                    ? <Image source={{ uri: form.photo }} style={m.photoImage} />
-                    : <><Feather name="camera" size={24} color={colors.primary} /><Text style={[m.photoHint, { color: colors.primary }]}>Photo</Text></>}
-                </TouchableOpacity>
-              </View>
               {([
-                { key: 'name', label: 'Full Name *', placeholder: 'Student full name' },
-                { key: 'fatherName', label: "Father's Name", placeholder: "Father's name" },
-                { key: 'mobileNumber', label: 'Mobile', placeholder: '10-digit number', keyboard: 'phone-pad' },
-                { key: 'batch', label: 'Batch *', placeholder: 'e.g. 2023-24' },
-                { key: 'passOutClass', label: 'Pass-out Class *', placeholder: 'e.g. Class 10' },
-                { key: 'rollNumber', label: 'Roll Number', placeholder: 'e.g. 01' },
-                { key: 'admissionNo', label: 'Admission No', placeholder: 'Admission number' },
-                { key: 'dateOfBirth', label: 'Date of Birth', placeholder: 'YYYY-MM-DD' },
-                { key: 'address', label: 'Address', placeholder: 'Home address' },
-                { key: 'achievements', label: 'Achievements', placeholder: 'Awards, notable achievements…', multiline: true },
-              ] as any[]).map(f => (
-                <View key={f.key} style={{ marginBottom: 14 }}>
-                  <Text style={[inp.label, { color: colors.text }]}>{f.label}</Text>
+                ['name', 'Full Name *', 'Student full name'],
+                ['fatherName', "Father's Name", "Father's name"],
+                ['mobileNumber', 'Mobile', '10-digit number'],
+                ['batch', 'Batch *', 'e.g. 2023-24'],
+                ['passOutClass', 'Pass-out Class *', 'e.g. Class 10'],
+                ['rollNumber', 'Roll Number', 'e.g. 01'],
+                ['admissionNo', 'Admission No', 'Admission number'],
+                ['dateOfBirth', 'Date of Birth', 'YYYY-MM-DD'],
+                ['address', 'Address', 'Home address'],
+                ['achievements', 'Achievements', 'Awards and achievements'],
+              ] as [keyof AlumniForm, string, string][]).map(([key, label, placeholder]) => (
+                <View key={key} style={styles.field}>
+                  <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
                   <TextInput
-                    style={[inp.input, { backgroundColor: colors.muted, color: colors.text, borderColor: colors.border },
-                      f.multiline && { height: 80, textAlignVertical: 'top', paddingTop: 10 }]}
-                    value={(form as any)[f.key]}
-                    onChangeText={v => setForm(p => ({ ...p, [f.key]: v }))}
-                    placeholder={f.placeholder} placeholderTextColor={colors.mutedForeground}
-                    keyboardType={f.keyboard} multiline={f.multiline}
+                    value={form[key] as string}
+                    onChangeText={value => setField(key, value)}
+                    placeholder={placeholder}
+                    placeholderTextColor={colors.mutedForeground}
+                    multiline={key === 'address' || key === 'achievements'}
+                    style={[styles.input, { backgroundColor: colors.muted, color: colors.text, borderColor: colors.border }, (key === 'address' || key === 'achievements') && styles.multiline]}
                   />
                 </View>
               ))}
-              <View style={{ marginBottom: 14 }}>
-                <Text style={[inp.label, { color: colors.text }]}>Current Status</Text>
-                <TouchableOpacity
-                  style={[inp.input, { backgroundColor: colors.muted, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
-                  onPress={() => setShowStatusPicker(true)}
-                >
-                  <Text style={{ color: form.currentStatus ? colors.text : colors.mutedForeground }}>
-                    {form.currentStatus || 'Select status…'}
-                  </Text>
-                  <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
-                </TouchableOpacity>
-              </View>
+              <Text style={[styles.label, { color: colors.text }]}>Current Status</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+                {['', ...STATUS_OPTIONS].map(status => (
+                  <TouchableOpacity key={status || 'none'} style={[styles.statusOption, { backgroundColor: form.currentStatus === status ? colors.primary : colors.muted, borderColor: form.currentStatus === status ? colors.primary : colors.border }]} onPress={() => setField('currentStatus', status)}>
+                    <Text style={{ color: form.currentStatus === status ? '#fff' : colors.text, fontSize: 12, fontWeight: '600' }}>{status || 'None'}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </ScrollView>
-            <View style={[m.footer, { borderTopColor: colors.border }]}>
-              <TouchableOpacity style={[m.footBtn, { borderColor: colors.border }]} onPress={() => setShowModal(false)}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[m.footBtn, { flex: 2, backgroundColor: colors.primary }]} onPress={handleSave}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{editing ? 'Save Changes' : 'Add Alumni'}</Text>
-              </TouchableOpacity>
+            <View style={[styles.footer, { borderTopColor: colors.border }]}>
+              <TouchableOpacity style={[styles.footerButton, { borderColor: colors.border }]} onPress={closeForm}><Text style={{ color: colors.text, fontWeight: '700' }}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.footerButton, { flex: 2, backgroundColor: colors.primary }]} onPress={saveAlumni}><Text style={{ color: '#fff', fontWeight: '700' }}>{editing ? 'Save Changes' : 'Add Alumni'}</Text></TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Status picker */}
-      <Modal visible={showStatusPicker} animationType="fade" transparent>
-        <TouchableOpacity style={m.overlay} activeOpacity={1} onPress={() => setShowStatusPicker(false)}>
-          <View style={[m.pickerBox, { backgroundColor: colors.card }]}>
-            <Text style={[m.pickerTitle, { color: colors.text, borderBottomColor: colors.border }]}>Current Status</Text>
-            {['', ...CURRENT_STATUS_OPTIONS].map(opt => (
-              <TouchableOpacity
-                key={opt || '__none'}
-                style={[m.pickerItem, { borderBottomColor: colors.border }, form.currentStatus === opt && { backgroundColor: colors.primary + '15' }]}
-                onPress={() => { setForm(p => ({ ...p, currentStatus: opt })); setShowStatusPicker(false); }}
-              >
-                <Text style={{ color: opt === form.currentStatus ? colors.primary : colors.text, fontWeight: opt === form.currentStatus ? '700' : '400' }}>
-                  {opt || 'None'}
-                </Text>
-                {form.currentStatus === opt && <Feather name="check" size={16} color={colors.primary} />}
+      <Modal visible={showImport} animationType="slide" transparent onRequestClose={() => setShowImport(false)}>
+        <View style={styles.overlay}>
+          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <View>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>{reviewImport ? 'Review Students' : 'Import Class'}</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>{reviewImport ? `${importClass} · Batch ${importBatch}` : 'Create alumni records from active students'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowImport(false)}><Feather name="x" size={24} color={colors.mutedForeground} /></TouchableOpacity>
+            </View>
+            {!reviewImport ? (
+              <ScrollView contentContainerStyle={styles.formContent}>
+                <Text style={[styles.label, { color: colors.text }]}>Select Class *</Text>
+                <View style={styles.classGrid}>
+                  {classes.map(item => (
+                    <TouchableOpacity key={item} style={[styles.classOption, { backgroundColor: importClass === item ? colors.primary : colors.muted, borderColor: importClass === item ? colors.primary : colors.border }]} onPress={() => setImportClass(item)}>
+                      <Text style={{ color: importClass === item ? '#fff' : colors.text, fontSize: 13, fontWeight: '600' }}>{item}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={[styles.label, { color: colors.text, marginTop: 20 }]}>Batch Year *</Text>
+                <TextInput value={importBatch} onChangeText={setImportBatch} placeholder="e.g. 2023-24" placeholderTextColor={colors.mutedForeground} style={[styles.input, { backgroundColor: colors.muted, color: colors.text, borderColor: colors.border }]} />
+                {importClass ? <Text style={[styles.help, { color: colors.mutedForeground }]}>{importStudents.length} active student{importStudents.length === 1 ? '' : 's'} found in {importClass}.</Text> : null}
+              </ScrollView>
+            ) : (
+              <FlatList
+                data={importStudents}
+                keyExtractor={item => item.id}
+                contentContainerStyle={{ paddingVertical: 8 }}
+                renderItem={({ item }) => {
+                  const checked = selectedStudentIds.includes(item.id);
+                  return (
+                    <TouchableOpacity style={[styles.studentRow, { borderBottomColor: colors.border }]} onPress={() => toggleStudent(item.id)}>
+                      <View style={[styles.checkbox, { backgroundColor: checked ? colors.primary : 'transparent', borderColor: checked ? colors.primary : colors.border }]}>{checked && <Feather name="check" size={13} color="#fff" />}</View>
+                      <View style={[styles.smallAvatar, { backgroundColor: colors.secondary }]}><Text style={{ color: colors.primary, fontWeight: '800' }}>{item.name.charAt(0).toUpperCase()}</Text></View>
+                      <View style={{ flex: 1 }}><Text style={{ color: colors.text, fontWeight: '700' }}>{item.name}</Text><Text style={[styles.meta, { color: colors.mutedForeground }]}>Roll {item.rollNumber || '—'}{item.admissionNo ? ` · Adm ${item.admissionNo}` : ''}</Text></View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+            <View style={[styles.footer, { borderTopColor: colors.border }]}>
+              <TouchableOpacity style={[styles.footerButton, { borderColor: colors.border }]} onPress={() => reviewImport ? setReviewImport(false) : setShowImport(false)} disabled={importLoading}><Text style={{ color: colors.text, fontWeight: '700' }}>{reviewImport ? 'Back' : 'Cancel'}</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.footerButton, { flex: 2, backgroundColor: colors.primary }]} onPress={reviewImport ? runImport : continueImport} disabled={importLoading}>
+                {importLoading ? <ActivityIndicator color="#fff" /> : <><Text style={{ color: '#fff', fontWeight: '700' }}>{reviewImport ? `Import ${selectedStudentIds.length} Students` : 'Review Students'}</Text><Feather name={reviewImport ? 'upload' : 'arrow-right'} size={16} color="#fff" /></>}
               </TouchableOpacity>
-            ))}
+            </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = (c: ReturnType<typeof import('@/hooks/useColors').useColors>) => StyleSheet.create({
+const styles = StyleSheet.create({
   root: { flex: 1 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  searchRow: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 10, borderWidth: StyleSheet.hairlineWidth,
-  },
-  searchInput: { flex: 1, fontSize: 14, padding: 0 },
-  iconBtn: {
-    width: 40, height: 40, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1,
-  },
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
-  },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  chipBar: { borderBottomWidth: StyleSheet.hairlineWidth, maxHeight: 52 },
-  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#E2E8F0' },
-  chipText: { fontSize: 13, fontWeight: '600' },
-  statsBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: 16, marginTop: 12, marginBottom: 4,
-    borderRadius: 12, padding: 14,
-  },
-  statItem: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-  statDivider: { width: StyleSheet.hairlineWidth, height: 32 },
-  sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 8, paddingHorizontal: 2, marginTop: 8,
-  },
-  batchBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
-  },
-  batchBadgeText: { fontSize: 13, fontWeight: '700' },
-  batchCount: { fontSize: 12, fontWeight: '500' },
-  hint: { fontSize: 12, lineHeight: 16, marginTop: 4, marginBottom: 16 },
-  previewBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    padding: 12, borderRadius: 10, borderWidth: 1, marginTop: 8,
-  },
-  selAllRow: {
-    flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  selAllBtn: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
-  },
-  studentRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  checkbox: {
-    width: 22, height: 22, borderRadius: 6, borderWidth: 2,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  stuAvatar: {
-    width: 38, height: 38, borderRadius: 19,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  stuAvatarImg: { width: 38, height: 38, borderRadius: 19 },
-  stuAvatarTxt: { fontSize: 16, fontWeight: '700' },
-  stuName: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
-  stuSub: { fontSize: 12 },
-});
-
-const card = StyleSheet.create({
-  container: {
-    borderRadius: 14, padding: 14, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  avatarImage: { width: 48, height: 48, borderRadius: 24 },
-  avatarText: { fontSize: 20, fontWeight: '700' },
-  name: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  sub: { fontSize: 12, marginTop: 1 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  mobile: { fontSize: 11 },
-});
-
-const m = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  searchInput: { flex: 1, padding: 0, fontSize: 14 },
+  headerIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  addButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 10 },
+  addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  filterBar: { maxHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth },
+  filterContent: { gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  filter: { borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 },
+  summary: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderRadius: 12, padding: 14 },
+  summaryItem: { flex: 1, alignItems: 'center' },
+  summaryValue: { fontSize: 22, fontWeight: '800' },
+  summaryLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  summaryDivider: { width: StyleSheet.hairlineWidth, height: 32 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  avatar: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImage: { width: 50, height: 50, borderRadius: 25 },
+  avatarText: { fontSize: 20, fontWeight: '800' },
+  name: { fontSize: 15, fontWeight: '800', marginBottom: 3 },
+  meta: { fontSize: 12, marginTop: 2 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', minHeight: '70%' },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    padding: 20, borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  title: { fontSize: 18, fontWeight: '800' },
-  subtitle: { fontSize: 13, marginTop: 2 },
-  sectionLabel: { fontSize: 14, fontWeight: '700', marginBottom: 10 },
-  footer: {
-    flexDirection: 'row', gap: 10, padding: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  footBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: 'transparent',
-  },
-  photoUpload: {
-    width: 80, height: 80, borderRadius: 40,
-    alignItems: 'center', justifyContent: 'center', gap: 4, overflow: 'hidden',
-  },
-  photoImage: { width: 80, height: 80, borderRadius: 40 },
-  photoHint: { fontSize: 11, fontWeight: '600' },
-  confirmBox: {
-    margin: 32, borderRadius: 20, padding: 24,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
-  },
-  confirmTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
-  confirmMsg: { fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  confirmBtns: { flexDirection: 'row', gap: 10 },
-  pickerBox: {
-    margin: 32, borderRadius: 16, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
-  },
-  pickerTitle: {
-    fontSize: 16, fontWeight: '700', padding: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  pickerItem: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-});
-
-const detail = StyleSheet.create({
-  profileCard: { alignItems: 'center', borderRadius: 16, padding: 20, marginBottom: 16 },
-  bigAvatar: {
-    width: 80, height: 80, borderRadius: 40,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 10,
-  },
-  bigAvatarImage: { width: 80, height: 80, borderRadius: 40 },
-  bigAvatarText: { fontSize: 32, fontWeight: '700', color: '#fff' },
-  bigName: { fontSize: 20, fontWeight: '800', marginBottom: 6 },
-  batchPill: { paddingHorizontal: 14, paddingVertical: 4, borderRadius: 20 },
-  batchPillText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  row: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  rowLabel: { fontSize: 13, fontWeight: '500', flex: 1 },
-  rowValue: { fontSize: 13, fontWeight: '600', flex: 2, textAlign: 'right' },
-  achieveBox: { borderRadius: 12, padding: 14, borderWidth: 1 },
-});
-
-const inp = StyleSheet.create({
-  label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
-  input: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14 },
+  sheet: { maxHeight: '92%', minHeight: '45%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: StyleSheet.hairlineWidth },
+  modalTitle: { fontSize: 18, fontWeight: '800' },
+  modalSubtitle: { fontSize: 13, marginTop: 3 },
+  detailContent: { padding: 20, paddingBottom: 28 },
+  profile: { alignItems: 'center', borderRadius: 16, padding: 20, marginBottom: 16 },
+  profileAvatar: { width: 78, height: 78, borderRadius: 39, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 10 },
+  profileImage: { width: 78, height: 78, borderRadius: 39 },
+  profileInitial: { color: '#fff', fontSize: 32, fontWeight: '800' },
+  profileName: { fontSize: 20, fontWeight: '800' },
+  profileBatch: { fontSize: 13, fontWeight: '700', marginTop: 5 },
+  profileClass: { fontSize: 13, marginTop: 3 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  detailLabel: { flex: 1, fontSize: 13 },
+  detailValue: { flex: 2, fontSize: 13, fontWeight: '600', textAlign: 'right' },
+  footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: StyleSheet.hairlineWidth },
+  footerButton: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12 },
+  formContent: { padding: 20, paddingBottom: 32 },
+  photoButton: { width: 78, height: 78, borderRadius: 39, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 18, overflow: 'hidden', gap: 4 },
+  photoImage: { width: 78, height: 78, borderRadius: 39 },
+  field: { marginBottom: 13 },
+  label: { fontSize: 13, fontWeight: '700', marginBottom: 7 },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 11, fontSize: 14 },
+  multiline: { minHeight: 76, textAlignVertical: 'top' },
+  statusOption: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 11, paddingVertical: 7 },
+  help: { fontSize: 12, lineHeight: 17, marginTop: 10 },
+  classGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  classOption: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  studentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  checkbox: { width: 22, height: 22, borderWidth: 2, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  smallAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });
