@@ -8,7 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Teacher } from '@/context/AppContext';
+import { useApp, Teacher, compareSalaryRecordsNewestFirst } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import SalarySuccessModal from '@/components/SalarySuccessModal';
 import { printSalarySlip as printSalaryReceipt } from '@/utils/receipt';
@@ -193,7 +193,7 @@ export default function TeachersScreen() {
               const sal = getCurrentSalary(detailTeacher.id);
               const salHistory = salaryRecords
                 .filter(s => s.teacherId === detailTeacher.id)
-                .sort((a, b) => b.year - a.year || MONTH_NAMES.indexOf(b.month) - MONTH_NAMES.indexOf(a.month));
+                .sort(compareSalaryRecordsNewestFirst);
               const totalPaid = salHistory
                 .filter(s => s.status === 'paid')
                 .reduce((total, record) => total + record.amount, 0);

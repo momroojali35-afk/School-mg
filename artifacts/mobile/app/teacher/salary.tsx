@@ -5,7 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { useApp } from '@/context/AppContext';
+import { useApp, compareSalaryRecordsNewestFirst } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import { printSalarySlip } from '@/utils/receipt';
 
@@ -18,7 +18,7 @@ export default function TeacherSalary() {
   const { salaryRecords, teachers, documentBranding } = useApp();
 
   const myRecords = useMemo(() =>
-    salaryRecords.filter(s => s.teacherId === user?.id).sort((a, b) => b.year - a.year || monthNames.indexOf(b.month) - monthNames.indexOf(a.month)),
+    salaryRecords.filter(s => s.teacherId === user?.id).sort(compareSalaryRecordsNewestFirst),
     [salaryRecords, user]
   );
 

@@ -242,6 +242,16 @@ export interface SalaryRecord {
   receiptNumber?: string;
 }
 
+const salaryMonthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+export function compareSalaryRecordsNewestFirst(a: SalaryRecord, b: SalaryRecord): number {
+  const periodOrder = b.year - a.year
+    || salaryMonthNames.indexOf(b.month) - salaryMonthNames.indexOf(a.month);
+  if (periodOrder !== 0) return periodOrder;
+
+  return (b.paidDate ?? '').localeCompare(a.paidDate ?? '');
+}
+
 export interface Alumni {
   id: string;
   studentId?: string;
