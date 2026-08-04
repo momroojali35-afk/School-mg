@@ -14,3 +14,9 @@ When a push is rejected because GitHub has newer commits, fetch `origin/main`, a
 **Why:** The repository can advance independently of the workspace, and preserving those commits avoids overwriting the user's newer work.
 
 **How to apply:** Treat a non-fast-forward rejection as a synchronization step, not a reason to replace the remote branch.
+
+The managed GitHub push helper may report missing source-control credentials even when `GITHUB_PERSONAL_ACCESS_TOKEN` exists; an ephemeral `http.extraheader` Basic auth push is the fallback.
+
+**Why:** The managed helper could not locate the connected source-control credential, while the workspace PAT successfully pushed the branch.
+
+**How to apply:** Use the workspace secret only in memory with `http.extraheader`; never print it, put it in the remote URL, or persist it in Git config.
