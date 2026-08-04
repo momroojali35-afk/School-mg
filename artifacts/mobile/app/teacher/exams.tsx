@@ -392,7 +392,7 @@ export default function TeacherExams() {
       {/* Delete Confirm Modal */}
       <Modal visible={!!confirmDelete} animationType="fade" transparent>
         <View style={[mo.overlay, { justifyContent: 'center', paddingHorizontal: 24 }]}>
-          <View style={[mo.sheet, { backgroundColor: colors.card }]}>
+          <View style={[mo.sheet, { backgroundColor: colors.card, minHeight: 0 }]}>
             <View style={[mo.header, { borderBottomColor: colors.border }]}>
               <Text style={[mo.title, { color: colors.text }]}>Delete Exam</Text>
             </View>
