@@ -38,6 +38,12 @@ const EMPTY_FORM = {
 };
 
 type AlumniForm = typeof EMPTY_FORM;
+type AlumniPopup = {
+  title: string;
+  message: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
+  tone: 'warning' | 'success';
+};
 
 function studentToAlumni(student: Student, batch: string): Omit<Alumni, 'id' | 'batch'> {
   return {
@@ -90,6 +96,7 @@ export default function AlumniScreen() {
   const [importBatch, setImportBatch] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [importLoading, setImportLoading] = useState(false);
+  const [alumniPopup, setAlumniPopup] = useState<AlumniPopup | null>(null);
 
   const batches = useMemo(
     () => ['All', ...Array.from(new Set(alumni.map(item => item.batch).filter(Boolean))).sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true }))],
@@ -120,6 +127,13 @@ export default function AlumniScreen() {
   const setField = (key: keyof AlumniForm, value: string) => {
     setForm(previous => ({ ...previous, [key]: value }));
   };
+
+  const showAlumniPopup = (
+    title: string,
+    message: string,
+    icon: AlumniPopup['icon'],
+    tone: AlumniPopup['tone'],
+  ) => setAlumniPopup({ title, message, icon, tone });
 
   const closeForm = () => {
     setShowForm(false);
@@ -228,11 +242,21 @@ export default function AlumniScreen() {
       return;
     }
     if (!importBatch.trim()) {
-      Alert.alert('Enter a batch', 'Enter the graduation batch, for example 2023-24.');
+      showAlumniPopup(
+        'Enter a batch',
+        'Add the graduation batch before reviewing students.',
+        'calendar',
+        'warning',
+      );
       return;
     }
     if (importStudents.length === 0) {
-      Alert.alert('No active students', `There are no active students in ${importClass}.`);
+      showAlumniPopup(
+        'No active students',
+        `There are no active students in ${importClass}.`,
+        'users',
+        'warning',
+      );
       return;
     }
     setSelectedStudentIds(importStudents.map(student => student.id));
@@ -256,7 +280,12 @@ export default function AlumniScreen() {
       await bulkAddAlumni(selected.map(student => studentToAlumni(student, importBatch.trim())), importBatch.trim());
       setShowImport(false);
       setReviewImport(false);
-      Alert.alert('Import complete', `${selected.length} student${selected.length === 1 ? '' : 's'} added to alumni.`);
+      showAlumniPopup(
+        'Import complete',
+        `${selected.length} student${selected.length === 1 ? '' : 's'} added to your alumni directory.`,
+        'check',
+        'success',
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Please try again.';
       Alert.alert('Import failed', message.replace(/^POST \/api\/alumni\/bulk failed: \d+\s*—?\s*/, ''));
@@ -489,6 +518,58 @@ export default function AlumniScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={!!alumniPopup}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setAlumniPopup(null)}
+      >
+        <View style={[styles.popupOverlay, { backgroundColor: colors.text + 'B0' }]}>
+          <View style={[styles.popupCard, { backgroundColor: colors.card }]}>
+            {alumniPopup && (
+              <>
+                <View
+                  style={[
+                    styles.popupIcon,
+                    {
+                      backgroundColor: alumniPopup.tone === 'success'
+                        ? colors.success + '18'
+                        : colors.warning + '18',
+                    },
+                  ]}
+                >
+                  <Feather
+                    name={alumniPopup.icon}
+                    size={25}
+                    color={alumniPopup.tone === 'success' ? colors.success : colors.warning}
+                  />
+                </View>
+                <Text style={[styles.popupTitle, { color: colors.text }]}>{alumniPopup.title}</Text>
+                <Text style={[styles.popupMessage, { color: colors.mutedForeground }]}>
+                  {alumniPopup.message}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  onPress={() => setAlumniPopup(null)}
+                  style={[
+                    styles.popupButton,
+                    {
+                      backgroundColor: alumniPopup.tone === 'success'
+                        ? colors.primary
+                        : colors.text,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.popupButtonText, { color: colors.primaryForeground }]}>Okay</Text>
+                  <Feather name="arrow-right" size={16} color="#fff" />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -517,6 +598,13 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12, marginTop: 2 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: { maxHeight: '92%', minHeight: '45%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  popupOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  popupCard: { width: '100%', maxWidth: 390, borderRadius: 24, paddingHorizontal: 24, paddingTop: 26, paddingBottom: 22, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.22, shadowRadius: 28, elevation: 14 },
+  popupIcon: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  popupTitle: { fontSize: 21, fontWeight: '800', letterSpacing: -0.3, textAlign: 'center' },
+  popupMessage: { fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 9, maxWidth: 300 },
+  popupButton: { width: '100%', minHeight: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 22 },
+  popupButtonText: { fontSize: 15, fontWeight: '800' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: StyleSheet.hairlineWidth },
   modalTitle: { fontSize: 18, fontWeight: '800' },
   modalSubtitle: { fontSize: 13, marginTop: 3 },
