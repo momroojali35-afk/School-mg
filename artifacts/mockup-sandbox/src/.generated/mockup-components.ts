@@ -5,5 +5,7 @@ export const modules: ModuleMap = {
   "./components/mockups/admit-card/PremiumCBSE.tsx": () => import("../components/mockups/admit-card/PremiumCBSE.tsx"),
   "./components/mockups/id-cards/HorizontalCard.tsx": () => import("../components/mockups/id-cards/HorizontalCard.tsx"),
   "./components/mockups/id-cards/VerticalCard.tsx": () => import("../components/mockups/id-cards/VerticalCard.tsx"),
+  "./components/mockups/promote-success/Current.tsx": () => import("../components/mockups/promote-success/Current.tsx"),
+  "./components/mockups/promote-success/Premium.tsx": () => import("../components/mockups/promote-success/Premium.tsx"),
   "./components/mockups/teacher-dashboard/Dashboard.tsx": () => import("../components/mockups/teacher-dashboard/Dashboard.tsx")
 };
