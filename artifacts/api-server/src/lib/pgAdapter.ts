@@ -58,24 +58,51 @@ export function createPgAdapter(db: DB): DataAdapter {
     // ── Sections ──────────────────────────────────────────────────────────────
     sections: {
       async list() {
-        const rows = await db.select({ name: sectionsTable.name }).from(sectionsTable).orderBy(asc(sectionsTable.name));
-        return rows.map((r) => r.name);
+        const [rows, assignedRows] = await Promise.all([
+          db.select({ name: sectionsTable.name }).from(sectionsTable),
+          db.select({ name: studentsTable.section }).from(studentsTable),
+        ]);
+        return Array.from(new Set([
+          ...rows.map((r) => r.name),
+          ...assignedRows.map((r) => r.name).filter((name): name is string => Boolean(name?.trim())),
+        ])).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
       },
       async create(name: string) {
         const [sec] = await db.insert(sectionsTable).values({ name }).returning({ name: sectionsTable.name });
         return sec;
       },
       async rename(oldName, newName) {
-        const [updated] = await db
-          .update(sectionsTable)
-          .set({ name: newName })
-          .where(eq(sectionsTable.name, oldName))
-          .returning({ name: sectionsTable.name });
-        return updated ?? null;
+        return db.transaction(async (tx) => {
+          const [updated] = await tx
+            .update(sectionsTable)
+            .set({ name: newName })
+            .where(eq(sectionsTable.name, oldName))
+            .returning({ name: sectionsTable.name });
+          const reassigned = await tx
+            .update(studentsTable)
+            .set({ section: newName })
+            .where(eq(studentsTable.section, oldName))
+            .returning({ id: studentsTable.id });
+          if (updated) {
+            return updated;
+          }
+          if (reassigned.length === 0) {
+            return null;
+          }
+          const [created] = await tx.insert(sectionsTable).values({ name: newName }).returning({ name: sectionsTable.name });
+          return created;
+        });
       },
       async delete(name) {
-        const deleted = await db.delete(sectionsTable).where(eq(sectionsTable.name, name)).returning({ name: sectionsTable.name });
-        return deleted.length > 0;
+        return db.transaction(async (tx) => {
+          const deleted = await tx.delete(sectionsTable).where(eq(sectionsTable.name, name)).returning({ name: sectionsTable.name });
+          const cleared = await tx
+            .update(studentsTable)
+            .set({ section: null })
+            .where(eq(studentsTable.section, name))
+            .returning({ id: studentsTable.id });
+          return deleted.length > 0 || cleared.length > 0;
+        });
       },
     },
 

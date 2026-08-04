@@ -56,8 +56,16 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
     // ── Sections ──────────────────────────────────────────────────────────────
     sections: {
       async list() {
-        const snap = await col("sections").orderBy("name").get();
-        return snap.docs.map((d) => d.data().name as string);
+        const [sectionSnap, studentSnap] = await Promise.all([
+          col("sections").orderBy("name").get(),
+          col("students").get(),
+        ]);
+        return Array.from(new Set([
+          ...sectionSnap.docs.map((d) => d.data().name as string),
+          ...studentSnap.docs
+            .map((d) => d.data().section as string | undefined)
+            .filter((name): name is string => Boolean(name?.trim())),
+        ])).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
       },
       async create(name: string) {
         const id = newId();
@@ -66,14 +74,28 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
       },
       async rename(oldName: string, newName: string) {
         const snap = await col("sections").where("name", "==", oldName).limit(1).get();
-        if (snap.empty) return null;
-        await snap.docs[0].ref.update({ name: newName });
+        const students = await col("students").where("section", "==", oldName).get();
+        if (snap.empty && students.empty) return null;
+        const batch = fs.batch();
+        if (!snap.empty) {
+          batch.update(snap.docs[0].ref, { name: newName });
+        } else {
+          batch.set(col("sections").doc(newId()), { name: newName, createdAt: now() });
+        }
+        if (!students.empty) {
+          students.docs.forEach((student) => batch.update(student.ref, { section: newName }));
+        }
+        await batch.commit();
         return { name: newName };
       },
       async delete(name: string) {
         const snap = await col("sections").where("name", "==", name).limit(1).get();
-        if (snap.empty) return false;
-        await snap.docs[0].ref.delete();
+        const students = await col("students").where("section", "==", name).get();
+        if (snap.empty && students.empty) return false;
+        const batch = fs.batch();
+        snap.docs.forEach((section) => batch.delete(section.ref));
+        students.docs.forEach((student) => batch.update(student.ref, { section: FieldValue.delete() }));
+        await batch.commit();
         return true;
       },
     },

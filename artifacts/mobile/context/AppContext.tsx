@@ -808,14 +808,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── Sections ──
   const addSection = async (name: string): Promise<void> => {
+    const trimmed = name.trim();
     const res = await fetch(`${getApiBase()}/api/sections`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: trimmed }),
     });
     if (res.status === 409) throw new Error('Section already exists');
     if (!res.ok) throw new Error(`POST /api/sections failed: ${res.status}`);
     setState(prev => {
-      if (prev.sections.includes(name)) return prev;
-      return { ...prev, sections: [...prev.sections, name].sort() };
+      if (prev.sections.includes(trimmed)) return prev;
+      return { ...prev, sections: [...prev.sections, trimmed].sort() };
     });
   };
 
@@ -827,14 +828,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (res.status === 404) throw new Error('Section not found');
     if (res.status === 409) throw new Error('Section already exists');
     if (!res.ok) throw new Error(`PUT /api/sections failed: ${res.status}`);
-    setState(prev => ({ ...prev, sections: prev.sections.map(s => s === oldName ? trimmed : s).sort() }));
+    setState(prev => ({
+      ...prev,
+      sections: Array.from(new Set(prev.sections.map(s => s === oldName ? trimmed : s))).sort(),
+      students: prev.students.map(student => student.section === oldName ? { ...student, section: trimmed } : student),
+    }));
   };
 
   const deleteSection = async (name: string): Promise<void> => {
     const res = await fetch(`${getApiBase()}/api/sections/${encodeURIComponent(name)}`, { method: 'DELETE' });
     if (res.status === 404) throw new Error('Section not found');
     if (!res.ok) throw new Error(`DELETE /api/sections failed: ${res.status}`);
-    setState(prev => ({ ...prev, sections: prev.sections.filter(s => s !== name) }));
+    setState(prev => ({
+      ...prev,
+      sections: prev.sections.filter(s => s !== name),
+      students: prev.students.map(student => student.section === name ? { ...student, section: undefined } : student),
+    }));
   };
 
   // ── Subjects ──

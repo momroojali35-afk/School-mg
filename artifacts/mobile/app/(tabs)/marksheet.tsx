@@ -91,6 +91,21 @@ function rankSuffix(n: number): string {
   return n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
 }
 
+function combinedMarksheetDownloadName(label: string): string {
+  const now = new Date();
+  const timestamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('') + '_' + [
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('');
+  const uniqueId = Math.random().toString(36).slice(2, 8);
+  return `${label}_${timestamp}_${uniqueId}`;
+}
+
 // ─── Per-subject max marks lookup ─────────────────────────────────────────────
 function getSubjectMaxMarks(exam: Exam, sub: string): number {
   const sched = exam.subjectSchedule?.find(s => s.subject === sub);
@@ -138,7 +153,7 @@ function calcMarksheet(
   const subjectMaxMarks: Record<string, number> = {};
   subjects.forEach(sub => { subjectMaxMarks[sub] = getSubjectMaxMarks(exam, sub); });
 
-  const passMarks = Math.ceil(exam.maxMarks * 0.33); // kept for banner display
+  const passMarks = Math.ceil(exam.maxMarks * 0.30); // kept for banner display
 
   const total    = subjects.reduce((sum, sub) => sum + (result.marks[sub] ?? 0), 0);
   const maxTotal = subjects.reduce((sum, sub) => sum + subjectMaxMarks[sub], 0);
@@ -235,7 +250,7 @@ function calcCombinedMarksheet(
   const grandMax   = Object.values(examTotals).reduce((s, t) => s + (t?.max ?? 0), 0);
   const percentage = grandMax > 0 ? (grandTotal / grandMax) * 100 : 0;
   const { grade, color: gradeColor, points: gradePoints } = getGrade(percentage);
-  const passed = percentage >= 30;
+  const passed = percentage >= 30 && subjectRows.every(row => row.passed);
 
   // Rank among classmates
   const examIds = Object.values(examMap).filter(Boolean).map(e => e!.id);
@@ -1484,7 +1499,12 @@ export default function MarksheetScreen() {
     if (!data) { Alert.alert('No Results', 'No results found.'); return; }
     if (!beginDownload()) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try { await downloadHtml(buildCombinedMarksheetHtml(data, documentBranding, academicSession), `Combined Marksheet – ${student.name}`); }
+    try {
+      await downloadHtml(
+        buildCombinedMarksheetHtml(data, documentBranding, academicSession),
+        combinedMarksheetDownloadName(`Combined Marksheet – ${student.name}`),
+      );
+    }
     catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
   }, [buildCombinedData, documentBranding, academicSession]);
@@ -1514,7 +1534,7 @@ export default function MarksheetScreen() {
       // single-student PDF regardless of how many students were selected.
       await downloadHtml(
         buildBulkCombinedHtml(dataList, documentBranding, academicSession),
-        `Combined Marksheets – ${combinedClass}`,
+        combinedMarksheetDownloadName(`Combined Marksheets – ${combinedClass}`),
       );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
@@ -1789,7 +1809,7 @@ export default function MarksheetScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.examBannerTitle}>{selectedExam.name}</Text>
                   <Text style={s.examBannerSub}>{selectedExam.class} · {selectedExam.subjects.length} subjects · Max {selectedExam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(selectedExam, sub), 0)} total marks</Text>
-                  <Text style={s.examBannerSub}>Pass mark: 33% of each subject's maximum marks</Text>
+                  <Text style={s.examBannerSub}>Pass mark: 30% of each subject's maximum marks</Text>
                 </View>
                 <View style={s.examBannerBadge}>
                   <Text style={s.examBannerBadgeTxt}>{selectedExam.subjects.length}</Text>
@@ -2001,7 +2021,7 @@ export default function MarksheetScreen() {
                     const obtained = previewData.result.marks[sub] ?? 0;
                     const subMax = previewData.subjectMaxMarks[sub] ?? previewData.exam.maxMarks;
                     const pct = (obtained / subMax) * 100;
-                    const subPassed = obtained >= Math.ceil(subMax * 0.33);
+                    const subPassed = obtained >= subMax * 0.30;
                     const g = getGrade(pct).grade;
                     return (
                       <View key={sub} style={[s.previewSubRow, i < previewData.exam.subjects.length - 1 && { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }]}>
