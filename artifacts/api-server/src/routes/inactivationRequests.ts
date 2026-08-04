@@ -92,9 +92,19 @@ router.delete("/inactivation-requests/:id/document", async (req, res) => {
 
 // Admin permanently deletes an entire reactivation request and its uploaded document.
 router.delete("/inactivation-requests/:id", async (req, res) => {
-  const deleted = await getAdapter().inactivationRequests.delete(req.params.id);
+  const adapter = getAdapter();
+  const deleted = await adapter.inactivationRequests.delete(req.params.id);
   if (!deleted) { res.status(404).json({ error: "Request not found" }); return; }
-  res.sendStatus(204);
+
+  // Confirm against the active database adapter before acknowledging the
+  // delete. This prevents a stale/local-only success from looking permanent.
+  const remaining = await adapter.inactivationRequests.list();
+  if (remaining.some((row: any) => row.id === req.params.id)) {
+    res.status(500).json({ error: "Request was not removed from the database" });
+    return;
+  }
+
+  res.status(200).json({ deleted: true, id: req.params.id });
 });
 
 export default router;

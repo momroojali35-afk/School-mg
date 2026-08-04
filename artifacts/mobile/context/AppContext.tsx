@@ -1186,15 +1186,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteInactivationRequest = useCallback(async (id: string): Promise<void> => {
-    await apiDelete(`/inactivation-requests/${id}`);
-    setState(prev => ({
-      ...prev,
-      inactivationRequests: prev.inactivationRequests.filter(r => r.id !== id),
-    }));
+    const result = await apiDelete<{ deleted?: boolean; id?: string }>(`/inactivation-requests/${id}`);
+    if (!result?.deleted || result.id !== id) {
+      throw new Error('The request was not confirmed as deleted from the database.');
+    }
+
+    // Reload the canonical database list before updating the UI so a stale
+    // in-memory or cached request cannot reappear after closing the modal.
+    const rows = await apiGet<any[]>(`/inactivation-requests?refresh=${Date.now()}`, { cache: 'no-store' });
+    if (rows.some(row => row.id === id)) {
+      throw new Error('The request still exists in the database. It was not deleted.');
+    }
+    setState(prev => ({ ...prev, inactivationRequests: rows.map(mapInactivationRequest) }));
   }, []);
 
   const refreshInactivationRequests = useCallback(async (): Promise<void> => {
-    const rows = await apiGet<any[]>('/inactivation-requests', { cache: 'no-store' });
+    const rows = await apiGet<any[]>(`/inactivation-requests?refresh=${Date.now()}`, { cache: 'no-store' });
     setState(prev => ({ ...prev, inactivationRequests: rows.map(mapInactivationRequest) }));
   }, []);
 
