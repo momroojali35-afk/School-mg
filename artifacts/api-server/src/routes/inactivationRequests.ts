@@ -22,6 +22,7 @@ const ReviewSchema = z.object({
 
 // List all inactivation requests
 router.get("/inactivation-requests", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
   const rows = await getAdapter().inactivationRequests.list();
   res.json(rows);
 });

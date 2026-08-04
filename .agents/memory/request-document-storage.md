@@ -7,4 +7,4 @@ Application request documents are stored as base64 data on the request record ra
 
 **Why:** The current app has no separate storage-object identifier or upload/delete adapter for these documents, so deleting the request record is the durable way to remove both the request and its embedded file.
 
-**How to apply:** Preserve the request-level hard-delete path and clear-document path together; do not introduce a UI-only removal or assume an external storage object exists unless the storage model changes.
+**How to apply:** Preserve the request-level hard-delete path and clear-document path together; do not introduce a UI-only removal or assume an external storage object exists unless the storage model changes. Request list reads must bypass HTTP caching so a deleted record cannot return from a stale refresh.

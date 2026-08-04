@@ -422,8 +422,8 @@ let receiptCounter = 1;
 const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const genReceiptNumber = (prefix = 'RCP') => `${prefix}${String(receiptCounter++).padStart(8, '0')}`;
 
-async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${getApiBase()}/api${path}`);
+async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${getApiBase()}/api${path}`, init);
   if (!res.ok) throw new Error(`GET /api${path} failed: ${res.status}`);
   return res.json();
 }
@@ -624,7 +624,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         apiGet<any[]>('/promotion-records'),
         apiGet<any[]>('/mark-submissions').catch(() => [] as any[]),
         apiGet<any[]>('/mark-audit-log').catch(() => [] as any[]),
-        apiGet<any[]>('/inactivation-requests').catch(() => [] as any[]),
+        apiGet<any[]>('/inactivation-requests', { cache: 'no-store' }).catch(() => [] as any[]),
         apiGet<Record<string, number>>('/settings/class-absent-limits').catch(() => ({} as Record<string, number>)),
         apiGet<DocumentBranding>('/settings/document-branding').catch(() => DEFAULT_STATE.documentBranding),
         apiGet<any[]>('/alumni').catch(() => [] as any[]),
@@ -642,7 +642,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           apiGet<any[]>('/expenses'), apiGet<any[]>('/salary-records'), apiGet<any[]>('/promotion-records'),
           apiGet<any[]>('/mark-submissions').catch(() => [] as any[]),
           apiGet<any[]>('/mark-audit-log').catch(() => [] as any[]),
-          apiGet<any[]>('/inactivation-requests').catch(() => [] as any[]),
+          apiGet<any[]>('/inactivation-requests', { cache: 'no-store' }).catch(() => [] as any[]),
           apiGet<Record<string, number>>('/settings/class-absent-limits').catch(() => ({} as Record<string, number>)),
           apiGet<DocumentBranding>('/settings/document-branding').catch(() => DEFAULT_STATE.documentBranding),
           apiGet<any[]>('/alumni').catch(() => [] as any[]),
@@ -1184,7 +1184,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshInactivationRequests = useCallback(async (): Promise<void> => {
-    const rows = await apiGet<any[]>('/inactivation-requests');
+    const rows = await apiGet<any[]>('/inactivation-requests', { cache: 'no-store' });
     setState(prev => ({ ...prev, inactivationRequests: rows.map(mapInactivationRequest) }));
   }, []);
 
