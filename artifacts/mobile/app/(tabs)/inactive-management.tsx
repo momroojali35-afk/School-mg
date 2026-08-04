@@ -302,7 +302,9 @@ function AllStudentsTab({ colors }: { colors: ReturnType<typeof useColors> }) {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {(['all', 'active', 'inactive'] as StudentFilter[]).map(f => {
-            const cnt = f === 'all' ? students.length : students.filter(s => (s.status ?? 'active') === f).length;
+            const cnt = f === 'all'
+              ? students.filter(s => s.status !== 'graduated').length
+              : students.filter(s => (s.status ?? 'active') === f).length;
             const active = filter === f;
             const col = f === 'all' ? colors.primary : f === 'active' ? colors.success : colors.destructive;
             return (

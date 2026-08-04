@@ -108,10 +108,10 @@ export function createPgAdapter(db: DB): DataAdapter {
 
     // ── Students ──────────────────────────────────────────────────────────────
     students: {
-      async list() {
-        return db.select().from(studentsTable)
-          .where(drizzleSql`COALESCE(${studentsTable.status}, 'active') <> 'graduated'`)
-          .orderBy(asc(studentsTable.createdAt));
+      async list(includeGraduated = false) {
+        const query = db.select().from(studentsTable).orderBy(asc(studentsTable.createdAt));
+        if (includeGraduated) return query;
+        return query.where(drizzleSql`COALESCE(${studentsTable.status}, 'active') <> 'graduated'`);
       },
       async create(data: any) {
         const values: any = {
@@ -712,8 +712,15 @@ export function createPgAdapter(db: DB): DataAdapter {
           currentStatus: data.currentStatus ?? null,
         };
         if (data.id) values.id = data.id;
-        const [row] = await db.insert(alumniTable).values(values).returning();
-        return row;
+        return db.transaction(async (tx) => {
+          const [row] = await tx.insert(alumniTable).values(values).returning();
+          if (data.studentId) {
+            await tx.update(studentsTable)
+              .set({ status: "graduated" })
+              .where(eq(studentsTable.id, String(data.studentId)));
+          }
+          return row;
+        });
       },
       async update(id, data: any) {
         // Only update fields that are explicitly provided.

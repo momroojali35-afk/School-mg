@@ -45344,8 +45344,10 @@ function createPgAdapter(db2) {
     },
     // ── Students ──────────────────────────────────────────────────────────────
     students: {
-      async list() {
-        return db2.select().from(studentsTable2).where(sql`COALESCE(${studentsTable2.status}, 'active') <> 'graduated'`).orderBy(asc(studentsTable2.createdAt));
+      async list(includeGraduated = false) {
+        const query = db2.select().from(studentsTable2).orderBy(asc(studentsTable2.createdAt));
+        if (includeGraduated) return query;
+        return query.where(sql`COALESCE(${studentsTable2.status}, 'active') <> 'graduated'`);
       },
       async create(data) {
         const values = {
@@ -45904,8 +45906,13 @@ function createPgAdapter(db2) {
           currentStatus: data.currentStatus ?? null
         };
         if (data.id) values.id = data.id;
-        const [row] = await db2.insert(alumniTable2).values(values).returning();
-        return row;
+        return db2.transaction(async (tx) => {
+          const [row] = await tx.insert(alumniTable2).values(values).returning();
+          if (data.studentId) {
+            await tx.update(studentsTable2).set({ status: "graduated" }).where(eq(studentsTable2.id, String(data.studentId)));
+          }
+          return row;
+        });
       },
       async update(id, data) {
         const setValues = {};
@@ -46104,9 +46111,10 @@ function createFirebaseAdapter(fs2) {
     },
     // ── Students ──────────────────────────────────────────────────────────────
     students: {
-      async list() {
+      async list(includeGraduated = false) {
         const snap = await col("students").orderBy("createdAt").get();
-        return snap.docs.map(mapDoc).filter((student) => student.status !== "graduated");
+        const students = snap.docs.map(mapDoc);
+        return includeGraduated ? students : students.filter((student) => student.status !== "graduated");
       },
       async create(data) {
         const id = data.id ?? newId();
@@ -46193,6 +46201,11 @@ function createFirebaseAdapter(fs2) {
           currentStatus: data.currentStatus ?? null
         });
         await col("alumni").doc(id).set(doc);
+        if (data.studentId) {
+          const studentRef = col("students").doc(String(data.studentId));
+          const student = await studentRef.get();
+          if (student.exists) await studentRef.update({ status: "graduated" });
+        }
         return { id, ...doc };
       },
       async bulkCreate(records) {
@@ -47457,8 +47470,9 @@ var dbConnections_default = router2;
 // src/routes/students.ts
 var import_express3 = __toESM(require_express2(), 1);
 var router3 = (0, import_express3.Router)();
-router3.get("/students", async (_req, res) => {
-  const rows = await getAdapter().students.list();
+router3.get("/students", async (req, res) => {
+  const includeGraduated = req.query.includeGraduated === "true";
+  const rows = await getAdapter().students.list(includeGraduated);
   res.json(rows);
 });
 router3.post("/students", async (req, res) => {

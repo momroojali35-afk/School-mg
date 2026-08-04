@@ -102,9 +102,10 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
 
     // ── Students ──────────────────────────────────────────────────────────────
     students: {
-      async list() {
+      async list(includeGraduated = false) {
         const snap = await col("students").orderBy("createdAt").get();
-        return snap.docs.map(mapDoc).filter((student) => student.status !== "graduated");
+        const students = snap.docs.map(mapDoc);
+        return includeGraduated ? students : students.filter((student) => student.status !== "graduated");
       },
       async create(data: any) {
         const id = data.id ?? newId();
@@ -187,6 +188,11 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
           currentStatus: data.currentStatus ?? null,
         });
         await col("alumni").doc(id).set(doc);
+        if (data.studentId) {
+          const studentRef = col("students").doc(String(data.studentId));
+          const student = await studentRef.get();
+          if (student.exists) await studentRef.update({ status: "graduated" });
+        }
         return { id, ...doc };
       },
       async bulkCreate(records: any[]) {

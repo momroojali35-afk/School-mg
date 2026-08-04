@@ -3,8 +3,9 @@ import { getAdapter } from "../lib/dbManager.js";
 
 const router = Router();
 
-router.get("/students", async (_req, res) => {
-  const rows = await getAdapter().students.list();
+router.get("/students", async (req, res) => {
+  const includeGraduated = req.query.includeGraduated === "true";
+  const rows = await getAdapter().students.list(includeGraduated);
   res.json(rows);
 });
 

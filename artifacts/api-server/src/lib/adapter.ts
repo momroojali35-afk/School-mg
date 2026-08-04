@@ -17,7 +17,7 @@ export interface DataAdapter {
     delete(name: string): Promise<boolean>;
   };
   students: {
-    list(): Promise<any[]>;
+    list(includeGraduated?: boolean): Promise<any[]>;
     create(data: any): Promise<any>;
     update(id: string, data: any): Promise<any | null>;
     delete(id: string): Promise<void>;
