@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '@/hooks/useColors';
 import { useApp, Student, getStudentFeeInfo, isActiveStudent } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
+import PremiumAlert from '@/components/PremiumAlert';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function calcFinalPayable(annualFee: string, discountType: 'fixed' | 'percent', discountValue: string) {
@@ -139,6 +140,7 @@ export default function StudentsScreen() {
   const [showAttendance, setShowAttendance] = useState<Student | null>(null);
   const [showFeeDetail, setShowFeeDetail] = useState<Student | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Student | null>(null);
+  const [showValidationAlert, setShowValidationAlert] = useState(false);
 
   // Section manager state
   const [newSectionName, setNewSectionName] = useState('');
@@ -179,7 +181,7 @@ export default function StudentsScreen() {
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.fatherName.trim() || !form.class || !form.rollNumber.trim()) {
-      Alert.alert('Validation', 'Please fill all required fields (Name, Father Name, Class, Roll Number)');
+      setShowValidationAlert(true);
       return;
     }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -872,6 +874,13 @@ export default function StudentsScreen() {
           </View>
         </View>
       </Modal>
+      <PremiumAlert
+        visible={showValidationAlert}
+        variant="warning"
+        title="Validation"
+        message="Please fill all required fields (Name, Father Name, Class, Roll Number)"
+        onDismiss={() => setShowValidationAlert(false)}
+      />
     </View>
   );
 }

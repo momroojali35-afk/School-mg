@@ -11,6 +11,7 @@ import * as Sharing from 'expo-sharing';
 import { useColors } from '@/hooks/useColors';
 import { useApp, Exam, ExamResult, SubjectSchedule, ClassSubjectAssignment, getExamSubjectsForClass, isActiveStudent } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
+import PremiumAlert from '@/components/PremiumAlert';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 
 type Screen = 'list' | 'results' | 'classSelect' | 'marks' | 'marksheet' | 'subjects' | 'finalResults';
@@ -67,6 +68,7 @@ export default function ExamsScreen() {
   // Delete confirmations
   const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
   const [subjectToDelete, setSubjectToDelete] = useState<string | null>(null);
+  const [showExamUpdatedAlert, setShowExamUpdatedAlert] = useState(false);
 
   // Final / Combined Results
   const [frExamIds, setFrExamIds] = useState<string[]>([]);
@@ -378,7 +380,7 @@ export default function ExamsScreen() {
 
     if (editingExam) {
       updateExam(editingExam.id, examData);
-      Alert.alert('Exam updated', 'The exam details were saved.');
+      setShowExamUpdatedAlert(true);
     } else {
       addExam(examData);
     }
@@ -1628,6 +1630,13 @@ export default function ExamsScreen() {
           </View>
         </View>
       </Modal>
+      <PremiumAlert
+        visible={showExamUpdatedAlert}
+        variant="success"
+        title="Exam updated"
+        message="The exam details were saved."
+        onDismiss={() => setShowExamUpdatedAlert(false)}
+      />
     </View>
   );
 }
