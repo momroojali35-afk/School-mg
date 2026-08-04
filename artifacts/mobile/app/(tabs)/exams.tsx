@@ -31,6 +31,10 @@ const getGrade = (pct: number) => {
   return 'F';
 };
 
+const formatPercentage = (pct: number) => (
+  Number.isInteger(pct) ? String(pct) : pct.toFixed(1)
+);
+
 export default function ExamsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -111,14 +115,13 @@ export default function ExamsScreen() {
         const grandTotal = examTotals.reduce((s, e) => s + e.total, 0);
         const grandMax = examTotals.reduce((s, e) => s + e.maxTotal, 0);
         const rawPct = grandMax > 0 ? (grandTotal / grandMax) * 100 : 0;
-        const pct = Math.round(rawPct);   // rounded for display only
         const grade = getGrade(rawPct);   // use raw so 29.5% → F, not D
         // Combined result pass/fail is based on the overall percentage.
         // Keep the raw value so a displayed 30% can still correctly be F
         // when the unrounded percentage is below 30 (for example, 29.5%).
         const pass = rawPct >= 30;
         const hasAny = examTotals.some(e => e.hasResult);
-        return { student: st, examTotals, grandTotal, grandMax, pct, grade, pass, hasAny };
+        return { student: st, examTotals, grandTotal, grandMax, pct: rawPct, grade, pass, hasAny };
       })
       .sort((a, b) => {
         // Students with no results go to the bottom
@@ -439,7 +442,7 @@ export default function ExamsScreen() {
           <td style="padding:5px 8px;border:1px solid #e2e8f0;">${row.student.name}</td>
           ${examCells}
           <td style="padding:5px 4px;border:1px solid #e2e8f0;text-align:center;font-weight:700;">${row.hasAny ? `${row.grandTotal}/${row.grandMax}` : '—'}</td>
-          <td style="padding:5px 4px;border:1px solid #e2e8f0;text-align:center;">${row.hasAny ? `${row.pct}%` : '—'}</td>
+           <td style="padding:5px 4px;border:1px solid #e2e8f0;text-align:center;">${row.hasAny ? `${formatPercentage(row.pct)}%` : '—'}</td>
           <td style="padding:5px 4px;border:1px solid #e2e8f0;text-align:center;font-weight:800;color:${resultColor};">${row.hasAny ? row.grade : '—'}</td>
           <td style="padding:5px 4px;border:1px solid #e2e8f0;text-align:center;font-weight:700;color:${resultColor};">${row.hasAny ? (row.pass ? 'PASS' : 'FAIL') : '—'}</td>
         </tr>`;
@@ -892,7 +895,7 @@ export default function ExamsScreen() {
                           <Text style={[fr.td, { width: 80, fontWeight: '700', color: colors.text }]}>
                             {row.hasAny ? `${row.grandTotal}/${row.grandMax}` : '—'}
                           </Text>
-                          <Text style={[fr.td, { width: 48, color: colors.text }]}>{row.hasAny ? `${row.pct}%` : '—'}</Text>
+                           <Text style={[fr.td, { width: 48, color: colors.text }]}>{row.hasAny ? `${formatPercentage(row.pct)}%` : '—'}</Text>
                           <Text style={[fr.td, { width: 40, fontWeight: '800', color: resultColor }]}>{row.hasAny ? row.grade : '—'}</Text>
                           <View style={{ width: 48, alignItems: 'center', justifyContent: 'center' }}>
                             {row.hasAny ? (
