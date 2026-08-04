@@ -113,7 +113,19 @@ export default function ExamsScreen() {
         const rawPct = grandMax > 0 ? (grandTotal / grandMax) * 100 : 0;
         const pct = Math.round(rawPct);   // rounded for display only
         const grade = getGrade(rawPct);   // use raw so 29.5% → F, not D
-        const pass = rawPct >= 30;        // use raw so 29.5% → FAIL, not PASS
+        const pass = rawPct >= 30 && examTotals.every(e => {
+          const exam = frSelectedExams.find(ex => ex.id === e.examId);
+          if (!exam) return false;
+          const subs = getExamSubjectsForClass(exam, frClass);
+          const result = examResults.find(r => r.examId === exam.id && r.studentId === st.id);
+          return !!result && subs.every(sub => {
+            const cs = exam.classSubjects?.find(c => c.class === frClass);
+            const sched = cs?.subjectSchedule?.find(sc => sc.subject === sub)
+              ?? exam.subjectSchedule?.find(sc => sc.subject === sub);
+            const maxMarks = sched?.maxMarks ?? exam.maxMarks;
+            return (result.marks[sub] ?? 0) >= maxMarks * 0.30;
+          });
+        });        // pass only when every subject reaches 30%
         const hasAny = examTotals.some(e => e.hasResult);
         return { student: st, examTotals, grandTotal, grandMax, pct, grade, pass, hasAny };
       })
@@ -168,7 +180,8 @@ export default function ExamsScreen() {
     const total = subs.reduce((s, sub) => s + (marks[sub] ?? 0), 0);
     const maxTotal = subs.reduce((s, sub) => s + getSubjectMax(exam, sub), 0);
     const pct = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0;
-    return { total, maxTotal, pct, grade: getGrade(pct), pass: pct >= 33 };
+    const pass = pct >= 30 && subs.every(sub => (marks[sub] ?? 0) >= getSubjectMax(exam, sub) * 0.30);
+    return { total, maxTotal, pct, grade: getGrade(pct), pass };
   };
 
   const initMarks = (exam: Exam, cls: string) => {
@@ -1005,7 +1018,11 @@ export default function ExamsScreen() {
       const tot = resultSubs.reduce((s, sub) => s + (selectedResult.marks[sub] ?? 0), 0);
       const mx  = resultSubs.reduce((s, sub) => s + getSubjectMax(selectedExam, sub, selectedClass), 0);
       const pc  = mx > 0 ? Math.round((tot / mx) * 100) : 0;
-      return { total: tot, maxTotal: mx, pct: pc, grade: getGrade(pc), pass: pc >= 33 };
+      const pass = pc >= 30 && resultSubs.every(sub => {
+        const maxMarks = getSubjectMax(selectedExam, sub, selectedClass);
+        return (selectedResult.marks[sub] ?? 0) >= maxMarks * 0.30;
+      });
+      return { total: tot, maxTotal: mx, pct: pc, grade: getGrade(pc), pass };
     })();
 
     return (
