@@ -14,7 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/AuthContext';
 import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { isBirthdayToday, daysUntilBirthday, extractMMDD } from '@/utils/dateUtils';
-import { sendReminderWhatsApp } from '@/utils/reminder';
+import { sendReminderWhatsApp, shareBirthdayCardImage } from '@/utils/reminder';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function calcFinalPayable(annualFee: string, discountType: 'fixed' | 'percent', discountValue: string) {
@@ -308,11 +308,15 @@ export default function TeacherDashboard() {
 `🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
     const fileName = `BirthdayCard_${student.name.replace(/\s+/g, '_')}.png`;
 
+    if (Platform.OS !== 'web' && birthdayCardRef.current) {
+      await shareBirthdayCardImage(birthdayCardRef, student);
+      return;
+    }
+
     // The dashboard action can be pressed before the birthday card modal is
-    // mounted, and native Expo does not provide browser DOM APIs. In both
-    // cases, send the birthday wish directly through the existing WhatsApp
-    // helper instead of trying to capture an unavailable card.
-    if (Platform.OS !== 'web' || !birthdayCardRef.current) {
+    // mounted. In that web-only case, send the birthday wish directly through
+    // the existing WhatsApp helper instead of trying to capture an unavailable card.
+    if (!birthdayCardRef.current) {
       await sendReminderWhatsApp(student, caption);
       return;
     }

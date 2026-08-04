@@ -1,5 +1,6 @@
 import { Alert, Linking, Platform } from 'react-native';
 import * as Sharing from 'expo-sharing';
+import { captureRef } from 'react-native-view-shot';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { Student } from '@/context/AppContext';
 
@@ -113,4 +114,31 @@ export async function shareReminderImage(imageUri: string, student: Student): Pr
   } catch {
     Alert.alert('Error', 'Could not share the reminder card. Please try SMS instead.');
   }
+}
+
+// ─── Share birthday card image via native share sheet ─────────────────────────
+// WhatsApp text URLs can be handled by the SMS app on some Android devices.
+// Capturing the rendered card and sharing it as image/png gives Android the
+// correct file type so WhatsApp is offered as an image-sharing destination.
+export async function shareBirthdayCardImage(cardRef: any, student: Student): Promise<void> {
+  if (!cardRef?.current) {
+    throw new Error('Birthday card is not ready to share. Please try again.');
+  }
+
+  const available = await Sharing.isAvailableAsync();
+  if (!available) {
+    throw new Error('Image sharing is unavailable on this device.');
+  }
+
+  const imageUri = await captureRef(cardRef, {
+    format: 'png',
+    quality: 1,
+    result: 'tmpfile',
+  });
+
+  await Sharing.shareAsync(imageUri, {
+    mimeType: 'image/png',
+    dialogTitle: `Happy Birthday – ${student.name}`,
+    UTI: 'public.png',
+  });
 }
