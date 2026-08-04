@@ -113,19 +113,10 @@ export default function ExamsScreen() {
         const rawPct = grandMax > 0 ? (grandTotal / grandMax) * 100 : 0;
         const pct = Math.round(rawPct);   // rounded for display only
         const grade = getGrade(rawPct);   // use raw so 29.5% → F, not D
-        const pass = rawPct >= 30 && examTotals.every(e => {
-          const exam = frSelectedExams.find(ex => ex.id === e.examId);
-          if (!exam) return false;
-          const subs = getExamSubjectsForClass(exam, frClass);
-          const result = examResults.find(r => r.examId === exam.id && r.studentId === st.id);
-          return !!result && subs.every(sub => {
-            const cs = exam.classSubjects?.find(c => c.class === frClass);
-            const sched = cs?.subjectSchedule?.find(sc => sc.subject === sub)
-              ?? exam.subjectSchedule?.find(sc => sc.subject === sub);
-            const maxMarks = sched?.maxMarks ?? exam.maxMarks;
-            return (result.marks[sub] ?? 0) >= maxMarks * 0.30;
-          });
-        });        // pass only when every subject reaches 30%
+        // Combined result pass/fail is based on the overall percentage.
+        // Keep the raw value so a displayed 30% can still correctly be F
+        // when the unrounded percentage is below 30 (for example, 29.5%).
+        const pass = rawPct >= 30;
         const hasAny = examTotals.some(e => e.hasResult);
         return { student: st, examTotals, grandTotal, grandMax, pct, grade, pass, hasAny };
       })
