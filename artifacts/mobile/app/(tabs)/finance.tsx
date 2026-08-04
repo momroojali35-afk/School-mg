@@ -10,13 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Student, FeeType, getStudentFeeInfo, isActiveStudent } from '@/context/AppContext';
+import { useApp, Student, FeeType, SalaryRecord, getStudentFeeInfo, isActiveStudent, compareSalaryRecordsNewestFirst } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import { printFeeReceipt, shareReceiptWhatsApp } from '@/utils/receipt';
 import { buildReminderMessage, sendReminderSMS, shareReminderImage } from '@/utils/reminder';
 import ReminderCard from '@/components/ReminderCard';
 
-type Tab = 'overview' | 'fees' | 'feeTypes' | 'expenses';
+type Tab = 'overview' | 'salary' | 'fees' | 'feeTypes' | 'expenses';
 type Period = 'today' | 'week' | 'month' | 'year' | 'all';
 
 const EXPENSE_CATEGORIES = ['Supplies', 'Utilities', 'Salaries', 'Maintenance', 'Events', 'Other'];
@@ -36,6 +36,7 @@ const PERIODS: { key: Period; label: string }[] = [
 ];
 const TABS: { key: Tab; icon: string; label: string }[] = [
   { key: 'overview', icon: 'bar-chart-2', label: 'Overview' },
+  { key: 'salary', icon: 'briefcase', label: 'Salary' },
   { key: 'fees', icon: 'users', label: 'Collect' },
   { key: 'feeTypes', icon: 'tag', label: 'Types' },
   { key: 'expenses', icon: 'trending-down', label: 'Expenses' },
@@ -107,6 +108,7 @@ export default function FinanceScreen() {
     students, feeRecords, addFeeRecord, deleteFeeRecord, documentBranding,
     feeTypes, addFeeType, updateFeeType, deleteFeeType,
     expenses, addExpense, deleteExpense,
+    salaryRecords,
   } = useApp();
 
   const [tab, setTab] = useState<Tab>('overview');
@@ -182,6 +184,31 @@ export default function FinanceScreen() {
   const totalFees     = useMemo(() => periodFees.reduce((s, f) => s + f.amount, 0), [periodFees]);
   const totalExpenses = useMemo(() => periodExpenses.reduce((s, e) => s + e.amount, 0), [periodExpenses]);
   const netBalance    = totalFees - totalExpenses;
+
+  // Salary periods use the salary month for month/year/all-time views. The
+  // shorter date filters use the actual paid date so they remain useful.
+  const salaryPeriodMatches = (record: SalaryRecord) => {
+    if (period === 'all') return true;
+    if (period === 'today') return record.paidDate === todayStr;
+    if (period === 'week') return !!record.paidDate && record.paidDate >= weekStartStr && record.paidDate <= todayStr;
+    if (period === 'year') return record.year === now.getFullYear();
+    const salaryMonthIndex = MONTHS.indexOf(record.month);
+    return record.year === now.getFullYear() && salaryMonthIndex === now.getMonth();
+  };
+
+  const periodSalaryRecords = useMemo(
+    () => salaryRecords.filter(salaryPeriodMatches).sort(compareSalaryRecordsNewestFirst),
+    [salaryRecords, period, todayStr, weekStartStr, now.getFullYear(), now.getMonth()],
+  );
+  const totalSalaryPaid = useMemo(
+    () => periodSalaryRecords.filter(r => r.status === 'paid').reduce((sum, r) => sum + r.amount, 0),
+    [periodSalaryRecords],
+  );
+  const totalSalaryPending = useMemo(
+    () => periodSalaryRecords.filter(r => r.status === 'pending').reduce((sum, r) => sum + r.amount, 0),
+    [periodSalaryRecords],
+  );
+  const paidSalaryCount = periodSalaryRecords.filter(r => r.status === 'paid').length;
 
   // ── Weekly chart data (always current month) ─────────────────────────────
   const weeklyChartData = useMemo(() => {
@@ -483,6 +510,102 @@ export default function FinanceScreen() {
             )}
           </View>
         </ScrollView>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SALARY TAB
+         ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 'salary' && (
+        <FlatList
+          data={periodSalaryRecords}
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={(
+            <View>
+              <View style={salary.summaryCard}>
+                <View style={salary.summaryTop}>
+                  <View style={[salary.summaryIcon, { backgroundColor: colors.success + '18' }]}>
+                    <Feather name="check-circle" size={19} color={colors.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={salary.summaryEyebrow}>SALARY PAID</Text>
+                    <Text style={[salary.summaryValue, { color: colors.text }]}>{fmt(totalSalaryPaid)}</Text>
+                    <Text style={[salary.summaryPeriod, { color: colors.mutedForeground }]}>
+                      {paidSalaryCount} payment{paidSalaryCount === 1 ? '' : 's'} · {PERIODS.find(item => item.key === period)?.label}
+                    </Text>
+                  </View>
+                  <View style={salary.summaryStatus}>
+                    <Text style={[salary.summaryStatusValue, { color: colors.success }]}>{paidSalaryCount}</Text>
+                    <Text style={salary.summaryStatusLabel}>PAID</Text>
+                  </View>
+                </View>
+                <View style={[salary.summaryDivider, { backgroundColor: colors.border }]} />
+                <View style={salary.summaryBottom}>
+                  <View>
+                    <Text style={[salary.summaryMetricLabel, { color: colors.mutedForeground }]}>Pending</Text>
+                    <Text style={[salary.summaryMetricValue, { color: totalSalaryPending > 0 ? colors.warning : colors.mutedForeground }]}>
+                      {fmt(totalSalaryPending)}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[salary.summaryMetricLabel, { color: colors.mutedForeground }]}>Total records</Text>
+                    <Text style={[salary.summaryMetricValue, { color: colors.text }]}>{periodSalaryRecords.length}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={salary.historyHeader}>
+                <View>
+                  <Text style={[s.sectionTitle, { color: colors.text }]}>Payment History</Text>
+                  <Text style={[s.sectionSub, { marginTop: 3 }]}>
+                    {periodSalaryRecords.length ? 'Latest salary payments' : 'No salary payments for this period'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[salary.manageBtn, { borderColor: colors.primary + '50', backgroundColor: colors.primary + '0D' }]}
+                  onPress={() => Alert.alert('Manage salary', 'Add or remove salary payments from the Teachers section.')}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="arrow-up-right" size={14} color={colors.primary} />
+                  <Text style={[salary.manageText, { color: colors.primary }]}>Manage</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+          ListEmptyComponent={<EmptyState icon="briefcase" title="No Salary Payments" subtitle="Salary payments will appear here after they are recorded for teachers." />}
+          renderItem={({ item }) => {
+            const isPaid = item.status === 'paid';
+            return (
+              <View style={salary.recordCard}>
+                <View style={[salary.recordIcon, { backgroundColor: isPaid ? colors.success + '15' : colors.warning + '18' }]}>
+                  <Feather name={isPaid ? 'check' : 'clock'} size={17} color={isPaid ? colors.success : colors.warning} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[salary.teacherName, { color: colors.text }]} numberOfLines={1}>{item.teacherName || 'Teacher'}</Text>
+                  <Text style={[salary.recordMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+                    {item.month} {item.year} · {isPaid ? `Paid ${item.paidDate ?? '—'}` : 'Payment pending'}
+                  </Text>
+                  {item.receiptNumber ? (
+                    <Text style={[salary.receipt, { color: colors.mutedForeground }]} numberOfLines={1}>
+                      Receipt {item.receiptNumber}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+                  <Text style={[salary.amount, { color: isPaid ? colors.success : colors.warning }]}>
+                    ₹{item.amount.toLocaleString('en-IN')}
+                  </Text>
+                  <View style={[salary.statusBadge, { backgroundColor: isPaid ? colors.success + '16' : colors.warning + '18' }]}>
+                    <Text style={{ color: isPaid ? colors.success : colors.warning, fontSize: 10, fontWeight: '800' }}>
+                      {isPaid ? 'PAID' : 'PENDING'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            );
+          }}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
@@ -1194,6 +1317,54 @@ const ec = StyleSheet.create({
   desc: { fontSize: 15, fontWeight: '600' },
   meta: { fontSize: 12, marginTop: 2 },
   amount: { fontSize: 16, fontWeight: '700' },
+});
+
+const salary = StyleSheet.create({
+  summaryCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 18,
+    shadowColor: '#0C1F4A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  summaryTop: { flexDirection: 'row', alignItems: 'center' },
+  summaryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  summaryEyebrow: { fontSize: 10, color: '#64748B', fontWeight: '800', letterSpacing: 0.8 },
+  summaryValue: { fontSize: 25, fontWeight: '800', marginTop: 2 },
+  summaryPeriod: { fontSize: 11, marginTop: 2 },
+  summaryStatus: { alignItems: 'center', justifyContent: 'center', minWidth: 48, paddingLeft: 8 },
+  summaryStatusValue: { fontSize: 20, fontWeight: '800' },
+  summaryStatusLabel: { fontSize: 9, color: '#64748B', fontWeight: '800', letterSpacing: 0.6, marginTop: 1 },
+  summaryDivider: { height: 1, marginVertical: 16 },
+  summaryBottom: { flexDirection: 'row', justifyContent: 'space-between' },
+  summaryMetricLabel: { fontSize: 11, fontWeight: '600' },
+  summaryMetricValue: { fontSize: 15, fontWeight: '800', marginTop: 3 },
+  historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  manageBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 18, paddingHorizontal: 10, paddingVertical: 7 },
+  manageText: { fontSize: 11, fontWeight: '800' },
+  recordCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+  recordIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginRight: 11 },
+  teacherName: { fontSize: 14, fontWeight: '800' },
+  recordMeta: { fontSize: 11, marginTop: 3 },
+  receipt: { fontSize: 10, marginTop: 3 },
+  amount: { fontSize: 15, fontWeight: '800', marginBottom: 5 },
+  statusBadge: { borderRadius: 12, paddingHorizontal: 7, paddingVertical: 3 },
 });
 
 const mo = StyleSheet.create({
