@@ -1597,7 +1597,7 @@ export default function ExamsScreen() {
       {/* Confirm Delete Exam Modal */}
       <Modal visible={!!examToDelete} animationType="fade" transparent>
         <View style={cmo.overlay}>
-          <View style={[cmo.sheet, { backgroundColor: colors.card, borderRadius: 20, margin: 24 }]}>
+          <View style={[cmo.sheet, { backgroundColor: colors.card, borderRadius: 20, margin: 24, minHeight: 0, maxHeight: 300 }]}>
             <View style={[cmo.header, { borderBottomColor: colors.border }]}>
               <Text style={[cmo.title, { color: colors.text }]}>Delete Exam</Text>
             </View>

@@ -795,7 +795,7 @@ export default function StudentsScreen() {
       {/* Confirm Delete Modal */}
       <Modal visible={!!confirmDelete} animationType="fade" transparent>
         <View style={modalStyles.overlay}>
-          <View style={[modalStyles.sheet, { backgroundColor: colors.card, borderRadius: 20, margin: 24 }]}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.card, borderRadius: 20, margin: 24, minHeight: 0, maxHeight: 300 }]}>
             <View style={[modalStyles.header, { borderBottomColor: colors.border }]}>
               <Text style={[modalStyles.title, { color: colors.text }]}>Delete Student</Text>
             </View>
