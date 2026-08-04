@@ -1,0 +1,17 @@
+- [School Management App bug fixes](bug-fixes-school-mgmt.md) — 4 critical bugs fixed: attendance transaction, exam results conflict update no-op, teacher credentials leak, promotion transaction.
+- [Scoped premium alerts](scoped-premium-alerts.md) — only the requested student validation and exam update alerts use the shared premium style.
+- [Teacher logout navigation](teacher-logout-navigation.md) — clear teacher auth before one explicit login redirect while suppressing the competing dashboard effect.
+- [Marksheet PDF layout](marksheet-pdf-layout.md) — native expo-print and browser/jsPDF exports need separate margin handling.
+- [GitHub push authentication](github-push-auth.md) — HTTPS pushes require Basic x-access-token auth here even when Bearer API auth works.
+- [Marksheet academic session](marksheet-academic-session.md) — admin-selected session is locally persisted and applied across every marksheet output path.
+- [Admit-card contact visibility](admit-card-contact-visibility.md) — school phone and email are intentionally omitted from admit-card headers only.
+- [Mobile preview dependencies](mobile-preview-dependencies.md) — the Expo workflow requires workspace dependencies installed before it can start.
+- [Request document storage](request-document-storage.md) — application documents are stored as base64 fields on the request record; hard deletion removes the database record and embedded file data.
+- [Alumni import identity](alumni-import-identity.md) — imports normalize student identity fields and upsert by unique student_id while preserving legacy Alumni display fields.
+- [Combined result grading](combined-result-grading.md) — combined pass/fail uses the raw overall percentage; displayed rounding must not change the 30% boundary.
+- [Section data integrity](section-data-integrity.md) — section lists must include legacy student assignments; rename/delete must update those assignments across database adapters.
+- [Birthday wish sharing](birthday-wish-sharing.md) — dashboard wish actions must use direct WhatsApp messaging on native before any browser-only card capture.
+- [API database startup](api-database-startup.md) — the API must initialize the database manager before listening so data routes have an active adapter.
+- [Staff APK database readiness](staff-apk-database-readiness.md) — teacher login must verify the server directly; hosted environment databases count as ready.
+- [Finance salary reporting](finance-salary-reporting.md) — Finance reports salary totals/history read-only; salary payment management remains in Teachers.
+- [Promotion success modal](promotion-success-modal.md) — bulk promotion success uses a branded in-app modal instead of a native alert.
