@@ -9,3 +9,4 @@
 - [Combined result grading](combined-result-grading.md) — combined pass/fail uses the raw overall percentage; displayed rounding must not change the 30% boundary.
 - [Section data integrity](section-data-integrity.md) — section lists must include legacy student assignments; rename/delete must update those assignments across database adapters.
 - [Birthday wish sharing](birthday-wish-sharing.md) — dashboard wish actions must use direct WhatsApp messaging on native before any browser-only card capture.
+- [API database startup](api-database-startup.md) — the API must initialize the database manager before listening so data routes have an active adapter.
