@@ -248,12 +248,12 @@ export default function TeacherDashboard() {
   );
 
   const birthdayStudents = useMemo(() =>
-    students.filter(s => isActiveStudent(s) && isBirthdayToday(s.dateOfBirth)),
+    students.filter(s => isBirthdayToday(s.dateOfBirth)),
     [students],
   );
   const upcomingBirthdays = useMemo(() =>
     students
-      .filter(s => isActiveStudent(s) && (() => { const d = daysUntilBirthday(s.dateOfBirth); return d > 0 && d <= 30; })())
+      .filter(s => (() => { const d = daysUntilBirthday(s.dateOfBirth); return d > 0 && d <= 30; })())
       .sort((a, b) => daysUntilBirthday(a.dateOfBirth) - daysUntilBirthday(b.dateOfBirth))
       .slice(0, 5),
     [students],

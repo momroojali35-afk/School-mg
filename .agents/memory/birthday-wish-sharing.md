@@ -7,4 +7,4 @@ The birthday dashboard action must use direct WhatsApp messaging on native platf
 
 **Why:** Dashboard buttons can be pressed before the card modal mounts, and Expo native does not provide `navigator`, `document`, `File`, or `html2canvas` browser behavior.
 
-**How to apply:** Keep the visible buttons and card UI unchanged; route direct dashboard wishes through the existing WhatsApp helper, while preserving web card capture for the card modal’s share action.
+**How to apply:** Keep the visible buttons and card UI unchanged; route direct dashboard wishes through the existing WhatsApp helper, while preserving web card capture for the card modal’s share action. Birthday wishes include graduated students; do not apply active-student filtering to birthday lists.
