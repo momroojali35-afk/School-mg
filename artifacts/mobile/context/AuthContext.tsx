@@ -76,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username: username.trim(), password }),
       });
       if (res.status === 401) return { success: false, error: 'Invalid teacher credentials' };
+      if (res.status === 503) return { success: false, error: 'DATABASE_NOT_READY' };
       if (!res.ok) throw new Error('Server error');
       const t: any = await res.json();
       const u: AuthUser = {

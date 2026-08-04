@@ -272,10 +272,12 @@ export function getDb() {
 }
 
 export function getActiveConnectionInfo() {
-  // The "env" connection is an internal fallback — not a user-configured DB.
-  // Report connected: false so the mobile app still shows the setup screen.
-  const userConfigured = _activeId !== null && _activeId !== "env";
-  return { id: _activeId, name: _activeName, connected: _activeAdapter !== null && userConfigured, dbType: _activeDbType };
+  // A deployment configured with DATABASE_URL / APP_DATABASE_URL has a valid
+  // shared database even when it has no entry in the local connection manager.
+  // Staff APKs use this endpoint to decide whether teacher login is available,
+  // so any healthy active adapter must report ready — including the "env"
+  // fallback used by hosted deployments.
+  return { id: _activeId, name: _activeName, connected: _activeAdapter !== null, dbType: _activeDbType };
 }
 
 export interface PublicConnection {

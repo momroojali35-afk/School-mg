@@ -47232,8 +47232,7 @@ function getAdapter() {
   return _activeAdapter;
 }
 function getActiveConnectionInfo() {
-  const userConfigured = _activeId !== null && _activeId !== "env";
-  return { id: _activeId, name: _activeName, connected: _activeAdapter !== null && userConfigured, dbType: _activeDbType };
+  return { id: _activeId, name: _activeName, connected: _activeAdapter !== null, dbType: _activeDbType };
 }
 function listConnections() {
   return loadStore().connections.map((c) => ({
@@ -47524,7 +47523,16 @@ router4.post("/teachers/login", async (req, res) => {
     res.status(400).json({ error: "username and password are required" });
     return;
   }
-  const teachers = await getAdapter().teachers.list();
+  let teachers;
+  try {
+    teachers = await getAdapter().teachers.list();
+  } catch (error) {
+    if (error?.code === "NO_DB_CONNECTION") {
+      res.status(503).json({ error: "DATABASE_NOT_READY" });
+      return;
+    }
+    throw error;
+  }
   const teacher = teachers.find((t) => t.username === username && t.password === password);
   if (!teacher) {
     res.status(401).json({ error: "Invalid credentials" });

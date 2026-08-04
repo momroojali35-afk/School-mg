@@ -15,7 +15,16 @@ router.post("/teachers/login", async (req, res) => {
     res.status(400).json({ error: "username and password are required" });
     return;
   }
-  const teachers = await getAdapter().teachers.list() as any[];
+  let teachers: any[];
+  try {
+    teachers = await getAdapter().teachers.list() as any[];
+  } catch (error: any) {
+    if (error?.code === "NO_DB_CONNECTION") {
+      res.status(503).json({ error: "DATABASE_NOT_READY" });
+      return;
+    }
+    throw error;
+  }
   const teacher = teachers.find((t) => t.username === username && t.password === password);
   if (!teacher) {
     res.status(401).json({ error: "Invalid credentials" });

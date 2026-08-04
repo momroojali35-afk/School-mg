@@ -41,11 +41,6 @@ export default function LoginScreen() {
       Alert.alert('Error', 'Please enter username and password');
       return;
     }
-    // Teachers cannot log in until an admin has configured the database
-    if (role === 'teacher' && isSetupComplete === false) {
-      setShowNotReadyModal(true);
-      return;
-    }
     setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const result = await login(username.trim(), password, role);
@@ -59,7 +54,11 @@ export default function LoginScreen() {
       }
     } else {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Login Failed', result.error ?? 'Invalid credentials');
+      if (role === 'teacher' && result.error === 'DATABASE_NOT_READY') {
+        setShowNotReadyModal(true);
+      } else {
+        Alert.alert('Login Failed', result.error ?? 'Invalid credentials');
+      }
     }
   };
 
