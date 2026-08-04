@@ -97,6 +97,7 @@ export default function AlumniScreen() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [alumniPopup, setAlumniPopup] = useState<AlumniPopup | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Alumni | null>(null);
 
   const batches = useMemo(
     () => ['All', ...Array.from(new Set(alumni.map(item => item.batch).filter(Boolean))).sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true }))],
@@ -211,21 +212,14 @@ export default function AlumniScreen() {
   };
 
   const confirmDelete = (item: Alumni) => {
-    Alert.alert(
-      'Delete Alumni',
-      `Remove ${item.name} from alumni records? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteAlumni(item.id);
-            setSelectedAlumni(null);
-          },
-        },
-      ],
-    );
+    setDeleteTarget(item);
+  };
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteAlumni(deleteTarget.id);
+    setDeleteTarget(null);
+    setSelectedAlumni(null);
   };
 
   const openImport = () => {
@@ -520,6 +514,48 @@ export default function AlumniScreen() {
       </Modal>
 
       <Modal
+        visible={!!deleteTarget}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setDeleteTarget(null)}
+      >
+        <View style={[styles.popupOverlay, { backgroundColor: colors.text + 'B8' }]}>
+          <View style={[styles.popupCard, styles.deletePopupCard, { backgroundColor: colors.card }]}>
+            {deleteTarget && (
+              <>
+                <View style={[styles.popupIcon, styles.deletePopupIcon, { backgroundColor: colors.destructive + '16' }]}>
+                  <Feather name="trash-2" size={24} color={colors.destructive} />
+                </View>
+                <Text style={[styles.popupEyebrow, { color: colors.destructive }]}>PERMANENT ACTION</Text>
+                <Text style={[styles.popupTitle, { color: colors.text }]}>Delete alumni record?</Text>
+                <Text style={[styles.popupMessage, { color: colors.mutedForeground }]}>
+                  Remove <Text style={{ color: colors.text, fontWeight: '800' }}>{deleteTarget.name}</Text> from your alumni records? This action cannot be undone.
+                </Text>
+                <View style={styles.deleteActions}>
+                  <TouchableOpacity
+                    activeOpacity={0.84}
+                    onPress={() => setDeleteTarget(null)}
+                    style={[styles.deleteCancelButton, { borderColor: colors.border, backgroundColor: colors.card }]}
+                  >
+                    <Text style={[styles.deleteCancelText, { color: colors.text }]}>Keep Record</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.84}
+                    onPress={handleDelete}
+                    style={[styles.deleteConfirmButton, { backgroundColor: colors.destructive }]}
+                  >
+                    <Feather name="trash-2" size={16} color={colors.destructiveForeground} />
+                    <Text style={[styles.deleteConfirmText, { color: colors.destructiveForeground }]}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={!!alumniPopup}
         transparent
         animationType="fade"
@@ -600,11 +636,19 @@ const styles = StyleSheet.create({
   sheet: { maxHeight: '92%', minHeight: '45%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   popupOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   popupCard: { width: '100%', maxWidth: 390, borderRadius: 24, paddingHorizontal: 24, paddingTop: 26, paddingBottom: 22, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.22, shadowRadius: 28, elevation: 14 },
+  deletePopupCard: { paddingTop: 24, paddingBottom: 20 },
   popupIcon: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  deletePopupIcon: { marginBottom: 12 },
+  popupEyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, marginBottom: 7 },
   popupTitle: { fontSize: 21, fontWeight: '800', letterSpacing: -0.3, textAlign: 'center' },
   popupMessage: { fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 9, maxWidth: 300 },
   popupButton: { width: '100%', minHeight: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 22 },
   popupButtonText: { fontSize: 15, fontWeight: '800' },
+  deleteActions: { width: '100%', flexDirection: 'row', gap: 10, marginTop: 22 },
+  deleteCancelButton: { flex: 1, minHeight: 48, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  deleteConfirmButton: { flex: 1, minHeight: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 10 },
+  deleteCancelText: { fontSize: 14, fontWeight: '800' },
+  deleteConfirmText: { fontSize: 14, fontWeight: '800' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: StyleSheet.hairlineWidth },
   modalTitle: { fontSize: 18, fontWeight: '800' },
   modalSubtitle: { fontSize: 13, marginTop: 3 },
