@@ -214,6 +214,7 @@ export default function TeacherDashboard() {
   const insets = useSafeAreaInsets();
   const { user, isLoading, logout } = useAuth();
   const { students, exams, classes, sections, attendanceRecords, addStudent, addSection, updateSection, deleteSection } = useApp();
+  const signingOutRef = useRef(false);
 
   const [showProfile,     setShowProfile]     = useState(false);
   const [showAddStudent,        setShowAddStudent]        = useState(false);
@@ -278,7 +279,13 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user) { router.replace('/login'); return; }
+    if (!user) {
+      // Sign-out navigates explicitly after clearing auth. Skipping this
+      // redirect during that transition prevents two competing replaces
+      // from remounting the nested teacher stack into the error boundary.
+      if (!signingOutRef.current) router.replace('/login');
+      return;
+    }
     if (user.role === 'admin') router.replace('/(tabs)');
   }, [isLoading, user]);
 
@@ -854,6 +861,7 @@ export default function TeacherDashboard() {
               style={po.signOutBtn} activeOpacity={0.85}
               onPress={async () => {
                 setShowProfile(false);
+                signingOutRef.current = true;
                 await logout();
                 router.replace('/login');
               }}
