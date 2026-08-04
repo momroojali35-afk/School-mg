@@ -10,3 +10,4 @@
 - [Section data integrity](section-data-integrity.md) — section lists must include legacy student assignments; rename/delete must update those assignments across database adapters.
 - [Birthday wish sharing](birthday-wish-sharing.md) — dashboard wish actions must use direct WhatsApp messaging on native before any browser-only card capture.
 - [API database startup](api-database-startup.md) — the API must initialize the database manager before listening so data routes have an active adapter.
+- [Staff APK database readiness](staff-apk-database-readiness.md) — teacher login must verify the server directly; hosted environment databases count as ready.
