@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Student, FeeType, getStudentFeeInfo } from '@/context/AppContext';
+import { useApp, Student, FeeType, getStudentFeeInfo, isActiveStudent } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import { printFeeReceipt, shareReceiptWhatsApp } from '@/utils/receipt';
 import { buildReminderMessage, sendReminderSMS, shareReminderImage } from '@/utils/reminder';
@@ -230,12 +230,13 @@ export default function FinanceScreen() {
 
   const getStudentLastFee  = (id: string) => feeRecords.filter(f => f.studentId === id).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
   const getStudentTotal    = (id: string) => feeRecords.filter(f => f.studentId === id).reduce((s, f) => s + f.amount, 0);
-  const uniqueClasses      = useMemo(() => ['All', ...Array.from(new Set(students.map(s => s.class))).sort()], [students]);
-  const filteredStudents   = useMemo(() => students.filter(s => {
+  const activeStudents     = useMemo(() => students.filter(isActiveStudent), [students]);
+  const uniqueClasses      = useMemo(() => ['All', ...Array.from(new Set(activeStudents.map(s => s.class))).sort()], [activeStudents]);
+  const filteredStudents   = useMemo(() => activeStudents.filter(s => {
     const matchSearch = feeSearch === '' || s.name.toLowerCase().includes(feeSearch.toLowerCase());
     const matchClass  = feeClassFilter === 'All' || s.class === feeClassFilter;
     return matchSearch && matchClass;
-  }), [students, feeSearch, feeClassFilter]);
+  }), [activeStudents, feeSearch, feeClassFilter]);
 
   // ── Collect fee handlers ──────────────────────────────────────────────────
   const openCollect = (student: Student) => {

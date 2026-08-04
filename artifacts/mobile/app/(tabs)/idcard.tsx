@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
-import { useApp, Student } from '@/context/AppContext';
+import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { printHtml } from '@/utils/pdfExport';
@@ -254,14 +254,15 @@ function buildHtml(students: Student[], orientation: Orientation, template: Temp
   const rowGap = isVert ? 14 : 16;
   const cols = isVert ? 3 : 2;
 
-  const cards = students.map(s => `
+  const cards = students.filter(isActiveStudent).map(s => `
     <div style="display:inline-block;vertical-align:top;">
       ${cardFn(s, tpl)}
     </div>`).join(`<div style="display:inline-block;width:${colGap}px;"></div>`);
 
   // Break into rows of `cols` cards
   const rows: Student[][] = [];
-  for (let i = 0; i < students.length; i += cols) rows.push(students.slice(i, i + cols));
+  const activeStudents = students.filter(isActiveStudent);
+  for (let i = 0; i < activeStudents.length; i += cols) rows.push(activeStudents.slice(i, i + cols));
 
   const rowsHtml = rows.map(row => `
     <div style="display:flex;gap:${colGap}px;margin-bottom:${rowGap}px;flex-wrap:nowrap;">
@@ -493,7 +494,7 @@ function PreviewModal({
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>Card Preview</Text>
             <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
-              {students.length} card{students.length !== 1 ? 's' : ''} · {tpl.name} · {orientation}
+              {students.filter(isActiveStudent).length} card{students.filter(isActiveStudent).length !== 1 ? 's' : ''} · {tpl.name} · {orientation}
             </Text>
           </View>
           <TouchableOpacity
@@ -522,7 +523,7 @@ function PreviewModal({
             </Text>
           </View>
 
-          {students.map((student, i) => (
+          {students.filter(isActiveStudent).map((student, i) => (
             <View key={student.id} style={{ alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>
                 {i + 1} of {students.length}
@@ -573,7 +574,7 @@ export default function IdCardScreen() {
   }, [students, search]);
 
   const selectedStudent = useMemo(() =>
-    students.find(s => s.id === selectedStudentId) ?? null, [students, selectedStudentId]);
+    students.find(s => s.id === selectedStudentId && isActiveStudent(s)) ?? null, [students, selectedStudentId]);
 
   const targetStudents = useMemo(() => {
     if (mode === 'individual') return selectedStudent ? [selectedStudent] : [];

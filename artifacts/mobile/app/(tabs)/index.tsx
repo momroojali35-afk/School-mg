@@ -11,7 +11,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, Student } from '@/context/AppContext';
+import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { daysUntilBirthday, isBirthdayToday, extractMMDD } from '@/utils/dateUtils';
 import { sendReminderWhatsApp } from '@/utils/reminder';
@@ -937,7 +937,8 @@ export default function AdminDashboard() {
   };
 
   // ── Stats ──────────────────────────────────────────────────────────────────
-  const uniqueClasses = useMemo(() => new Set(students.map(s => s.class)).size, [students]);
+  const activeStudents = useMemo(() => students.filter(isActiveStudent), [students]);
+  const uniqueClasses = useMemo(() => new Set(activeStudents.map(s => s.class)).size, [activeStudents]);
 
   const monthFees = useMemo(() =>
     feeRecords
@@ -969,12 +970,12 @@ export default function AdminDashboard() {
 
   // ── Birthdays ──────────────────────────────────────────────────────────────
   const birthdayStudents = useMemo(() =>
-    students.filter(s => isBirthdayToday(s.dateOfBirth)),
+    students.filter(s => isActiveStudent(s) && isBirthdayToday(s.dateOfBirth)),
     [students],
   );
   const upcomingBirthdays = useMemo(() =>
     students
-      .filter(s => { const d = daysUntilBirthday(s.dateOfBirth); return d > 0 && d <= 30; })
+      .filter(s => isActiveStudent(s) && (() => { const d = daysUntilBirthday(s.dateOfBirth); return d > 0 && d <= 30; })())
       .sort((a, b) => daysUntilBirthday(a.dateOfBirth) - daysUntilBirthday(b.dateOfBirth))
       .slice(0, 5),
     [students],
@@ -1233,7 +1234,7 @@ export default function AdminDashboard() {
             {/* Row 1: People */}
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
               <PeopleCard
-                icon="users" label="Students" value={students.length}
+                icon="users" label="Students" value={activeStudents.length}
                 accentColor="#1E3A8A" accentBg="#EFF6FF"
                 onPress={() => router.push('/(tabs)/students' as any)}
               />

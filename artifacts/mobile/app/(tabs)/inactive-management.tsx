@@ -201,7 +201,7 @@ function AllStudentsTab({ colors }: { colors: ReturnType<typeof useColors> }) {
   }, []);
 
   const filtered = useMemo(() => {
-    let list = students;
+    let list = students.filter(s => s.status !== 'graduated');
     if (filter !== 'all') list = list.filter(s => (s.status ?? 'active') === filter);
     if (search.trim()) {
       const q = search.toLowerCase();

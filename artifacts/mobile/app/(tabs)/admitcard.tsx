@@ -27,6 +27,7 @@ import {
   Exam,
   getExamScheduleForClass,
   getExamSubjectsForClass,
+  isActiveStudent,
 } from "@/context/AppContext";
 import { SCHOOL_INFO } from "@/constants/schoolInfo";
 import {
@@ -707,12 +708,12 @@ export default function AdmitCardScreen() {
 
   // ── Derived data ─────────────────────────────────────────────────────────────
   const classOptions = useMemo(() => {
-    const all = students.map((s) => s.class).filter(Boolean);
+    const all = students.filter(isActiveStudent).map((s) => s.class).filter(Boolean);
     return Array.from(new Set(all)).sort();
   }, [students]);
 
   const filteredStudents = useMemo(() => {
-    let list = students;
+    let list = students.filter(isActiveStudent);
     if (selectedClass) list = list.filter((s) => s.class === selectedClass);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -731,7 +732,7 @@ export default function AdmitCardScreen() {
   const bulkList = useMemo(() => {
     if (!selectedClass) return [];
     return students
-      .filter((s) => s.class === selectedClass)
+      .filter((s) => s.class === selectedClass && isActiveStudent(s))
       .sort((a, b) =>
         a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true }),
       );
@@ -1251,7 +1252,7 @@ export default function AdmitCardScreen() {
           <View>
             <Text style={st.phTitle}>Admit Cards</Text>
             <Text style={st.phSub}>
-              {students.length} students • {exams.length} exams • {acYear}
+              {students.filter(isActiveStudent).length} students • {exams.length} exams • {acYear}
             </Text>
           </View>
           <View style={st.phBadge}>
@@ -1480,7 +1481,7 @@ export default function AdmitCardScreen() {
                 <View style={st.empty}>
                   <Feather name="users" size={36} color="#CBD5E1" />
                   <Text style={st.emptyTxt}>
-                    {students.length === 0
+                    {students.filter(isActiveStudent).length === 0
                       ? "No students added yet."
                       : "No students match your filters."}
                   </Text>
@@ -1730,7 +1731,7 @@ export default function AdmitCardScreen() {
                         },
                       ]}
                     >
-                      {students.filter((s) => s.class === cls).length} students
+                      {students.filter((s) => s.class === cls && isActiveStudent(s)).length} students
                     </Text>
                   </View>
                   {selectedClass === cls && (

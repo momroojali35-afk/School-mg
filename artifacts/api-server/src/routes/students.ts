@@ -26,11 +26,11 @@ router.put("/students/:id", async (req, res) => {
 
 router.put("/students/:id/status", async (req, res) => {
   const { status } = req.body;
-  if (!["active", "inactive"].includes(status)) {
-    res.status(400).json({ error: "status must be 'active' or 'inactive'" });
+  if (!["active", "inactive", "graduated"].includes(status)) {
+    res.status(400).json({ error: "status must be 'active', 'inactive', or 'graduated'" });
     return;
   }
-  const row = await getAdapter().students.setStatus(req.params.id, status as "active" | "inactive");
+  const row = await getAdapter().students.setStatus(req.params.id, status as "active" | "inactive" | "graduated");
   if (!row) { res.status(404).json({ error: "Student not found" }); return; }
   res.json(row);
 });

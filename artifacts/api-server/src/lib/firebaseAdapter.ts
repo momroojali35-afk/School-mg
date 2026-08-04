@@ -104,7 +104,7 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
     students: {
       async list() {
         const snap = await col("students").orderBy("createdAt").get();
-        return snap.docs.map(mapDoc);
+        return snap.docs.map(mapDoc).filter((student) => student.status !== "graduated");
       },
       async create(data: any) {
         const id = data.id ?? newId();
@@ -114,6 +114,7 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
           admissionNo: data.admissionNo ?? null, rollNumber: data.rollNumber,
           dateOfBirth: data.dateOfBirth ?? "", address: data.address ?? null, photo: data.photo ?? null,
           annualFee: data.annualFee ?? null, discountType: data.discountType ?? null, discountValue: data.discountValue ?? null,
+          status: data.status ?? "active",
         });
         await col("students").doc(id).set(doc);
         return { id, ...doc };
@@ -190,6 +191,7 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
       },
       async bulkCreate(records: any[]) {
         const rows: any[] = [];
+        const updates: Array<{ id: string }> = [];
         for (const data of records) {
           const studentId = String(data.studentId);
           const existing = await col("alumni").where("studentId", "==", studentId).limit(1).get();
@@ -215,6 +217,17 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
           });
           await col("alumni").doc(id).set(doc, { merge: true });
           rows.push({ id, ...doc });
+          const student = await col("students").doc(studentId).get();
+          if (student.exists) updates.push({ id: studentId });
+        }
+
+        // Firestore batches are limited to 500 writes. Chunking preserves the
+        // same migration behavior for large classes without deleting history.
+        const writes = updates.map(({ id }) => ({ ref: col("students").doc(id), data: { status: "graduated" } }));
+        for (let i = 0; i < writes.length; i += 450) {
+          const batch = fs.batch();
+          writes.slice(i, i + 450).forEach(({ ref, data }) => batch.update(ref, data));
+          await batch.commit();
         }
         return rows;
       },

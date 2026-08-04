@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, FeeType, Student, getStudentFeeInfo } from '@/context/AppContext';
+import { useApp, FeeType, Student, getStudentFeeInfo, isActiveStudent } from '@/context/AppContext';
 import { printFeeReceipt, shareReceiptWhatsApp } from '@/utils/receipt';
 import { buildReminderMessage, sendReminderSMS, shareReminderImage } from '@/utils/reminder';
 import EmptyState from '@/components/EmptyState';
@@ -66,16 +66,18 @@ export default function TeacherFees() {
 
   // ── Derived ──
   const uniqueClasses = useMemo(() =>
-    ['All', ...Array.from(new Set(students.map(s => s.class))).sort()],
+    ['All', ...Array.from(new Set(students.filter(isActiveStudent).map(s => s.class))).sort()],
     [students]);
 
   const filteredStudents = useMemo(() => students.filter(s => {
+    if (!isActiveStudent(s)) return false;
     const matchSearch = studentSearch === '' || s.name.toLowerCase().includes(studentSearch.toLowerCase());
     const matchClass  = classFilter === 'All' || s.class === classFilter;
     return matchSearch && matchClass;
   }), [students, studentSearch, classFilter]);
 
   const filteredReminderStudents = useMemo(() => students.filter(s => {
+    if (!isActiveStudent(s)) return false;
     const matchSearch = reminderSearch === '' || s.name.toLowerCase().includes(reminderSearch.toLowerCase());
     const matchClass  = reminderClassFilter === 'All' || s.class === reminderClassFilter;
     return matchSearch && matchClass;
@@ -87,7 +89,7 @@ export default function TeacherFees() {
       .sort((a, b) => b.id.localeCompare(a.id)),
     [feeRecords, todayStr, user]);
 
-  const selectedStudent = students.find(s => s.id === selectedStudentId) ?? null;
+  const selectedStudent = students.find(s => s.id === selectedStudentId && isActiveStudent(s)) ?? null;
   const selectedFeeInfo = selectedStudent ? getStudentFeeInfo(selectedStudent, feeRecords) : null;
   const amt = Number(amount) || 0;
   const canSubmit = !!selectedStudentId && !!selectedFeeType && amt > 0;

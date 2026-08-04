@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, InactivationRequest } from '@/context/AppContext';
+import { useApp, InactivationRequest, isGraduatedStudent } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
 type Status = 'present' | 'absent' | 'leave';
@@ -260,7 +260,7 @@ export default function TeacherAttendance() {
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
 
   // Split active vs inactive students in the selected class
-  const classStudents = useMemo(() => students.filter(s => s.class === selectedClass), [students, selectedClass]);
+  const classStudents = useMemo(() => students.filter(s => s.class === selectedClass && !isGraduatedStudent(s)), [students, selectedClass]);
   const activeStudents = useMemo(() => classStudents.filter(s => (s.status ?? 'active') === 'active'), [classStudents]);
   const inactiveStudents = useMemo(() => classStudents.filter(s => s.status === 'inactive'), [classStudents]);
 

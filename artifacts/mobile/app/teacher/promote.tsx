@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { useApp } from '@/context/AppContext';
+import { useApp, isActiveStudent } from '@/context/AppContext';
 
 export default function TeacherPromote() {
   const colors = useColors();
@@ -30,12 +30,12 @@ export default function TeacherPromote() {
   const promoterName = user?.name ?? 'Teacher';
 
   const studentsInClass = useMemo(
-    () => (selectedClass ? students.filter(s => s.class === selectedClass) : []),
+    () => (selectedClass ? students.filter(s => s.class === selectedClass && isActiveStudent(s)) : []),
     [students, selectedClass],
   );
 
   const selectedStudentForPromotion = useMemo(
-    () => (showIndividualPicker ? students.find(s => s.id === showIndividualPicker) : null),
+    () => (showIndividualPicker ? students.find(s => s.id === showIndividualPicker && isActiveStudent(s)) : null),
     [students, showIndividualPicker],
   );
 

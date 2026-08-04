@@ -21,7 +21,7 @@ export interface DataAdapter {
     create(data: any): Promise<any>;
     update(id: string, data: any): Promise<any | null>;
     delete(id: string): Promise<void>;
-    setStatus(id: string, status: "active" | "inactive"): Promise<any | null>;
+    setStatus(id: string, status: "active" | "inactive" | "graduated"): Promise<any | null>;
   };
   teachers: {
     list(): Promise<any[]>;
@@ -110,6 +110,7 @@ export interface DataAdapter {
   alumni: {
     list(): Promise<any[]>;
     create(data: any): Promise<any>;
+    /** Upsert alumni records and mark matching students as graduated without deleting history. */
     bulkCreate(records: any[]): Promise<any[]>;
     update(id: string, data: any): Promise<any | null>;
     delete(id: string): Promise<void>;

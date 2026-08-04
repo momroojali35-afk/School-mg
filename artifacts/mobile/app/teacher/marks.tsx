@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, Exam, getExamSubjectsForClass } from '@/context/AppContext';
+import { useApp, Exam, getExamSubjectsForClass, isActiveStudent } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export default function TeacherMarks() {
 
   /** Students in the selected class */
   const examStudents = useMemo(
-    () => students.filter(s => s.class === selectedClass),
+    () => students.filter(s => s.class === selectedClass && isActiveStudent(s)),
     [students, selectedClass],
   );
 
@@ -135,7 +135,7 @@ export default function TeacherMarks() {
     setShowClassPicker(false);
     setDirtySubjects(new Set()); // reset per-session dirty tracking when switching class
     setEditingSubjects(new Set());
-    const classStudents = students.filter(s => s.class === cls);
+    const classStudents = students.filter(s => s.class === cls && isActiveStudent(s));
     const subs = getExamSubjectsForClass(exam, cls);
 
     const hasResults = classStudents.some(s =>

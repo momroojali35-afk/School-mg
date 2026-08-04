@@ -45345,7 +45345,7 @@ function createPgAdapter(db2) {
     // ── Students ──────────────────────────────────────────────────────────────
     students: {
       async list() {
-        return db2.select().from(studentsTable2).orderBy(asc(studentsTable2.createdAt));
+        return db2.select().from(studentsTable2).where(sql`COALESCE(${studentsTable2.status}, 'active') <> 'graduated'`).orderBy(asc(studentsTable2.createdAt));
       },
       async create(data) {
         const values = {
@@ -45949,23 +45949,30 @@ function createPgAdapter(db2) {
           if (data.id) v.id = data.id;
           return v;
         });
-        return db2.insert(alumniTable2).values(values).onConflictDoUpdate({
-          target: alumniTable2.studentId,
-          set: {
-            studentName: sql`excluded.student_name`,
-            class: sql`excluded.class`,
-            section: sql`excluded.section`,
-            graduationYear: sql`excluded.graduation_year`,
-            name: sql`excluded.name`,
-            batch: sql`excluded.batch`,
-            passOutClass: sql`excluded.pass_out_class`,
-            rollNumber: sql`excluded.roll_number`,
-            admissionNo: sql`excluded.admission_no`,
-            dateOfBirth: sql`excluded.date_of_birth`,
-            address: sql`excluded.address`,
-            currentStatus: sql`excluded.current_status`
+        const studentIds = Array.from(new Set(records.map((data) => String(data.studentId)).filter(Boolean)));
+        return db2.transaction(async (tx) => {
+          const rows = await tx.insert(alumniTable2).values(values).onConflictDoUpdate({
+            target: alumniTable2.studentId,
+            set: {
+              studentName: sql`excluded.student_name`,
+              class: sql`excluded.class`,
+              section: sql`excluded.section`,
+              graduationYear: sql`excluded.graduation_year`,
+              name: sql`excluded.name`,
+              batch: sql`excluded.batch`,
+              passOutClass: sql`excluded.pass_out_class`,
+              rollNumber: sql`excluded.roll_number`,
+              admissionNo: sql`excluded.admission_no`,
+              dateOfBirth: sql`excluded.date_of_birth`,
+              address: sql`excluded.address`,
+              currentStatus: sql`excluded.current_status`
+            }
+          }).returning();
+          if (studentIds.length > 0) {
+            await tx.update(studentsTable2).set({ status: "graduated" }).where(inArray(studentsTable2.id, studentIds));
           }
-        }).returning();
+          return rows;
+        });
       },
       async delete(id) {
         await db2.delete(alumniTable2).where(eq(alumniTable2.id, id));
@@ -46099,7 +46106,7 @@ function createFirebaseAdapter(fs2) {
     students: {
       async list() {
         const snap = await col("students").orderBy("createdAt").get();
-        return snap.docs.map(mapDoc);
+        return snap.docs.map(mapDoc).filter((student) => student.status !== "graduated");
       },
       async create(data) {
         const id = data.id ?? newId();
@@ -46117,7 +46124,8 @@ function createFirebaseAdapter(fs2) {
           photo: data.photo ?? null,
           annualFee: data.annualFee ?? null,
           discountType: data.discountType ?? null,
-          discountValue: data.discountValue ?? null
+          discountValue: data.discountValue ?? null,
+          status: data.status ?? "active"
         });
         await col("students").doc(id).set(doc);
         return { id, ...doc };
@@ -46189,6 +46197,7 @@ function createFirebaseAdapter(fs2) {
       },
       async bulkCreate(records) {
         const rows = [];
+        const updates = [];
         for (const data of records) {
           const studentId = String(data.studentId);
           const existing = await col("alumni").where("studentId", "==", studentId).limit(1).get();
@@ -46214,6 +46223,14 @@ function createFirebaseAdapter(fs2) {
           });
           await col("alumni").doc(id).set(doc, { merge: true });
           rows.push({ id, ...doc });
+          const student = await col("students").doc(studentId).get();
+          if (student.exists) updates.push({ id: studentId });
+        }
+        const writes = updates.map(({ id }) => ({ ref: col("students").doc(id), data: { status: "graduated" } }));
+        for (let i = 0; i < writes.length; i += 450) {
+          const batch = fs2.batch();
+          writes.slice(i, i + 450).forEach(({ ref, data }) => batch.update(ref, data));
+          await batch.commit();
         }
         return rows;
       },
@@ -47463,8 +47480,8 @@ router3.put("/students/:id", async (req, res) => {
 });
 router3.put("/students/:id/status", async (req, res) => {
   const { status } = req.body;
-  if (!["active", "inactive"].includes(status)) {
-    res.status(400).json({ error: "status must be 'active' or 'inactive'" });
+  if (!["active", "inactive", "graduated"].includes(status)) {
+    res.status(400).json({ error: "status must be 'active', 'inactive', or 'graduated'" });
     return;
   }
   const row = await getAdapter().students.setStatus(req.params.id, status);

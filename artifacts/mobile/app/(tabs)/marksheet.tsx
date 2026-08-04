@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
-import { useApp, Student, Exam, ExamResult } from '@/context/AppContext';
+import { useApp, Student, Exam, ExamResult, isActiveStudent } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { downloadHtmlAsPdf, downloadMultipleHtmlsAsPdf, printHtml as sharedPrintHtml } from '@/utils/pdfExport';
@@ -1263,7 +1263,7 @@ export default function MarksheetScreen() {
 
   // ── Class options ─────────────────────────────────────────────────────────────
   const classOptions = useMemo(() => {
-    return Array.from(new Set(students.map(s => s.class).filter(Boolean))).sort();
+    return Array.from(new Set(students.filter(isActiveStudent).map(s => s.class).filter(Boolean))).sort();
   }, [students]);
 
   // ── Single: filtered exams for chosen class ───────────────────────────────────
@@ -1275,7 +1275,7 @@ export default function MarksheetScreen() {
   // ── Single: student lists ─────────────────────────────────────────────────────
   const singleStudents = useMemo(() => {
     if (!selectedExam) return [];
-    let list = students.filter(s => s.class === selectedExam.class);
+    let list = students.filter(s => s.class === selectedExam.class && isActiveStudent(s));
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(s => s.name.toLowerCase().includes(q) || s.rollNumber.toLowerCase().includes(q));

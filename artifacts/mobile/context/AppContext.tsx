@@ -20,7 +20,15 @@ export interface Student {
   annualFee?: number;
   discountType?: 'fixed' | 'percent';
   discountValue?: number;
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'inactive' | 'graduated';
+}
+
+export function isGraduatedStudent(student: Pick<Student, 'status'>): boolean {
+  return student.status === 'graduated';
+}
+
+export function isActiveStudent(student: Pick<Student, 'status'>): boolean {
+  return (student.status ?? 'active') === 'active';
 }
 
 export function getStudentFeeInfo(student: Student, feeRecords: FeeRecord[]) {
@@ -354,7 +362,7 @@ interface AppContextType extends AppState {
   deleteInactivationRequestDocument: (id: string) => Promise<void>;
   deleteInactivationRequest: (id: string) => Promise<void>;
   refreshInactivationRequests: () => Promise<void>;
-  setStudentStatus: (id: string, status: 'active' | 'inactive') => Promise<void>;
+  setStudentStatus: (id: string, status: 'active' | 'inactive' | 'graduated') => Promise<void>;
   setClassAbsentLimit: (className: string, maxDays: number) => Promise<void>;
   updateDocumentBranding: (branding: DocumentBranding) => Promise<void>;
   addAlumni: (a: Omit<Alumni, 'id'>) => void;
@@ -485,7 +493,7 @@ function mapStudent(r: any): Student {
     annualFee: r.annualFee ?? r.annual_fee ?? undefined,
     discountType: (r.discountType ?? r.discount_type) as any ?? undefined,
     discountValue: r.discountValue ?? r.discount_value ?? undefined,
-    status: (r.status ?? 'active') as 'active' | 'inactive',
+    status: (r.status ?? 'active') as 'active' | 'inactive' | 'graduated',
   };
 }
 
@@ -1107,14 +1115,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const bulkPromoteClass = useCallback((fromClass: string, toClass: string, promotedBy: string): number => {
     let count = 0;
     setState(prev => {
-      const toPromote = prev.students.filter(s => s.class === fromClass);
+      const toPromote = prev.students.filter(s => s.class === fromClass && isActiveStudent(s));
       count = toPromote.length;
       if (count === 0) return prev;
       const records: PromotionRecord[] = toPromote.map(s => ({ id: genId(), studentId: s.id, studentName: s.name, fromClass, toClass, promotedBy, promotedAt: todayStr }));
       apiPost('/promotions/bulk', { fromClass, toClass, promotedBy, promotedAt: todayStr, records }).catch(console.error);
       return {
         ...prev,
-        students: prev.students.map(s => s.class === fromClass ? { ...s, class: toClass } : s),
+        students: prev.students.map(s => s.class === fromClass && isActiveStudent(s) ? { ...s, class: toClass } : s),
         promotionRecords: [...prev.promotionRecords, ...records],
       };
     });
@@ -1122,7 +1130,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Manual student status toggle ──
-  const setStudentStatus = useCallback(async (id: string, status: 'active' | 'inactive'): Promise<void> => {
+  const setStudentStatus = useCallback(async (id: string, status: 'active' | 'inactive' | 'graduated'): Promise<void> => {
     setState(prev => ({
       ...prev,
       students: prev.students.map(s => s.id === id ? { ...s, status } : s),
@@ -1250,8 +1258,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await apiPost<any[]>('/alumni/bulk', { records: payload });
       // Reload the canonical list so duplicate updates and server-generated IDs
       // are reflected immediately after an import.
-      const refreshed = await apiGet<Alumni[]>('/alumni');
-      setState(prev => ({ ...prev, alumni: refreshed }));
+      const [refreshed, refreshedStudents] = await Promise.all([
+        apiGet<Alumni[]>('/alumni'),
+        apiGet<any[]>('/students'),
+      ]);
+      setState(prev => ({
+        ...prev,
+        alumni: refreshed,
+        students: refreshedStudents.map(mapStudent),
+      }));
     } catch (e) {
       // Roll back the optimistic update so the UI stays in sync with the DB
       setState(prev => ({

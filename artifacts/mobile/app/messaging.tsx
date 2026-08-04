@@ -10,7 +10,7 @@ import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ViewShot from 'react-native-view-shot';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Student } from '@/context/AppContext';
+import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { sendReminderWhatsApp, sendReminderSMS, shareReminderImage } from '@/utils/reminder';
 import ReminderCard from '@/components/ReminderCard';
@@ -107,11 +107,12 @@ export default function MessagingScreen() {
   const tpl = TEMPLATES.find(t => t.id === templateId)!;
 
   const uniqueClasses = useMemo(
-    () => ['All', ...Array.from(new Set(students.map(s => s.class))).sort()],
+    () => ['All', ...Array.from(new Set(students.filter(isActiveStudent).map(s => s.class))).sort()],
     [students],
   );
   const filteredStudents = useMemo(
     () => students.filter(s => {
+      if (!isActiveStudent(s)) return false;
       const matchClass = classFilter === 'All' || s.class === classFilter;
       const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.rollNumber?.toLowerCase().includes(search.toLowerCase());
@@ -119,7 +120,7 @@ export default function MessagingScreen() {
     }),
     [students, classFilter, search],
   );
-  const recipients = students.filter(s => selectedIds.has(s.id));
+  const recipients = students.filter(s => isActiveStudent(s) && selectedIds.has(s.id));
 
   const toggle = (id: string) =>
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });

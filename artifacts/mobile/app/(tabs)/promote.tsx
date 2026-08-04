@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
-import { useApp } from '@/context/AppContext';
+import { useApp, isActiveStudent } from '@/context/AppContext';
 
 export default function PromoteScreen() {
   const colors = useColors();
@@ -28,12 +28,12 @@ export default function PromoteScreen() {
   const [showIndividualPicker, setShowIndividualPicker] = useState<string | null>(null);
 
   const studentsInFromClass = useMemo(
-    () => (fromClass ? students.filter(s => s.class === fromClass) : []),
+    () => (fromClass ? students.filter(s => s.class === fromClass && isActiveStudent(s)) : []),
     [students, fromClass],
   );
 
   const selectedStudentForPromotion = useMemo(
-    () => (showIndividualPicker ? students.find(s => s.id === showIndividualPicker) : null),
+    () => (showIndividualPicker ? students.find(s => s.id === showIndividualPicker && isActiveStudent(s)) : null),
     [students, showIndividualPicker],
   );
 

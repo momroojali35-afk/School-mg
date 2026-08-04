@@ -109,7 +109,9 @@ export function createPgAdapter(db: DB): DataAdapter {
     // ── Students ──────────────────────────────────────────────────────────────
     students: {
       async list() {
-        return db.select().from(studentsTable).orderBy(asc(studentsTable.createdAt));
+        return db.select().from(studentsTable)
+          .where(drizzleSql`COALESCE(${studentsTable.status}, 'active') <> 'graduated'`)
+          .orderBy(asc(studentsTable.createdAt));
       },
       async create(data: any) {
         const values: any = {
@@ -756,23 +758,33 @@ export function createPgAdapter(db: DB): DataAdapter {
           if (data.id) v.id = data.id;
           return v;
         });
-        return db.insert(alumniTable).values(values).onConflictDoUpdate({
-          target: alumniTable.studentId,
-          set: {
-            studentName: drizzleSql`excluded.student_name`,
-            class: drizzleSql`excluded.class`,
-            section: drizzleSql`excluded.section`,
-            graduationYear: drizzleSql`excluded.graduation_year`,
-            name: drizzleSql`excluded.name`,
-            batch: drizzleSql`excluded.batch`,
-            passOutClass: drizzleSql`excluded.pass_out_class`,
-            rollNumber: drizzleSql`excluded.roll_number`,
-            admissionNo: drizzleSql`excluded.admission_no`,
-            dateOfBirth: drizzleSql`excluded.date_of_birth`,
-            address: drizzleSql`excluded.address`,
-            currentStatus: drizzleSql`excluded.current_status`,
-          },
-        }).returning();
+        const studentIds = Array.from(new Set(records.map((data: any) => String(data.studentId)).filter(Boolean)));
+        return db.transaction(async (tx) => {
+          const rows = await tx.insert(alumniTable).values(values).onConflictDoUpdate({
+            target: alumniTable.studentId,
+            set: {
+              studentName: drizzleSql`excluded.student_name`,
+              class: drizzleSql`excluded.class`,
+              section: drizzleSql`excluded.section`,
+              graduationYear: drizzleSql`excluded.graduation_year`,
+              name: drizzleSql`excluded.name`,
+              batch: drizzleSql`excluded.batch`,
+              passOutClass: drizzleSql`excluded.pass_out_class`,
+              rollNumber: drizzleSql`excluded.roll_number`,
+              admissionNo: drizzleSql`excluded.admission_no`,
+              dateOfBirth: drizzleSql`excluded.date_of_birth`,
+              address: drizzleSql`excluded.address`,
+              currentStatus: drizzleSql`excluded.current_status`,
+            },
+          }).returning();
+
+          if (studentIds.length > 0) {
+            await tx.update(studentsTable)
+              .set({ status: "graduated" })
+              .where(inArray(studentsTable.id, studentIds));
+          }
+          return rows;
+        });
       },
       async delete(id) {
         await db.delete(alumniTable).where(eq(alumniTable.id, id));

@@ -8,7 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Student, getStudentFeeInfo } from '@/context/AppContext';
+import { useApp, Student, getStudentFeeInfo, isActiveStudent } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -149,6 +149,7 @@ export default function StudentsScreen() {
 
   const filtered = useMemo(() =>
     students.filter(s =>
+      isActiveStudent(s) &&
       (filterClass === 'All' || s.class === filterClass) &&
       (s.name.toLowerCase().includes(search.toLowerCase()) ||
        s.rollNumber.includes(search) ||
