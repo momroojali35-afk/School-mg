@@ -6,3 +6,4 @@
 - [Mobile preview dependencies](mobile-preview-dependencies.md) — the Expo workflow requires workspace dependencies installed before it can start.
 - [Request document storage](request-document-storage.md) — application documents are stored as base64 fields on the request record; hard deletion removes the database record and embedded file data.
 - [Section data integrity](section-data-integrity.md) — section lists must include legacy student assignments; rename/delete must update those assignments across database adapters.
+- [Birthday wish sharing](birthday-wish-sharing.md) — dashboard wish actions must use direct WhatsApp messaging on native before any browser-only card capture.

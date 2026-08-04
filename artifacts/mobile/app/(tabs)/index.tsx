@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApp, Student } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { daysUntilBirthday, isBirthdayToday, extractMMDD } from '@/utils/dateUtils';
+import { sendReminderWhatsApp } from '@/utils/reminder';
 
 // ─── DB status hook ───────────────────────────────────────────────────────────
 function useDbStatus() {
@@ -1068,6 +1069,15 @@ export default function AdminDashboard() {
     const caption =
 `🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
     const fileName = `BirthdayCard_${student.name.replace(/\s+/g, '_')}.png`;
+
+    // The dashboard action can be pressed before the birthday card modal is
+    // mounted, and native Expo does not provide browser DOM APIs. In both
+    // cases, send the birthday wish directly through the existing WhatsApp
+    // helper instead of trying to capture an unavailable card.
+    if (Platform.OS !== 'web' || !birthdayCardRef.current) {
+      await sendReminderWhatsApp(student, caption);
+      return;
+    }
 
     // ── Step 1: Resolve the card DOM element from the React ref ──────────────
     // On React Native Web, ref.current for a <View> IS the underlying DOM node.
