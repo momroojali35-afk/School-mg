@@ -15,6 +15,8 @@ import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { daysUntilBirthday, isBirthdayToday, extractMMDD } from '@/utils/dateUtils';
 import { sendReminderWhatsApp } from '@/utils/reminder';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 // ─── DB status hook ───────────────────────────────────────────────────────────
 function useDbStatus() {
@@ -1835,13 +1837,55 @@ export default function AdminDashboard() {
                       if (birthdaySharing) return;
                       setBirthdaySharing(true);
                       try {
-                        console.log('[BirthdayShare] ── Starting share flow for:', birthdayCard.name);
                         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        await sendBirthdayWhatsApp(birthdayCard);
-                        console.log('[BirthdayShare] ── Flow finished, closing modal');
+
+                        // 1. Capture the birthday card view as a PNG image
+                        if (!birthdayCardRef.current) {
+                          throw new Error('Birthday card is not ready. Please wait a moment and try again.');
+                        }
+                        const imageUri = await captureRef(birthdayCardRef, {
+                          format: 'png',
+                          quality: 1,
+                          result: 'tmpfile',
+                        });
+
+                        // 2. Build the registered phone number for WhatsApp
+                        const rawDigits = birthdayCard.mobileNumber?.replace(/\D/g, '') ?? '';
+                        const phone = rawDigits.length >= 7
+                          ? (rawDigits.startsWith('91') && rawDigits.length > 10
+                              ? rawDigits
+                              : `91${rawDigits}`)
+                          : '';
+
+                        // 3. Share the PNG via the native share sheet — the birthday card
+                        //    image is pre-loaded so the user taps WhatsApp and sends it
+                        //    directly to the student's registered number.
+                        //    If native sharing is unavailable, open WhatsApp to the number
+                        //    directly with a text wish as a fallback.
+                        const sharingAvailable = await Sharing.isAvailableAsync();
+                        if (sharingAvailable) {
+                          await Sharing.shareAsync(imageUri, {
+                            mimeType: 'image/png',
+                            dialogTitle: `Happy Birthday – ${birthdayCard.name}`,
+                            UTI: 'public.png',
+                          });
+                        } else if (phone) {
+                          const wishText = encodeURIComponent(
+                            `Happy Birthday ${birthdayCard.name}!\n\n` +
+                            `Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n` +
+                            `${SCHOOL_INFO.name}\n${SCHOOL_INFO.contact}`
+                          );
+                          const nativeUrl = `whatsapp://send?phone=${phone}&text=${wishText}`;
+                          const webUrl   = `https://wa.me/${phone}?text=${wishText}`;
+                          try { await Linking.openURL(nativeUrl); }
+                          catch { await Linking.openURL(webUrl); }
+                        } else {
+                          Alert.alert('No Mobile Number', `${birthdayCard.name} does not have a mobile number on record.`);
+                        }
+
                         setBirthdayCard(null);
                       } catch (err: any) {
-                        console.error('[BirthdayShare] ── Unhandled error:', err?.message ?? err, err);
+                        console.error('[BirthdayShare] error:', err?.message ?? err);
                         Alert.alert('Sharing Error', err?.message ?? 'An unexpected error occurred. Please try again.');
                         // Stay on the modal — do NOT navigate away
                       } finally {
