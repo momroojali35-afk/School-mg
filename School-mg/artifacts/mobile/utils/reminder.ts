@@ -128,8 +128,8 @@ export async function shareReminderImage(imageUri: string, student: Student): Pr
 }
 
 // ─── Share birthday card image via native share sheet ─────────────────────────
-// Kept for other image-sharing flows. Birthday wish buttons use the direct
-// registered-number WhatsApp helper above instead of opening the share sheet.
+// The captured PNG is a local file, so WhatsApp receives the card as an image
+// attachment when selected from the Android share sheet.
 export async function shareBirthdayCardImage(cardRef: any, student: Student): Promise<void> {
   if (!cardRef?.current) {
     throw new Error('Birthday card is not ready to share. Please try again.');
