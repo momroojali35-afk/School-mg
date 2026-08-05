@@ -618,9 +618,9 @@ export default function TeacherDashboard() {
                       <Feather name="gift" size={14} color="#fff" />
                       <Text style={s.bdayHeroBtnTxt}>Birthday Card</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => sendBirthdayWhatsApp(st)} activeOpacity={0.8} style={s.bdayHeroBtn}>
+                    <TouchableOpacity onPress={() => setBirthdayCard(st)} activeOpacity={0.8} style={s.bdayHeroBtn}>
                       <Feather name="message-circle" size={14} color="#fff" />
-                      <Text style={s.bdayHeroBtnTxt}>Send Wish</Text>
+                      <Text style={s.bdayHeroBtnTxt}>Send Card PNG</Text>
                     </TouchableOpacity>
                   </View>
                 </LinearGradient>
@@ -734,10 +734,10 @@ export default function TeacherDashboard() {
                               <Text style={bday.modalActionTxt}>Card</Text>
                             </LinearGradient>
                           </TouchableOpacity>
-                          <TouchableOpacity onPress={() => { setShowMonthBirthdays(false); sendBirthdayWhatsApp(student); }} activeOpacity={0.8} style={bday.modalActionBtn}>
+                          <TouchableOpacity onPress={() => { setShowMonthBirthdays(false); setBirthdayCard(student); }} activeOpacity={0.8} style={bday.modalActionBtn}>
                             <LinearGradient colors={['#10B981','#059669']} style={bday.modalActionGrad} start={{x:0,y:0}} end={{x:1,y:0}}>
                               <Feather name="message-circle" size={12} color="#fff" />
-                              <Text style={bday.modalActionTxt}>Wish</Text>
+                              <Text style={bday.modalActionTxt}>Card PNG</Text>
                             </LinearGradient>
                           </TouchableOpacity>
                         </View>

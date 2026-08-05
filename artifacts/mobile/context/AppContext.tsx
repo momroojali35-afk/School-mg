@@ -690,7 +690,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         apiGet<any[]>('/inactivation-requests', { cache: 'no-store' }).catch(() => [] as any[]),
         apiGet<Record<string, number>>('/settings/class-absent-limits').catch(() => ({} as Record<string, number>)),
         apiGet<DocumentBranding>('/settings/document-branding').catch(() => DEFAULT_STATE.documentBranding),
-        apiGet<any[]>('/alumni').catch(() => [] as any[]),
+        apiGet<any[]>('/alumni', { cache: 'no-store' }).catch(() => [] as any[]),
       ]);
 
       const isEmpty = classes.length === 0 && students.length === 0 && teachers.length === 0;
@@ -708,7 +708,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           apiGet<any[]>('/inactivation-requests', { cache: 'no-store' }).catch(() => [] as any[]),
           apiGet<Record<string, number>>('/settings/class-absent-limits').catch(() => ({} as Record<string, number>)),
           apiGet<DocumentBranding>('/settings/document-branding').catch(() => DEFAULT_STATE.documentBranding),
-          apiGet<any[]>('/alumni').catch(() => [] as any[]),
+          apiGet<any[]>('/alumni', { cache: 'no-store' }).catch(() => [] as any[]),
         ]);
         setState({
           classes: c2.sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })), sections: sec2, students: s2.map(mapStudent), teachers: t2.map(mapTeacher),
@@ -1304,7 +1304,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Reload the canonical list so duplicate updates and server-generated IDs
       // are reflected immediately after an import.
       const [refreshed, refreshedStudents] = await Promise.all([
-        apiGet<Alumni[]>('/alumni'),
+        apiGet<Alumni[]>('/alumni', { cache: 'no-store' }),
         apiGet<any[]>('/students'),
       ]);
       setState(prev => ({

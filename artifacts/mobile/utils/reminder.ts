@@ -185,9 +185,14 @@ export async function sendBirthdayCardWhatsApp(
     let lastError: unknown;
     for (const packageName of ['com.whatsapp', 'com.whatsapp.w4b']) {
       try {
+        const contactPickerClass = `${packageName}.ContactPicker`;
         await IntentLauncher.startActivityAsync('android.intent.action.SEND', {
-          type: 'image/png',
+          type: 'image/*',
           packageName,
+          // expo-intent-launcher only applies packageName when className is
+          // also supplied. ContactPicker accepts ACTION_SEND image intents
+          // and keeps the send inside the targeted WhatsApp app.
+          className: contactPickerClass,
           flags: 1, // Intent.FLAG_GRANT_READ_URI_PERMISSION
           extra: {
             'android.intent.extra.STREAM': contentUri,
