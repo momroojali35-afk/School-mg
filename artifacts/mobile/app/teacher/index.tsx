@@ -12,7 +12,7 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, Student, isActiveStudent } from '@/context/AppContext';
+import { useApp, Student, alumniToStudent, isActiveStudent } from '@/context/AppContext';
 import { isBirthdayToday, daysUntilBirthday, extractMMDD } from '@/utils/dateUtils';
 import { sendReminderWhatsApp } from '@/utils/reminder';
 
@@ -213,7 +213,7 @@ const EMPTY_STUDENT = {
 export default function TeacherDashboard() {
   const insets = useSafeAreaInsets();
   const { user, isLoading, logout } = useAuth();
-  const { students, exams, classes, sections, attendanceRecords, addStudent, addSection, updateSection, deleteSection } = useApp();
+  const { students, exams, classes, sections, attendanceRecords, alumni, addStudent, addSection, updateSection, deleteSection } = useApp();
   const signingOutRef = useRef(false);
 
   const [showProfile,     setShowProfile]     = useState(false);
@@ -249,20 +249,20 @@ export default function TeacherDashboard() {
   );
 
   const birthdayStudents = useMemo(() =>
-    students.filter(s => isBirthdayToday(s.dateOfBirth)),
-    [students],
+    [...students, ...alumni.map(alumniToStudent)].filter(s => isBirthdayToday(s.dateOfBirth)),
+    [students, alumni],
   );
   const upcomingBirthdays = useMemo(() =>
-    students
+    [...students, ...alumni.map(alumniToStudent)]
       .filter(s => (() => { const d = daysUntilBirthday(s.dateOfBirth); return d > 0 && d <= 30; })())
       .sort((a, b) => daysUntilBirthday(a.dateOfBirth) - daysUntilBirthday(b.dateOfBirth))
       .slice(0, 5),
-    [students],
+    [students, alumni],
   );
   const monthBirthdays = useMemo(() => {
     const month = now.getMonth() + 1;
     const today = now.getDate();
-    return students
+    return [...students, ...alumni.map(alumniToStudent)]
       .filter(s => {
         const mmdd = extractMMDD(s.dateOfBirth);
         if (!mmdd) return false;
@@ -275,7 +275,7 @@ export default function TeacherDashboard() {
         const db = Number(extractMMDD(b.dateOfBirth)?.split('-')[1] ?? 99);
         return da - db;
       });
-  }, [students, now.getMonth(), now.getDate()]);
+  }, [students, alumni, now.getMonth(), now.getDate()]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -299,11 +299,12 @@ export default function TeacherDashboard() {
   });
 
   // ── Stats ───────────────────────────────────────────────────────────────────
-  const todayRecords        = attendanceRecords.filter(r => r.date === todayStr);
+    const visibleStudentIds = new Set(students.map(student => student.id));
+    const todayRecords        = attendanceRecords.filter(r => r.date === todayStr && visibleStudentIds.has(r.studentId));
   const presentCount        = todayRecords.filter(r => r.status === 'present').length;
   const absentCount         = todayRecords.filter(r => r.status === 'absent').length;
-  const todayAttendanceTaken = attendanceRecords.some(
-    a => a.date === todayStr && a.takenBy === user.name,
+   const todayAttendanceTaken = attendanceRecords.some(
+     a => a.date === todayStr && a.takenBy === user.name && visibleStudentIds.has(a.studentId),
   );
 
   const initials = user.name

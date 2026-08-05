@@ -159,17 +159,25 @@ export default function FinanceScreen() {
   const yearStr = `${now.getFullYear()}`;
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6);
   const weekStartStr = weekStart.toISOString().split('T')[0];
+  const visibleStudentIds = useMemo(
+    () => new Set(students.map(student => student.id)),
+    [students],
+  );
+  const visibleFeeRecords = useMemo(
+    () => feeRecords.filter(record => visibleStudentIds.has(record.studentId)),
+    [feeRecords, visibleStudentIds],
+  );
 
   // ── Period-filtered records ───────────────────────────────────────────────
   const periodFees = useMemo(() => {
     switch (period) {
-      case 'today': return feeRecords.filter(f => f.date === todayStr);
-      case 'week':  return feeRecords.filter(f => f.date >= weekStartStr && f.date <= todayStr);
-      case 'month': return feeRecords.filter(f => f.date.startsWith(monthStr));
-      case 'year':  return feeRecords.filter(f => f.date.startsWith(yearStr));
-      default:      return feeRecords;
+      case 'today': return visibleFeeRecords.filter(f => f.date === todayStr);
+      case 'week':  return visibleFeeRecords.filter(f => f.date >= weekStartStr && f.date <= todayStr);
+      case 'month': return visibleFeeRecords.filter(f => f.date.startsWith(monthStr));
+      case 'year':  return visibleFeeRecords.filter(f => f.date.startsWith(yearStr));
+      default:      return visibleFeeRecords;
     }
-  }, [feeRecords, period, todayStr, weekStartStr, monthStr, yearStr]);
+  }, [visibleFeeRecords, period, todayStr, weekStartStr, monthStr, yearStr]);
 
   const periodExpenses = useMemo(() => {
     switch (period) {
@@ -220,10 +228,10 @@ export default function FinanceScreen() {
     }));
     return weeks.map(({ label, start, end }) => ({
       label,
-      fees:     feeRecords.filter(f => f.date >= start && f.date <= end).reduce((s, f) => s + f.amount, 0),
+      fees:     visibleFeeRecords.filter(f => f.date >= start && f.date <= end).reduce((s, f) => s + f.amount, 0),
       expenses: expenses.filter(e => e.date >= start && e.date <= end).reduce((s, e) => s + e.amount, 0),
     }));
-  }, [feeRecords, expenses, monthStr]);
+  }, [visibleFeeRecords, expenses, monthStr]);
 
   // ── Fee type breakdown for period ────────────────────────────────────────
   const feesByType = useMemo(() => {
@@ -252,11 +260,11 @@ export default function FinanceScreen() {
   }, [periodFees, periodExpenses]);
 
   // ── Legacy month-based values (used in student fee cards) ────────────────
-  const monthFees     = useMemo(() => feeRecords.filter(f => f.date.startsWith(monthStr)).reduce((s, f) => s + f.amount, 0), [feeRecords, monthStr]);
+  const monthFees     = useMemo(() => visibleFeeRecords.filter(f => f.date.startsWith(monthStr)).reduce((s, f) => s + f.amount, 0), [visibleFeeRecords, monthStr]);
   const monthExpenses = useMemo(() => expenses.filter(e => e.date.startsWith(monthStr)).reduce((s, e) => s + e.amount, 0), [expenses, monthStr]);
 
-  const getStudentLastFee  = (id: string) => feeRecords.filter(f => f.studentId === id).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
-  const getStudentTotal    = (id: string) => feeRecords.filter(f => f.studentId === id).reduce((s, f) => s + f.amount, 0);
+  const getStudentLastFee  = (id: string) => visibleFeeRecords.filter(f => f.studentId === id).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+  const getStudentTotal    = (id: string) => visibleFeeRecords.filter(f => f.studentId === id).reduce((s, f) => s + f.amount, 0);
   const activeStudents     = useMemo(() => students.filter(isActiveStudent), [students]);
   const uniqueClasses      = useMemo(() => ['All', ...Array.from(new Set(activeStudents.map(s => s.class))).sort()], [activeStudents]);
   const filteredStudents   = useMemo(() => activeStudents.filter(s => {
@@ -269,7 +277,7 @@ export default function FinanceScreen() {
   const openCollect = (student: Student) => {
     setCollectStudent(student);
     setCollectFeeTypeId('');
-    const fi = getStudentFeeInfo(student, feeRecords);
+    const fi = getStudentFeeInfo(student, visibleFeeRecords);
     setCollectAmount(fi.remaining > 0 ? String(fi.remaining) : '');
     setCollectDesc(`Monthly Fee - ${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
     setCollectDate(now.toISOString().split('T')[0]);
@@ -291,7 +299,7 @@ export default function FinanceScreen() {
     const selectedFt = feeTypes.find(f => f.id === collectFeeTypeId);
     const isAnnualFee = selectedFt?.category === 'annual' || (selectedFt?.name.toLowerCase().includes('annual fee') ?? false);
     if (isAnnualFee) {
-      const fi = getStudentFeeInfo(collectStudent, feeRecords);
+    const fi = getStudentFeeInfo(collectStudent, visibleFeeRecords);
       if (fi.annualFee > 0 && finalAmt > fi.remaining) {
         Alert.alert('Overpayment', `Remaining balance is ₹${fi.remaining.toLocaleString('en-IN')}. You cannot collect more than the outstanding balance.`);
         return;
@@ -649,7 +657,7 @@ export default function FinanceScreen() {
           ListEmptyComponent={<EmptyState icon="dollar-sign" title="No Students" subtitle={feeSearch || feeClassFilter !== 'All' ? 'No students match your filter' : 'Add students to manage fees'} />}
           renderItem={({ item: st }) => {
             const last = getStudentLastFee(st.id);
-            const fi = getStudentFeeInfo(st, feeRecords);
+            const fi = getStudentFeeInfo(st, visibleFeeRecords);
             const STATUS_COLORS: Record<string, string> = { paid: colors.success, partial: colors.warning, pending: colors.destructive, 'no-fee': colors.mutedForeground };
             const STATUS_LABELS: Record<string, string> = { paid: 'Paid', partial: 'Partial', pending: 'Pending', 'no-fee': 'No Fee Set' };
             const statusColor = STATUS_COLORS[fi.status];
@@ -803,7 +811,7 @@ export default function FinanceScreen() {
                 </TouchableOpacity>
               </View>
               {collectStudent && (() => {
-                const fi = getStudentFeeInfo(collectStudent, feeRecords);
+                const fi = getStudentFeeInfo(collectStudent, visibleFeeRecords);
                 if (fi.annualFee <= 0) return null;
                 return (
                   <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -932,8 +940,8 @@ export default function FinanceScreen() {
               <TouchableOpacity onPress={() => setShowFeeHistory(null)}><Feather name="x" size={24} color={colors.mutedForeground} /></TouchableOpacity>
             </View>
             {showFeeHistory && (() => {
-              const records = feeRecords.filter(f => f.studentId === showFeeHistory.id).sort((a, b) => b.date.localeCompare(a.date));
-              const fi = getStudentFeeInfo(showFeeHistory, feeRecords);
+              const records = visibleFeeRecords.filter(f => f.studentId === showFeeHistory.id).sort((a, b) => b.date.localeCompare(a.date));
+              const fi = getStudentFeeInfo(showFeeHistory, visibleFeeRecords);
               const STATUS_COLORS: Record<string, string> = { paid: colors.success, partial: colors.warning, pending: colors.destructive, 'no-fee': colors.mutedForeground };
               const STATUS_LABELS: Record<string, string> = { paid: 'Fully Paid', partial: 'Partial', pending: 'Pending', 'no-fee': 'No Fee Set' };
               return (
@@ -1144,7 +1152,7 @@ export default function FinanceScreen() {
                       studentClass={reminderStudent.class}
                       rollNumber={reminderStudent.rollNumber}
                       fatherName={reminderStudent.fatherName}
-                      dueAmount={getStudentFeeInfo(reminderStudent, feeRecords).remaining}
+                      dueAmount={getStudentFeeInfo(reminderStudent, visibleFeeRecords).remaining}
                       logoDataUrl={documentBranding.logoDataUrl}
                     />
                   </ViewShot>

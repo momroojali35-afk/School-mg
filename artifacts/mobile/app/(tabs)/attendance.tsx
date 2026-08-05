@@ -203,6 +203,14 @@ export default function AttendanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { attendanceRecords, students, classes } = useApp();
+  const visibleStudentIds = useMemo(
+    () => new Set(students.map(student => student.id)),
+    [students],
+  );
+  const visibleAttendanceRecords = useMemo(
+    () => attendanceRecords.filter(record => visibleStudentIds.has(record.studentId)),
+    [attendanceRecords, visibleStudentIds],
+  );
 
   const [mode, setMode] = useState<ReportMode>('daily');
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
@@ -217,7 +225,7 @@ export default function AttendanceScreen() {
   const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string } | null>(null);
 
   const getFilteredRecords = () => {
-    let records = attendanceRecords;
+    let records = visibleAttendanceRecords;
 
     if (mode === 'daily') {
       records = records.filter(r => r.date === filterDate);
@@ -411,7 +419,7 @@ export default function AttendanceScreen() {
           studentId={detailStudent.id}
           studentName={detailStudent.name}
           studentClass={detailStudent.cls}
-          allRecords={attendanceRecords}
+          allRecords={visibleAttendanceRecords}
           onClose={() => setDetailStudent(null)}
           colors={colors}
         />

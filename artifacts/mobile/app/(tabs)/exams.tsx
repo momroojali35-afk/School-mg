@@ -1352,7 +1352,8 @@ export default function ExamsScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: botPad, flexGrow: 1 }}
         ListEmptyComponent={<EmptyState icon="book-open" title="No Exams" subtitle="Create your first exam" onAction={openCreateExam} actionLabel="Create Exam" />}
         renderItem={({ item: exam }) => {
-          const resultsCount = examResults.filter(r => r.examId === exam.id).length;
+          const activeStudentIds = new Set(students.filter(isActiveStudent).map(student => student.id));
+          const resultsCount = examResults.filter(r => r.examId === exam.id && activeStudentIds.has(r.studentId)).length;
           const classLabel = getExamClassLabel(exam);
           const totalStudents = exam.classSubjects && exam.classSubjects.length > 0
             ? exam.classSubjects.reduce((n, ca) => n + students.filter(st => st.class === ca.class && isActiveStudent(st)).length, 0)

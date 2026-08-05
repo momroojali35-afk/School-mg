@@ -11,7 +11,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, Student, isActiveStudent } from '@/context/AppContext';
+import { useApp, Student, alumniToStudent, isActiveStudent } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { daysUntilBirthday, isBirthdayToday, extractMMDD } from '@/utils/dateUtils';
 import { sendReminderWhatsApp } from '@/utils/reminder';
@@ -841,7 +841,7 @@ const ai = StyleSheet.create({
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminDashboard() {
   const { user, isLoading, logout, changeAdminCredentials } = useAuth();
-  const { students, teachers, classes, feeRecords, expenses, attendanceRecords, documentBranding, updateDocumentBranding } = useApp();
+  const { students, teachers, classes, feeRecords, expenses, attendanceRecords, alumni, documentBranding, updateDocumentBranding } = useApp();
   const insets = useSafeAreaInsets();
   const dbInfo = useDbStatus();
 
@@ -939,12 +939,21 @@ export default function AdminDashboard() {
   // ── Stats ──────────────────────────────────────────────────────────────────
   const activeStudents = useMemo(() => students.filter(isActiveStudent), [students]);
   const uniqueClasses = useMemo(() => new Set(activeStudents.map(s => s.class)).size, [activeStudents]);
+  const visibleStudentIds = useMemo(() => new Set(students.map(s => s.id)), [students]);
+  const visibleFeeRecords = useMemo(
+    () => feeRecords.filter(record => visibleStudentIds.has(record.studentId)),
+    [feeRecords, visibleStudentIds],
+  );
+  const visibleAttendanceRecords = useMemo(
+    () => attendanceRecords.filter(record => visibleStudentIds.has(record.studentId)),
+    [attendanceRecords, visibleStudentIds],
+  );
 
   const monthFees = useMemo(() =>
-    feeRecords
+    visibleFeeRecords
       .filter(f => f.date.startsWith(`${curYear}-${padM(curMonthIdx)}`))
       .reduce((s, f) => s + f.amount, 0),
-    [feeRecords, curMonthIdx, curYear]);
+    [visibleFeeRecords, curMonthIdx, curYear]);
 
   const monthExpenses = useMemo(() =>
     expenses
@@ -962,28 +971,28 @@ export default function AdminDashboard() {
 
   // ── Attendance ─────────────────────────────────────────────────────────────
   const todayStr     = now.toISOString().split('T')[0];
-  const todayPresent = attendanceRecords.filter(a => a.date === todayStr && a.status === 'present').length;
-  const todayAbsent  = attendanceRecords.filter(a => a.date === todayStr && a.status === 'absent').length;
-  const todayLeave   = attendanceRecords.filter(a => a.date === todayStr && a.status === 'leave').length;
+  const todayPresent = visibleAttendanceRecords.filter(a => a.date === todayStr && a.status === 'present').length;
+  const todayAbsent  = visibleAttendanceRecords.filter(a => a.date === todayStr && a.status === 'absent').length;
+  const todayLeave   = visibleAttendanceRecords.filter(a => a.date === todayStr && a.status === 'leave').length;
   const todayTotal   = todayPresent + todayAbsent + todayLeave;
   const attendancePct = todayTotal > 0 ? Math.round((todayPresent / todayTotal) * 100) : 0;
 
   // ── Birthdays ──────────────────────────────────────────────────────────────
   const birthdayStudents = useMemo(() =>
-    students.filter(s => isBirthdayToday(s.dateOfBirth)),
-    [students],
+    [...students, ...alumni.map(alumniToStudent)].filter(s => isBirthdayToday(s.dateOfBirth)),
+    [students, alumni],
   );
   const upcomingBirthdays = useMemo(() =>
-    students
+    [...students, ...alumni.map(alumniToStudent)]
       .filter(s => (() => { const d = daysUntilBirthday(s.dateOfBirth); return d > 0 && d <= 30; })())
       .sort((a, b) => daysUntilBirthday(a.dateOfBirth) - daysUntilBirthday(b.dateOfBirth))
       .slice(0, 5),
-    [students],
+    [students, alumni],
   );
   const monthBirthdays = useMemo(() => {
     const month = now.getMonth() + 1;
     const today = now.getDate();
-    return students
+    return [...students, ...alumni.map(alumniToStudent)]
       .filter(s => {
         const mmdd = extractMMDD(s.dateOfBirth);
         if (!mmdd) return false;
@@ -996,10 +1005,10 @@ export default function AdminDashboard() {
         const db = Number(extractMMDD(b.dateOfBirth)?.split('-')[1] ?? 99);
         return da - db;
       });
-  }, [students, now.getMonth(), now.getDate()]);
+  }, [students, alumni, now.getMonth(), now.getDate()]);
   // ── Recent activity (fees + expenses, newest first) ────────────────────────
   const recentActivity = useMemo(() => {
-    const feeItems = feeRecords.map(f => ({
+    const feeItems = visibleFeeRecords.map(f => ({
       id: `fee-${f.id}`,
       type: 'fee' as const,
       title: `Fee collected from ${f.studentName}`,
@@ -1030,7 +1039,7 @@ export default function AdminDashboard() {
     return [...feeItems, ...expItems]
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 5);
-  }, [feeRecords, expenses]);
+  }, [visibleFeeRecords, expenses]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const doLogout = async () => {
@@ -1140,7 +1149,7 @@ export default function AdminDashboard() {
                 onPress={() => router.push('/(tabs)/teachers' as any)}
               />
               <PeopleCard
-                icon="book" label="Classes" value={classes.length}
+                icon="book" label="Classes" value={uniqueClasses}
                 accentColor="#7C3AED" accentBg="#F5F3FF"
                 onPress={() => router.push('/teacher/classes' as any)}
               />
@@ -1555,7 +1564,7 @@ export default function AdminDashboard() {
         visible={financePanel !== null}
         onClose={() => setFinancePanel(null)}
         initialTab={financePanel ?? 'fees'}
-        feeRecords={feeRecords}
+        feeRecords={visibleFeeRecords}
         expenses={expenses}
       />
 

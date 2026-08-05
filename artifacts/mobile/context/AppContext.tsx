@@ -282,6 +282,25 @@ export interface Alumni {
   createdAt?: string;
 }
 
+/** Convert an alumni record to the student shape used by the birthday UI. */
+export function alumniToStudent(alumnus: Alumni): Student {
+  return {
+    id: alumnus.studentId ?? alumnus.id,
+    name: alumnus.name,
+    fatherName: alumnus.fatherName ?? '',
+    motherName: '',
+    mobileNumber: alumnus.mobileNumber ?? '',
+    class: alumnus.class ?? alumnus.passOutClass ?? '',
+    section: alumnus.section,
+    admissionNo: alumnus.admissionNo,
+    rollNumber: alumnus.rollNumber ?? '',
+    dateOfBirth: alumnus.dateOfBirth ?? '',
+    address: alumnus.address,
+    photo: alumnus.photo,
+    status: 'graduated',
+  };
+}
+
 interface AppState {
   students: Student[];
   teachers: Teacher[];
@@ -629,7 +648,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const [classes, sections, students, teachers, subjects, feeTypes, attendance, exams, results, fees, expenses, salaries, promotions, markSubs, auditLog, inactivationReqs, classAbsentLimitsRaw, documentBranding, alumniRows] = await Promise.all([
         apiGet<string[]>('/classes'),
         apiGet<string[]>('/sections').catch(() => [] as string[]),
-        apiGet<any[]>('/students?includeGraduated=true'),
+        apiGet<any[]>('/students'),
         apiGet<any[]>('/teachers'),
         apiGet<string[]>('/subjects'),
         apiGet<any[]>('/fee-types'),
@@ -654,7 +673,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await seedAllData();
         const [c2, sec2, s2, t2, sub2, ft2, att2, ex2, res2, fee2, exp2, sal2, pro2, ms2, auditLog2, ir2, cal2, branding2, alumni2] = await Promise.all([
           apiGet<string[]>('/classes'), apiGet<string[]>('/sections').catch(() => [] as string[]),
-          apiGet<any[]>('/students?includeGraduated=true'), apiGet<any[]>('/teachers'),
+          apiGet<any[]>('/students'), apiGet<any[]>('/teachers'),
           apiGet<string[]>('/subjects'), apiGet<any[]>('/fee-types'), apiGet<any[]>('/attendance'),
           apiGet<any[]>('/exams'), apiGet<any[]>('/exam-results'), apiGet<any[]>('/fee-records'),
           apiGet<any[]>('/expenses'), apiGet<any[]>('/salary-records'), apiGet<any[]>('/promotion-records'),
@@ -1260,7 +1279,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // are reflected immediately after an import.
       const [refreshed, refreshedStudents] = await Promise.all([
         apiGet<Alumni[]>('/alumni'),
-        apiGet<any[]>('/students?includeGraduated=true'),
+        apiGet<any[]>('/students'),
       ]);
       setState(prev => ({
         ...prev,
