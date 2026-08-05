@@ -838,10 +838,20 @@ const ai = StyleSheet.create({
   pillTxt: { fontSize: 10, fontWeight: '800' },
 });
 
+// ── BirthdayPerson — unified shape used by all birthday UI ────────────────────
+type BirthdayPerson = {
+  id: string;
+  name: string;
+  class: string;
+  rollNumber: string;
+  mobileNumber: string;
+  dateOfBirth: string;
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminDashboard() {
   const { user, isLoading, logout, changeAdminCredentials } = useAuth();
-  const { students, teachers, classes, feeRecords, expenses, attendanceRecords, documentBranding, updateDocumentBranding } = useApp();
+  const { students, teachers, classes, feeRecords, expenses, attendanceRecords, documentBranding, updateDocumentBranding, alumni } = useApp();
   const insets = useSafeAreaInsets();
   const dbInfo = useDbStatus();
 
@@ -851,7 +861,7 @@ export default function AdminDashboard() {
   const [credError, setCredError] = useState('');
   const [credSaving, setCredSaving] = useState(false);
   const [credSuccess, setCredSuccess] = useState(false);
-  const [birthdayCard, setBirthdayCard] = useState<Student | null>(null);
+  const [birthdayCard, setBirthdayCard] = useState<BirthdayPerson | null>(null);
   const [birthdaySharing, setBirthdaySharing] = useState(false);
   const birthdayCardRef = useRef<View>(null);
   const [financePanel, setFinancePanel] = useState<FinancePanelTab | null>(null);
@@ -969,21 +979,47 @@ export default function AdminDashboard() {
   const attendancePct = todayTotal > 0 ? Math.round((todayPresent / todayTotal) * 100) : 0;
 
   // ── Birthdays ──────────────────────────────────────────────────────────────
+  // Map alumni to a birthday-compatible shape so they appear alongside students.
+  const alumniAsBirthdayPersons = useMemo((): BirthdayPerson[] =>
+    alumni
+      .filter(a => !!a.dateOfBirth)
+      .map(a => ({
+        id: a.id,
+        name: a.name,
+        class: a.passOutClass || a.batch || 'Alumni',
+        rollNumber: a.rollNumber || '',
+        mobileNumber: a.mobileNumber || '',
+        dateOfBirth: a.dateOfBirth,
+      })),
+    [alumni],
+  );
+  const allBirthdayPersons = useMemo((): BirthdayPerson[] => [
+    ...students.map(s => ({
+      id: s.id,
+      name: s.name,
+      class: s.class,
+      rollNumber: s.rollNumber,
+      mobileNumber: s.mobileNumber,
+      dateOfBirth: s.dateOfBirth,
+    })),
+    ...alumniAsBirthdayPersons,
+  ], [students, alumniAsBirthdayPersons]);
+
   const birthdayStudents = useMemo(() =>
-    students.filter(s => isBirthdayToday(s.dateOfBirth)),
-    [students],
+    allBirthdayPersons.filter(s => isBirthdayToday(s.dateOfBirth)),
+    [allBirthdayPersons],
   );
   const upcomingBirthdays = useMemo(() =>
-    students
+    allBirthdayPersons
       .filter(s => (() => { const d = daysUntilBirthday(s.dateOfBirth); return d > 0 && d <= 30; })())
       .sort((a, b) => daysUntilBirthday(a.dateOfBirth) - daysUntilBirthday(b.dateOfBirth))
       .slice(0, 5),
-    [students],
+    [allBirthdayPersons],
   );
   const monthBirthdays = useMemo(() => {
     const month = now.getMonth() + 1;
     const today = now.getDate();
-    return students
+    return allBirthdayPersons
       .filter(s => {
         const mmdd = extractMMDD(s.dateOfBirth);
         if (!mmdd) return false;
@@ -996,7 +1032,7 @@ export default function AdminDashboard() {
         const db = Number(extractMMDD(b.dateOfBirth)?.split('-')[1] ?? 99);
         return da - db;
       });
-  }, [students, now.getMonth(), now.getDate()]);
+  }, [allBirthdayPersons, now.getMonth(), now.getDate()]);
   // ── Recent activity (fees + expenses, newest first) ────────────────────────
   const recentActivity = useMemo(() => {
     const feeItems = feeRecords.map(f => ({
@@ -1066,10 +1102,10 @@ export default function AdminDashboard() {
 
   // Throws on real errors so the caller's try/catch can surface them without
   // any unhandled rejection reaching Expo Router (which would navigate to root).
-  const sendBirthdayWhatsApp = async (student: Student): Promise<void> => {
+  const sendBirthdayWhatsApp = async (person: BirthdayPerson): Promise<void> => {
     const caption =
-`🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
-    await sendReminderWhatsApp(student, caption);
+`🎂 Happy Birthday ${person.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
+    await sendReminderWhatsApp(person as unknown as Student, caption);
   };
 
   const botPad = Platform.OS === 'web' ? 80 : insets.bottom + 80;
