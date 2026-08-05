@@ -50,6 +50,27 @@ function fmt(n: number) {
   return `₹${n.toLocaleString('en-IN')}`;
 }
 
+function formatSalaryDateInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 6);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function parseSalaryDateInput(value: string): string | null {
+  const match = value.trim().match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+  if (!match) return null;
+  const [, day, month, shortYear] = match;
+  const year = 2000 + Number(shortYear);
+  const date = new Date(year, Number(month) - 1, Number(day));
+  if (
+    date.getFullYear() !== year
+    || date.getMonth() !== Number(month) - 1
+    || date.getDate() !== Number(day)
+  ) return null;
+  return `${year}-${month}-${day}`;
+}
+
 // ── Animated horizontal progress bar ─────────────────────────────────────────
 function ProgressBar({ pct, color }: { pct: number; color: string }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -203,11 +224,14 @@ export default function FinanceScreen() {
   const salaryPeriodMatches = (record: SalaryRecord) => {
     if (salaryPeriod === 'yearly') return record.year === now.getFullYear();
     if (salaryPeriod === 'custom') {
-      const start = salaryCustomStart.trim();
-      const end = salaryCustomEnd.trim();
+      const startInput = salaryCustomStart.trim();
+      const endInput = salaryCustomEnd.trim();
+      const start = startInput ? parseSalaryDateInput(startInput) : null;
+      const end = endInput ? parseSalaryDateInput(endInput) : null;
+      if (startInput && !start) return false;
+      if (endInput && !end) return false;
       if (!start && !end) return true;
-      if (start && !record.paidDate) return false;
-      if (end && !record.paidDate) return false;
+      if ((start || end) && !record.paidDate) return false;
       return (!start || (record.paidDate ?? '') >= start)
         && (!end || (record.paidDate ?? '') <= end);
     }
@@ -588,26 +612,26 @@ export default function FinanceScreen() {
                       <Text style={[salary.customLabel, { color: colors.mutedForeground }]}>From</Text>
                       <TextInput
                         value={salaryCustomStart}
-                        onChangeText={setSalaryCustomStart}
-                        placeholder="YYYY-MM-DD"
+                        onChangeText={value => setSalaryCustomStart(formatSalaryDateInput(value))}
+                        placeholder="DD/MM/YY"
                         placeholderTextColor={colors.mutedForeground}
                         style={[salary.customInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
                         autoCapitalize="none"
                         keyboardType="numbers-and-punctuation"
-                        maxLength={10}
+                        maxLength={8}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[salary.customLabel, { color: colors.mutedForeground }]}>To</Text>
                       <TextInput
                         value={salaryCustomEnd}
-                        onChangeText={setSalaryCustomEnd}
-                        placeholder="YYYY-MM-DD"
+                        onChangeText={value => setSalaryCustomEnd(formatSalaryDateInput(value))}
+                        placeholder="DD/MM/YY"
                         placeholderTextColor={colors.mutedForeground}
                         style={[salary.customInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
                         autoCapitalize="none"
                         keyboardType="numbers-and-punctuation"
-                        maxLength={10}
+                        maxLength={8}
                       />
                     </View>
                   </View>
