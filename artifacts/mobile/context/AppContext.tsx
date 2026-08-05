@@ -284,20 +284,46 @@ export interface Alumni {
 
 /** Convert an alumni record to the student shape used by the birthday UI. */
 export function alumniToStudent(alumnus: Alumni): Student {
+  const record = alumnus as Alumni & Record<string, any>;
+  const name = record.name ?? record.studentName ?? record.student_name ?? '';
   return {
-    id: alumnus.studentId ?? alumnus.id,
-    name: alumnus.name,
-    fatherName: alumnus.fatherName ?? '',
+    id: record.studentId ?? record.student_id ?? record.id,
+    name,
+    fatherName: record.fatherName ?? record.father_name ?? '',
     motherName: '',
-    mobileNumber: alumnus.mobileNumber ?? '',
-    class: alumnus.class ?? alumnus.passOutClass ?? '',
-    section: alumnus.section,
-    admissionNo: alumnus.admissionNo,
-    rollNumber: alumnus.rollNumber ?? '',
-    dateOfBirth: alumnus.dateOfBirth ?? '',
-    address: alumnus.address,
-    photo: alumnus.photo,
+    mobileNumber: record.mobileNumber ?? record.mobile_number ?? '',
+    class: record.class ?? record.passOutClass ?? record.pass_out_class ?? '',
+    section: record.section,
+    admissionNo: record.admissionNo ?? record.admission_no,
+    rollNumber: record.rollNumber ?? record.roll_number ?? '',
+    dateOfBirth: record.dateOfBirth ?? record.date_of_birth ?? '',
+    address: record.address,
+    photo: record.photo,
     status: 'graduated',
+  };
+}
+
+function mapAlumni(r: any): Alumni {
+  return {
+    id: r.id,
+    studentId: r.studentId ?? r.student_id ?? undefined,
+    studentName: r.studentName ?? r.student_name ?? r.name ?? '',
+    class: r.class ?? r.passOutClass ?? r.pass_out_class ?? '',
+    section: r.section ?? undefined,
+    graduationYear: r.graduationYear ?? r.graduation_year ?? r.batch ?? '',
+    name: r.name ?? r.studentName ?? r.student_name ?? '',
+    fatherName: r.fatherName ?? r.father_name ?? '',
+    mobileNumber: r.mobileNumber ?? r.mobile_number ?? '',
+    batch: r.batch ?? r.graduationYear ?? r.graduation_year ?? '',
+    passOutClass: r.passOutClass ?? r.pass_out_class ?? r.class ?? '',
+    rollNumber: r.rollNumber ?? r.roll_number ?? '',
+    admissionNo: r.admissionNo ?? r.admission_no ?? undefined,
+    dateOfBirth: r.dateOfBirth ?? r.date_of_birth ?? '',
+    address: r.address ?? undefined,
+    photo: r.photo ?? undefined,
+    achievements: r.achievements ?? undefined,
+    currentStatus: r.currentStatus ?? r.current_status ?? undefined,
+    createdAt: r.createdAt ?? r.created_at ?? undefined,
   };
 }
 
@@ -693,7 +719,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           inactivationRequests: ir2.map(mapInactivationRequest),
           classAbsentLimits: cal2,
           documentBranding: branding2,
-          alumni: alumni2,
+          alumni: alumni2.map(mapAlumni),
         });
       } else {
         setState({
@@ -705,7 +731,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           inactivationRequests: inactivationReqs.map(mapInactivationRequest),
           classAbsentLimits: classAbsentLimitsRaw,
           documentBranding,
-          alumni: alumniRows,
+          alumni: alumniRows.map(mapAlumni),
         });
       }
       return true;
@@ -1252,7 +1278,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const na: Alumni = { ...a, id: genId() };
     setState(prev => ({ ...prev, alumni: [...prev.alumni, na] }));
     apiPost('/alumni', na).then(row => {
-      setState(prev => ({ ...prev, alumni: prev.alumni.map(x => x.id === na.id ? row as Alumni : x) }));
+      setState(prev => ({ ...prev, alumni: prev.alumni.map(x => x.id === na.id ? mapAlumni(row) : x) }));
     }).catch(console.error);
   }, []);
 
@@ -1267,7 +1293,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const bulkAddAlumni = useCallback(async (records: Omit<Alumni, 'id' | 'batch'>[], batch: string): Promise<void> => {
-    const withIds: Alumni[] = records.map(r => ({ ...r, id: genId(), batch }));
+    const withIds: Alumni[] = records.map(r => mapAlumni({ ...r, id: genId(), batch }));
     // Optimistic update — show immediately in UI
     setState(prev => ({ ...prev, alumni: [...prev.alumni, ...withIds] }));
     try {
@@ -1283,7 +1309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ]);
       setState(prev => ({
         ...prev,
-        alumni: refreshed,
+        alumni: refreshed.map(mapAlumni),
         students: refreshedStudents.map(mapStudent),
       }));
     } catch (e) {
