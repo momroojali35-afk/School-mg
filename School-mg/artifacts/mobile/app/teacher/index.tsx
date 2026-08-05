@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/AuthContext';
 import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { isBirthdayToday, daysUntilBirthday, extractMMDD } from '@/utils/dateUtils';
+import { BirthdayPerson, toBirthdayPerson } from '@/utils/birthday';
 import { sendReminderWhatsApp } from '@/utils/reminder';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -215,7 +216,7 @@ const EMPTY_STUDENT = {
 export default function TeacherDashboard() {
   const insets = useSafeAreaInsets();
   const { user, isLoading, logout } = useAuth();
-  const { students, exams, classes, sections, attendanceRecords, addStudent, addSection, updateSection, deleteSection } = useApp();
+  const { students, exams, classes, sections, attendanceRecords, alumni, addStudent, addSection, updateSection, deleteSection } = useApp();
   const signingOutRef = useRef(false);
 
   const [showProfile,     setShowProfile]     = useState(false);
@@ -234,7 +235,7 @@ export default function TeacherDashboard() {
     label: string; icon: React.ComponentProps<typeof Feather>['name'];
     grad: [string, string];
   }>(null);
-  const [birthdayCard,    setBirthdayCard]     = useState<Student | null>(null);
+  const [birthdayCard,    setBirthdayCard]     = useState<BirthdayPerson | null>(null);
   const [birthdaySharing, setBirthdaySharing]  = useState(false);
   const birthdayCardRef = useRef<View>(null);
   const [showMonthBirthdays, setShowMonthBirthdays] = useState(false);
@@ -250,21 +251,33 @@ export default function TeacherDashboard() {
     [exams, todayStr],
   );
 
+  const allBirthdayPersons = useMemo((): BirthdayPerson[] => [
+    ...students
+      .filter(isActiveStudent)
+      .map(s => toBirthdayPerson(s, s.class)),
+    ...alumni
+      .map(a => toBirthdayPerson(
+        a,
+        a.passOutClass || (a as any).pass_out_class || a.batch || 'Alumni',
+      ))
+      .filter(person => !!person.dateOfBirth),
+  ], [students, alumni]);
+
   const birthdayStudents = useMemo(() =>
-    students.filter(s => isBirthdayToday(s.dateOfBirth)),
-    [students],
+    allBirthdayPersons.filter(s => isBirthdayToday(s.dateOfBirth)),
+    [allBirthdayPersons],
   );
   const upcomingBirthdays = useMemo(() =>
-    students
+    allBirthdayPersons
       .filter(s => (() => { const d = daysUntilBirthday(s.dateOfBirth); return d > 0 && d <= 30; })())
       .sort((a, b) => daysUntilBirthday(a.dateOfBirth) - daysUntilBirthday(b.dateOfBirth))
       .slice(0, 5),
-    [students],
+    [allBirthdayPersons],
   );
   const monthBirthdays = useMemo(() => {
     const month = now.getMonth() + 1;
     const today = now.getDate();
-    return students
+    return allBirthdayPersons
       .filter(s => {
         const mmdd = extractMMDD(s.dateOfBirth);
         if (!mmdd) return false;
@@ -277,7 +290,7 @@ export default function TeacherDashboard() {
         const db = Number(extractMMDD(b.dateOfBirth)?.split('-')[1] ?? 99);
         return da - db;
       });
-  }, [students, now.getMonth(), now.getDate()]);
+  }, [allBirthdayPersons, now.getMonth(), now.getDate()]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -312,10 +325,10 @@ export default function TeacherDashboard() {
     .split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
   // ── Handlers ────────────────────────────────────────────────────────────────
-  const sendBirthdayWhatsApp = async (student: Student): Promise<void> => {
+  const sendBirthdayWhatsApp = async (student: BirthdayPerson): Promise<void> => {
     const caption =
 `🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
-    await sendReminderWhatsApp(student, caption);
+    await sendReminderWhatsApp(student as unknown as Student, caption);
   };
 
   const handlePickImage = async () => {

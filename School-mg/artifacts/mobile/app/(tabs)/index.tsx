@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { daysUntilBirthday, isBirthdayToday, extractMMDD } from '@/utils/dateUtils';
+import { BirthdayPerson, toBirthdayPerson } from '@/utils/birthday';
 import { sendReminderWhatsApp } from '@/utils/reminder';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -840,16 +841,6 @@ const ai = StyleSheet.create({
   pillTxt: { fontSize: 10, fontWeight: '800' },
 });
 
-// ── BirthdayPerson — unified shape used by all birthday UI ────────────────────
-type BirthdayPerson = {
-  id: string;
-  name: string;
-  class: string;
-  rollNumber: string;
-  mobileNumber: string;
-  dateOfBirth: string;
-};
-
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminDashboard() {
   const { user, isLoading, logout, changeAdminCredentials } = useAuth();
@@ -984,28 +975,17 @@ export default function AdminDashboard() {
   // Map alumni to a birthday-compatible shape so they appear alongside students.
   const alumniAsBirthdayPersons = useMemo((): BirthdayPerson[] =>
     alumni
-      .filter(a => !!a.dateOfBirth)
-      .map(a => ({
-        id: a.id,
-        name: a.name,
-        class: a.passOutClass || a.batch || 'Alumni',
-        rollNumber: a.rollNumber || '',
-        mobileNumber: a.mobileNumber || '',
-        dateOfBirth: a.dateOfBirth,
-      })),
+      .map(a => toBirthdayPerson(
+        a,
+        a.passOutClass || (a as any).pass_out_class || a.batch || 'Alumni',
+      ))
+      .filter(person => !!person.dateOfBirth),
     [alumni],
   );
   const allBirthdayPersons = useMemo((): BirthdayPerson[] => [
-    ...students.map(s => ({
-      id: s.id,
-      name: s.name,
-      class: s.class,
-      rollNumber: s.rollNumber,
-      mobileNumber: s.mobileNumber,
-      dateOfBirth: s.dateOfBirth,
-    })),
+    ...activeStudents.map(s => toBirthdayPerson(s, s.class)),
     ...alumniAsBirthdayPersons,
-  ], [students, alumniAsBirthdayPersons]);
+  ], [activeStudents, alumniAsBirthdayPersons]);
 
   const birthdayStudents = useMemo(() =>
     allBirthdayPersons.filter(s => isBirthdayToday(s.dateOfBirth)),
