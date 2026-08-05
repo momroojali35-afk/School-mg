@@ -14,7 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApp, Student, alumniToStudent, isActiveStudent } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { daysUntilBirthday, isBirthdayToday, extractMMDD } from '@/utils/dateUtils';
-import { sendReminderWhatsApp } from '@/utils/reminder';
+import { sendBirthdayCardWhatsApp, sendReminderWhatsApp } from '@/utils/reminder';
 
 // ─── DB status hook ───────────────────────────────────────────────────────────
 function useDbStatus() {
@@ -1081,6 +1081,12 @@ export default function AdminDashboard() {
     await sendReminderWhatsApp(student, caption);
   };
 
+  const sendBirthdayCard = async (student: Student): Promise<void> => {
+    const caption =
+`🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
+    await sendBirthdayCardWhatsApp(birthdayCardRef, student, caption);
+  };
+
   const botPad = Platform.OS === 'web' ? 80 : insets.bottom + 80;
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
@@ -1810,7 +1816,7 @@ export default function AdminDashboard() {
                       try {
                         console.log('[BirthdayShare] ── Starting share flow for:', birthdayCard.name);
                         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        await sendBirthdayWhatsApp(birthdayCard);
+                        await sendBirthdayCard(birthdayCard);
                         console.log('[BirthdayShare] ── Flow finished, closing modal');
                         setBirthdayCard(null);
                       } catch (err: any) {

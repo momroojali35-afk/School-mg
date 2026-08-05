@@ -1,5 +1,7 @@
 import { Alert, Linking, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { captureRef } from 'react-native-view-shot';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { Student } from '@/context/AppContext';
@@ -146,6 +148,71 @@ export async function shareBirthdayCardImage(cardRef: any, student: Student): Pr
     result: 'tmpfile',
   });
 
+  await Sharing.shareAsync(imageUri, {
+    mimeType: 'image/png',
+    dialogTitle: `Happy Birthday – ${student.name}`,
+    UTI: 'public.png',
+  });
+}
+
+// ─── Send birthday card directly to the registered WhatsApp number ────────────
+// Android's whatsapp:// URL can open a chat or carry text, but it cannot attach
+// a local PNG. Use a targeted ACTION_SEND intent so WhatsApp opens directly
+// with the captured card image and the student's registered number.
+export async function sendBirthdayCardWhatsApp(
+  cardRef: any,
+  student: Student,
+  caption: string,
+): Promise<void> {
+  if (!cardRef?.current) {
+    throw new Error('Birthday card is not ready to share. Please try again.');
+  }
+
+  const digits = student.mobileNumber?.replace(/\D/g, '') ?? '';
+  if (!digits || digits.length < 7) {
+    Alert.alert('No Mobile Number', `${student.name} does not have a mobile number on record.`);
+    return;
+  }
+  const phone = digits.startsWith('91') && digits.length > 10 ? digits : `91${digits}`;
+  const imageUri = await captureRef(cardRef, {
+    format: 'png',
+    quality: 1,
+    result: 'tmpfile',
+  });
+
+  if (Platform.OS === 'android') {
+    const contentUri = await FileSystem.getContentUriAsync(imageUri);
+    let lastError: unknown;
+    for (const packageName of ['com.whatsapp', 'com.whatsapp.w4b']) {
+      try {
+        await IntentLauncher.startActivityAsync('android.intent.action.SEND', {
+          type: 'image/png',
+          packageName,
+          flags: 1, // Intent.FLAG_GRANT_READ_URI_PERMISSION
+          extra: {
+            'android.intent.extra.STREAM': contentUri,
+            'android.intent.extra.TEXT': caption,
+            jid: `${phone}@s.whatsapp.net`,
+          },
+        });
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw new Error('WhatsApp is not installed or could not open the selected chat.', { cause: lastError });
+  }
+
+  if (Platform.OS === 'web') {
+    throw new Error('Direct birthday-card sending is available in the Android app.');
+  }
+
+  // iOS does not expose the same package-targeted Android intent. Keep its
+  // existing native image share behavior rather than falling back to text.
+  const available = await Sharing.isAvailableAsync();
+  if (!available) {
+    throw new Error('Image sharing is unavailable on this device.');
+  }
   await Sharing.shareAsync(imageUri, {
     mimeType: 'image/png',
     dialogTitle: `Happy Birthday – ${student.name}`,

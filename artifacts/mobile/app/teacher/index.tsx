@@ -14,7 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/AuthContext';
 import { useApp, Student, alumniToStudent, isActiveStudent } from '@/context/AppContext';
 import { isBirthdayToday, daysUntilBirthday, extractMMDD } from '@/utils/dateUtils';
-import { sendReminderWhatsApp } from '@/utils/reminder';
+import { sendBirthdayCardWhatsApp, sendReminderWhatsApp } from '@/utils/reminder';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function calcFinalPayable(annualFee: string, discountType: 'fixed' | 'percent', discountValue: string) {
@@ -315,6 +315,12 @@ export default function TeacherDashboard() {
     const caption =
 `🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
     await sendReminderWhatsApp(student, caption);
+  };
+
+  const sendBirthdayCard = async (student: Student): Promise<void> => {
+    const caption =
+`🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
+    await sendBirthdayCardWhatsApp(birthdayCardRef, student, caption);
   };
 
   const handlePickImage = async () => {
@@ -810,7 +816,7 @@ export default function TeacherDashboard() {
                       try {
                         console.log('[BirthdayShare] ── Starting share flow for:', birthdayCard.name);
                         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        await sendBirthdayWhatsApp(birthdayCard);
+                        await sendBirthdayCard(birthdayCard);
                         console.log('[BirthdayShare] ── Flow finished, closing modal');
                         setBirthdayCard(null);
                       } catch (err: any) {
