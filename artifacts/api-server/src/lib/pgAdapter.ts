@@ -691,6 +691,18 @@ export function createPgAdapter(db: DB): DataAdapter {
       async list() {
         return db.select().from(alumniTable).orderBy(asc(alumniTable.batch), asc(alumniTable.name));
       },
+      async syncGraduatedStudents() {
+        const alumniRows = await db
+          .select({ studentId: alumniTable.studentId })
+          .from(alumniTable);
+        const studentIds = Array.from(new Set(
+          alumniRows.map(row => String(row.studentId ?? "")).filter(Boolean),
+        ));
+        if (studentIds.length === 0) return;
+        await db.update(studentsTable)
+          .set({ status: "graduated", class: "", section: null })
+          .where(inArray(studentsTable.id, studentIds));
+      },
       async create(data: any) {
         const values: any = {
           studentId: data.studentId ?? data.id ?? `manual-${Date.now()}`,
@@ -716,7 +728,9 @@ export function createPgAdapter(db: DB): DataAdapter {
           const [row] = await tx.insert(alumniTable).values(values).returning();
           if (data.studentId) {
             await tx.update(studentsTable)
-              .set({ status: "graduated" })
+              // Alumni keeps the historical pass-out class; the student row
+              // must no longer have an active class/section assignment.
+              .set({ status: "graduated", class: "", section: null })
               .where(eq(studentsTable.id, String(data.studentId)));
           }
           return row;
@@ -787,7 +801,9 @@ export function createPgAdapter(db: DB): DataAdapter {
 
           if (studentIds.length > 0) {
             await tx.update(studentsTable)
-              .set({ status: "graduated" })
+              // Keep historical placement in Alumni, but remove the active
+              // class/section assignment from the graduated student row.
+              .set({ status: "graduated", class: "", section: null })
               .where(inArray(studentsTable.id, studentIds));
           }
           return rows;

@@ -166,6 +166,26 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
           .map(mapDoc)
           .sort((a, b) => String(a.batch).localeCompare(String(b.batch)) || String(a.name).localeCompare(String(b.name)));
       },
+      async syncGraduatedStudents() {
+        const snap = await col("alumni").get();
+        const studentIds = Array.from(new Set(
+          snap.docs.map(doc => String(doc.data().studentId ?? "")).filter(Boolean),
+        ));
+        const studentSnapshots = await Promise.all(
+          studentIds.map(id => col("students").doc(id).get()),
+        );
+        const writes = studentSnapshots
+          .filter(student => student.exists)
+          .map(student => ({
+            ref: student.ref,
+            data: { status: "graduated", class: "", section: FieldValue.delete() },
+          }));
+        for (let i = 0; i < writes.length; i += 450) {
+          const batch = fs.batch();
+          writes.slice(i, i + 450).forEach(({ ref, data }) => batch.set(ref, data, { merge: true }));
+          await batch.commit();
+        }
+      },
       async create(data: any) {
         const id = data.id ?? newId();
         const doc = stamp({
@@ -191,7 +211,11 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
         if (data.studentId) {
           const studentRef = col("students").doc(String(data.studentId));
           const student = await studentRef.get();
-          if (student.exists) await studentRef.update({ status: "graduated" });
+          if (student.exists) {
+            // Alumni keeps the historical pass-out class; the student row must
+            // no longer have an active class/section assignment.
+            await studentRef.update({ status: "graduated", class: "", section: FieldValue.delete() });
+          }
         }
         return { id, ...doc };
       },
@@ -229,7 +253,11 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
 
         // Firestore batches are limited to 500 writes. Chunking preserves the
         // same migration behavior for large classes without deleting history.
-        const writes = updates.map(({ id }) => ({ ref: col("students").doc(id), data: { status: "graduated" } }));
+        const writes = updates.map(({ id }) => ({
+          ref: col("students").doc(id),
+          // Keep historical placement in Alumni, but remove active placement.
+          data: { status: "graduated", class: "", section: FieldValue.delete() },
+        }));
         for (let i = 0; i < writes.length; i += 450) {
           const batch = fs.batch();
           writes.slice(i, i + 450).forEach(({ ref, data }) => batch.update(ref, data));

@@ -33,6 +33,7 @@ function normalizeImportRecord(data: any) {
 }
 
 router.get("/alumni", async (_req, res) => {
+  await getAdapter().alumni.syncGraduatedStudents();
   const rows = await getAdapter().alumni.list();
   res.json(rows);
 });

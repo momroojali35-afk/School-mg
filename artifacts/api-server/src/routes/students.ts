@@ -4,6 +4,10 @@ import { getAdapter } from "../lib/dbManager.js";
 const router = Router();
 
 router.get("/students", async (req, res) => {
+  // Repair legacy Alumni imports before returning the active student list.
+  // This keeps parallel dashboard loads from briefly exposing graduated
+  // students with their old class assignment.
+  await getAdapter().alumni.syncGraduatedStudents();
   const includeGraduated = req.query.includeGraduated === "true";
   const rows = await getAdapter().students.list(includeGraduated);
   res.json(rows);

@@ -109,6 +109,8 @@ export interface DataAdapter {
   };
   alumni: {
     list(): Promise<any[]>;
+    /** Repair legacy Alumni imports so graduated students have no active placement. */
+    syncGraduatedStudents(): Promise<void>;
     create(data: any): Promise<any>;
     /** Upsert alumni records and mark matching students as graduated without deleting history. */
     bulkCreate(records: any[]): Promise<any[]>;
