@@ -15,9 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApp, Student, isActiveStudent } from '@/context/AppContext';
 import { isBirthdayToday, daysUntilBirthday, extractMMDD } from '@/utils/dateUtils';
 import { BirthdayPerson, toBirthdayPerson } from '@/utils/birthday';
-import { sendReminderWhatsApp } from '@/utils/reminder';
-import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
+import { sendBirthdayCardWhatsApp } from '@/utils/reminder';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function calcFinalPayable(annualFee: string, discountType: 'fixed' | 'percent', discountValue: string) {
@@ -238,6 +236,7 @@ export default function TeacherDashboard() {
   const [birthdayCard,    setBirthdayCard]     = useState<BirthdayPerson | null>(null);
   const [birthdaySharing, setBirthdaySharing]  = useState(false);
   const birthdayCardRef = useRef<View>(null);
+  const pendingBirthdayShareRef = useRef(false);
   const [showMonthBirthdays, setShowMonthBirthdays] = useState(false);
 
   // ── Stable values needed by hooks below (must be before early-return) ───────
@@ -325,11 +324,42 @@ export default function TeacherDashboard() {
     .split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
   // ── Handlers ────────────────────────────────────────────────────────────────
-  const sendBirthdayWhatsApp = async (student: BirthdayPerson): Promise<void> => {
-    const caption =
+  // Birthday Wishes always begin with the designed card flow. The generic
+  // reminder helper remains text-only for fee/reminder messages, but must not
+  // be used by birthday actions.
+  const birthdayCardCaption = (student: BirthdayPerson) =>
 `🎂 Happy Birthday ${student.name}! 🎂\n\n🎈 Wishing you a fantastic birthday filled with joy, laughter, and endless success!\n\n🏫 ${SCHOOL_INFO.name}\n📞 ${SCHOOL_INFO.contact}`;
-    await sendReminderWhatsApp(student as unknown as Student, caption);
+
+  const shareBirthdayCard = async (student: BirthdayPerson): Promise<void> => {
+    if (birthdaySharing) return;
+    setBirthdaySharing(true);
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await sendBirthdayCardWhatsApp(
+        birthdayCardRef,
+        student,
+        birthdayCardCaption(student),
+      );
+      setBirthdayCard(null);
+    } catch (err: any) {
+      console.error('[BirthdayShare] error:', err?.message ?? err);
+      Alert.alert('Sharing Error', err?.message ?? 'Could not share the birthday card image.');
+    } finally {
+      setBirthdaySharing(false);
+    }
   };
+
+  const sendBirthdayWhatsApp = (student: BirthdayPerson): void => {
+    pendingBirthdayShareRef.current = true;
+    setBirthdayCard(student);
+  };
+
+  useEffect(() => {
+    if (!birthdayCard || !pendingBirthdayShareRef.current) return;
+    pendingBirthdayShareRef.current = false;
+    const timer = setTimeout(() => { void shareBirthdayCard(birthdayCard); }, 150);
+    return () => clearTimeout(timer);
+  }, [birthdayCard]);
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -818,44 +848,7 @@ export default function TeacherDashboard() {
                   <TouchableOpacity
                     activeOpacity={0.85}
                     disabled={birthdaySharing}
-                    onPress={async () => {
-                      if (birthdaySharing) return;
-                      setBirthdaySharing(true);
-                      try {
-                        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-                        // 1. Capture the birthday card view as a PNG image
-                        if (!birthdayCardRef.current) {
-                          throw new Error('Birthday card is not ready. Please wait a moment and try again.');
-                        }
-                        const imageUri = await captureRef(birthdayCardRef, {
-                          format: 'png',
-                          quality: 1,
-                          result: 'tmpfile',
-                        });
-
-                        // 2. Share the locally generated PNG through the native share
-                        //    sheet. The image is already attached when WhatsApp is
-                        //    selected; never fall back to a text-only WhatsApp URL.
-                        const sharingAvailable = await Sharing.isAvailableAsync();
-                        if (!sharingAvailable) {
-                          throw new Error('Image sharing is unavailable on this device. Please save the card and share it from your gallery.');
-                        }
-                        await Sharing.shareAsync(imageUri, {
-                          mimeType: 'image/png',
-                          dialogTitle: `Happy Birthday – ${birthdayCard.name}`,
-                          UTI: 'public.png',
-                        });
-
-                        setBirthdayCard(null);
-                      } catch (err: any) {
-                        console.error('[BirthdayShare] error:', err?.message ?? err);
-                        Alert.alert('Sharing Error', err?.message ?? 'An unexpected error occurred. Please try again.');
-                        // Stay on the modal — do NOT navigate away
-                      } finally {
-                        setBirthdaySharing(false);
-                      }
-                    }}
+                    onPress={() => { if (birthdayCard) void shareBirthdayCard(birthdayCard); }}
                     style={bc.whatsappBtn}
                   >
                     <LinearGradient colors={['#128C7E','#25D366']} style={bc.whatsappGrad} start={{x:0,y:0}} end={{x:1,y:0}}>

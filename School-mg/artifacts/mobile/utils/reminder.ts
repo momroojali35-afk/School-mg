@@ -1,4 +1,6 @@
 import { Alert, Linking, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
@@ -130,14 +132,13 @@ export async function shareReminderImage(imageUri: string, student: Student): Pr
 // ─── Share birthday card image via native share sheet ─────────────────────────
 // The captured PNG is a local file, so WhatsApp receives the card as an image
 // attachment when selected from the Android share sheet.
-export async function shareBirthdayCardImage(cardRef: any, student: Student): Promise<void> {
+export async function sendBirthdayCardWhatsApp(
+  cardRef: any,
+  student: Pick<Student, 'name' | 'mobileNumber'>,
+  caption: string,
+): Promise<void> {
   if (!cardRef?.current) {
     throw new Error('Birthday card is not ready to share. Please try again.');
-  }
-
-  const available = await Sharing.isAvailableAsync();
-  if (!available) {
-    throw new Error('Image sharing is unavailable on this device.');
   }
 
   const imageUri = await captureRef(cardRef, {
@@ -146,9 +147,65 @@ export async function shareBirthdayCardImage(cardRef: any, student: Student): Pr
     result: 'tmpfile',
   });
 
+  if (Platform.OS === 'android') {
+    const digits = student.mobileNumber?.replace(/\D/g, '') ?? '';
+    const phone = digits.startsWith('91') && digits.length > 10 ? digits : `91${digits}`;
+    const contentUri = await FileSystem.getContentUriAsync(imageUri);
+    let lastError: unknown;
+
+    if (digits.length >= 7) {
+      for (const packageName of ['com.whatsapp', 'com.whatsapp.w4b']) {
+        try {
+          await IntentLauncher.startActivityAsync('android.intent.action.SEND', {
+            type: 'image/png',
+            packageName,
+            className: `${packageName}.ContactPicker`,
+            flags: 1, // Intent.FLAG_GRANT_READ_URI_PERMISSION
+            extra: {
+              'android.intent.extra.STREAM': contentUri,
+              'android.intent.extra.TEXT': caption,
+              jid: `${phone}@s.whatsapp.net`,
+            },
+          });
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+    }
+
+    // Direct package targeting can fail when WhatsApp changes its Android
+    // activity name. Keep the generated PNG and open the image share sheet
+    // instead of ever falling back to a text-only WhatsApp URL.
+    const available = await Sharing.isAvailableAsync();
+    if (!available) {
+      throw new Error(
+        lastError
+          ? 'WhatsApp could not open and image sharing is unavailable on this device.'
+          : 'Image sharing is unavailable on this device.',
+      );
+    }
+    await Sharing.shareAsync(imageUri, {
+      mimeType: 'image/png',
+      dialogTitle: `Happy Birthday – ${student.name}`,
+      UTI: 'public.png',
+    });
+    return;
+  }
+
+  if (Platform.OS === 'web') {
+    throw new Error('Birthday-card image sharing is available in the mobile app.');
+  }
+
+  const available = await Sharing.isAvailableAsync();
+  if (!available) {
+    throw new Error('Image sharing is unavailable on this device.');
+  }
   await Sharing.shareAsync(imageUri, {
     mimeType: 'image/png',
     dialogTitle: `Happy Birthday – ${student.name}`,
     UTI: 'public.png',
   });
 }
+
+export const shareBirthdayCardImage = sendBirthdayCardWhatsApp;
