@@ -197,6 +197,7 @@ const ACTIONS: {
   // ── Permission-gated (all 6 always rendered; locked when no access) ──
   { label: 'Collect Fee',  sub: 'Add & View',      grad: ['#F43F5E','#FB7185'], icon: 'dollar-sign',     route: '/teacher/fees',    permKey: 'feeCollection',   actionKey: 'feeCollection' },
   { label: 'Add Student',  sub: 'New Admission',   grad: ['#3B82F6','#60A5FA'], icon: 'user-plus',                                  permKey: 'addStudent',      actionKey: 'addStudent' },
+  { label: 'Manage Students', sub: 'Edit Records',  grad: ['#2563EB','#38BDF8'], icon: 'users',          route: '/teacher/students', permKey: 'addStudent' },
   { label: 'Classes',      sub: 'Manage',          grad: ['#6366F1','#818CF8'], icon: 'layers',          route: '/teacher/classes', permKey: 'manageClasses' },
   { label: 'Exams',        sub: 'Create & Manage', grad: ['#0EA5E9','#38BDF8'], icon: 'book-open',       route: '/teacher/exams',   permKey: 'manageExams' },
   { label: 'Promote',      sub: 'Promote Class',   grad: ['#06B6D4','#22D3EE'], icon: 'arrow-up-circle', route: '/teacher/promote', permKey: 'promoteStudents', actionKey: 'promoteStudents' },

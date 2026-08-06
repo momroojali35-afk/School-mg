@@ -966,8 +966,8 @@ export default function AdminDashboard() {
   const todayStr     = now.toISOString().split('T')[0];
   const todayPresent = attendanceRecords.filter(a => a.date === todayStr && a.status === 'present').length;
   const todayAbsent  = attendanceRecords.filter(a => a.date === todayStr && a.status === 'absent').length;
-  const todayLeave   = attendanceRecords.filter(a => a.date === todayStr && a.status === 'leave').length;
-  const todayTotal   = todayPresent + todayAbsent + todayLeave;
+  const todayHoliday = attendanceRecords.filter(a => a.date === todayStr && a.status === 'holiday').length;
+  const todayTotal   = todayPresent + todayAbsent + todayHoliday;
   const attendancePct = todayTotal > 0 ? Math.round((todayPresent / todayTotal) * 100) : 0;
 
   // ── Birthdays ──────────────────────────────────────────────────────────────
@@ -1300,13 +1300,13 @@ export default function AdminDashboard() {
                     />
                   )}
                   {todayAbsent > 0 && <View style={[att.barSeg, { flex: todayAbsent, backgroundColor: '#EF4444' }]} />}
-                  {todayLeave > 0 && <View style={[att.barSeg, { flex: todayLeave, backgroundColor: '#F59E0B' }]} />}
+                  {todayHoliday > 0 && <View style={[att.barSeg, { flex: todayHoliday, backgroundColor: '#F59E0B' }]} />}
                 </View>
                 <View style={att.statsRow}>
                   {[
                     { label: 'Present', val: todayPresent, color: '#10B981' },
                     { label: 'Absent',  val: todayAbsent,  color: '#EF4444' },
-                    { label: 'Leave',   val: todayLeave,   color: '#F59E0B' },
+                    { label: 'Holiday', val: todayHoliday, color: '#F59E0B' },
                     { label: 'Total',   val: todayTotal,   color: '#1E3A8A' },
                   ].map((item, i) => (
                     <React.Fragment key={item.label}>

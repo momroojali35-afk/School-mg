@@ -114,7 +114,7 @@ export interface AttendanceRecord {
   studentName: string;
   class: string;
   date: string;
-  status: 'present' | 'absent' | 'leave';
+  status: 'present' | 'absent' | 'holiday';
   takenBy: string;
 }
 
@@ -334,7 +334,7 @@ export interface DocumentBranding {
 
 interface AppContextType extends AppState {
   addStudent: (s: Omit<Student, 'id'>) => void;
-  updateStudent: (id: string, s: Partial<Student>) => void;
+  updateStudent: (id: string, s: Partial<Student>) => Promise<void>;
   deleteStudent: (id: string) => void;
   addTeacher: (t: Omit<Teacher, 'id'>) => void;
   updateTeacher: (id: string, t: Partial<Teacher>) => void;
@@ -544,7 +544,10 @@ function mapFeeType(r: any): FeeType {
 function mapAttendance(r: any): AttendanceRecord {
   return {
     id: r.id, studentId: r.studentId ?? r.student_id, studentName: r.studentName ?? r.student_name ?? '',
-    class: r.class, date: r.date, status: r.status, takenBy: r.takenBy ?? r.taken_by ?? '',
+    class: r.class, date: r.date,
+    // Older records used "leave"; display them with the new Holiday label.
+    status: r.status === 'leave' ? 'holiday' : r.status,
+    takenBy: r.takenBy ?? r.taken_by ?? '',
   };
 }
 
@@ -782,9 +785,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }).catch(console.error);
   }, []);
 
-  const updateStudent = useCallback((id: string, s: Partial<Student>) => {
+  const updateStudent = useCallback(async (id: string, s: Partial<Student>) => {
     setState(prev => ({ ...prev, students: prev.students.map(x => x.id === id ? { ...x, ...s } : x) }));
-    apiPut(`/students/${id}`, s).catch(console.error);
+    await apiPut(`/students/${id}`, s);
   }, []);
 
   const deleteStudent = useCallback((id: string) => {

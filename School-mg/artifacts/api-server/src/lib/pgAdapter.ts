@@ -290,7 +290,7 @@ export function createPgAdapter(db: DB): DataAdapter {
             if (record.status === "absent") {
               consecutiveAbsents++;
             } else {
-              break; // present or leave breaks the streak
+              break; // present or holiday breaks the streak
             }
           }
 

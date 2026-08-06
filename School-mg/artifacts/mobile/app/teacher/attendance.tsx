@@ -13,7 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApp, InactivationRequest, isGraduatedStudent, compareStudentRollNumbers } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
-type Status = 'present' | 'absent' | 'leave';
+type Status = 'present' | 'absent' | 'holiday';
 
 // ─── Reactivation Request Modal ────────────────────────────────────────────────
 function ReactivationModal({
@@ -490,8 +490,8 @@ export default function TeacherAttendance() {
                 <TouchableOpacity style={[s.markBtn, { backgroundColor: colors.destructive + '20' }]} onPress={() => markAll('absent')} activeOpacity={0.8}>
                   <Text style={[s.markBtnText, { color: colors.destructive }]}>All A</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[s.markBtn, { backgroundColor: colors.warning + '20' }]} onPress={() => markAll('leave')} activeOpacity={0.8}>
-                  <Text style={[s.markBtnText, { color: colors.warning }]}>All L</Text>
+                <TouchableOpacity style={[s.markBtn, { backgroundColor: colors.warning + '20' }]} onPress={() => markAll('holiday')} activeOpacity={0.8}>
+                  <Text style={[s.markBtnText, { color: colors.warning }]}>Holiday</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -563,11 +563,11 @@ export default function TeacherAttendance() {
                           <Text style={[sc.statusText, { color: status === 'absent' ? '#fff' : colors.mutedForeground }]}>A</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[sc.statusBtn, { backgroundColor: status === 'leave' ? colors.warning : colors.muted }]}
-                          onPress={() => !alreadySubmitted && setStatus(student.id, 'leave')}
+                          style={[sc.statusBtn, { backgroundColor: status === 'holiday' ? colors.warning : colors.muted }]}
+                          onPress={() => !alreadySubmitted && setStatus(student.id, 'holiday')}
                           disabled={alreadySubmitted}
                         >
-                          <Text style={[sc.statusText, { color: status === 'leave' ? '#fff' : colors.mutedForeground }]}>L</Text>
+                          <Text style={[sc.statusText, { color: status === 'holiday' ? '#fff' : colors.mutedForeground }]}>H</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -617,7 +617,7 @@ export default function TeacherAttendance() {
             renderItem={({ item }) => {
               let color = colors.success;
               if (item.status === 'absent') color = colors.destructive;
-              else if (item.status === 'leave') color = colors.warning;
+              else if (item.status === 'holiday') color = colors.warning;
               return (
                 <View style={[rp.row, { backgroundColor: colors.card }]}>
                   <View style={[rp.dateBadge, { backgroundColor: colors.secondary }]}>

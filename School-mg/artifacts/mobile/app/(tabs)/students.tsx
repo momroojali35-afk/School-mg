@@ -227,7 +227,7 @@ export default function StudentsScreen() {
       total: records.length,
       present: records.filter(a => a.status === 'present').length,
       absent: records.filter(a => a.status === 'absent').length,
-      leave: records.filter(a => a.status === 'leave').length,
+      holiday: records.filter(a => a.status === 'holiday').length,
     };
   };
 
@@ -854,7 +854,7 @@ export default function StudentsScreen() {
                     {[
                       { label: 'Present', value: att.present, color: colors.success },
                       { label: 'Absent', value: att.absent, color: colors.destructive },
-                      { label: 'Leave', value: att.leave, color: colors.warning },
+                      { label: 'Holiday', value: att.holiday, color: colors.warning },
                       { label: 'Percent', value: `${pct}%`, color: pct >= 75 ? colors.success : colors.destructive },
                     ].map(stat => (
                       <View key={stat.label} style={[attStyles.statBox, { borderColor: stat.color + '40', backgroundColor: stat.color + '10' }]}>
