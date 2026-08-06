@@ -10,7 +10,7 @@ import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ViewShot from 'react-native-view-shot';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Student, isActiveStudent } from '@/context/AppContext';
+import { useApp, Student, isActiveStudent, compareStudentRollNumbers } from '@/context/AppContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { sendReminderWhatsApp, sendReminderSMS, shareReminderImage } from '@/utils/reminder';
 import ReminderCard from '@/components/ReminderCard';
@@ -111,13 +111,17 @@ export default function MessagingScreen() {
     [students],
   );
   const filteredStudents = useMemo(
-    () => students.filter(s => {
-      if (!isActiveStudent(s)) return false;
-      const matchClass = classFilter === 'All' || s.class === classFilter;
-      const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.rollNumber?.toLowerCase().includes(search.toLowerCase());
-      return matchClass && matchSearch;
-    }),
+    () => students
+      .filter(s => {
+        if (!isActiveStudent(s)) return false;
+        const matchClass = classFilter === 'All' || s.class === classFilter;
+        const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) ||
+          s.rollNumber?.toLowerCase().includes(search.toLowerCase());
+        return matchClass && matchSearch;
+      })
+      .sort((a, b) => classFilter === 'All'
+        ? a.class.localeCompare(b.class, undefined, { numeric: true, sensitivity: 'base' }) || compareStudentRollNumbers(a, b)
+        : compareStudentRollNumbers(a, b)),
     [students, classFilter, search],
   );
   const recipients = students.filter(s => isActiveStudent(s) && selectedIds.has(s.id));

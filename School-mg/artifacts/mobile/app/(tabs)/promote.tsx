@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
-import { useApp, isActiveStudent } from '@/context/AppContext';
+import { useApp, isActiveStudent, compareStudentRollNumbers } from '@/context/AppContext';
 
 export default function PromoteScreen() {
   const colors = useColors();
@@ -30,7 +30,9 @@ export default function PromoteScreen() {
   const [promotionSuccess, setPromotionSuccess] = useState<{ count: number; toClass: string } | null>(null);
 
   const studentsInFromClass = useMemo(
-    () => (fromClass ? students.filter(s => s.class === fromClass && isActiveStudent(s)) : []),
+    () => (fromClass
+      ? students.filter(s => s.class === fromClass && isActiveStudent(s)).sort(compareStudentRollNumbers)
+      : []),
     [students, fromClass],
   );
 

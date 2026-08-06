@@ -23,6 +23,26 @@ export interface Student {
   status?: 'active' | 'inactive' | 'graduated';
 }
 
+/**
+ * Sort roll numbers in the order people expect to see them:
+ * 1, 2, 10 instead of the text order 1, 10, 2.
+ * Blank or non-numeric roll numbers remain deterministic after numeric ones.
+ */
+export function compareStudentRollNumbers(a: Pick<Student, 'rollNumber' | 'name'>, b: Pick<Student, 'rollNumber' | 'name'>): number {
+  const aRoll = String(a.rollNumber ?? '').trim();
+  const bRoll = String(b.rollNumber ?? '').trim();
+  const aNumber = Number(aRoll);
+  const bNumber = Number(bRoll);
+  const aIsNumeric = aRoll !== '' && Number.isFinite(aNumber);
+  const bIsNumeric = bRoll !== '' && Number.isFinite(bNumber);
+
+  if (aIsNumeric && bIsNumeric && aNumber !== bNumber) return aNumber - bNumber;
+  if (aIsNumeric !== bIsNumeric) return aIsNumeric ? -1 : 1;
+
+  const rollOrder = aRoll.localeCompare(bRoll, undefined, { numeric: true, sensitivity: 'base' });
+  return rollOrder || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+}
+
 export function isGraduatedStudent(student: Pick<Student, 'status'>): boolean {
   return student.status === 'graduated';
 }

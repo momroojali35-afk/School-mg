@@ -8,7 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Student, getStudentFeeInfo, isActiveStudent } from '@/context/AppContext';
+import { useApp, Student, getStudentFeeInfo, isActiveStudent, compareStudentRollNumbers } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import PremiumAlert from '@/components/PremiumAlert';
 
@@ -150,14 +150,22 @@ export default function StudentsScreen() {
   const [confirmDeleteSection, setConfirmDeleteSection] = useState<string | null>(null);
 
   const filtered = useMemo(() =>
-    students.filter(s =>
-      isActiveStudent(s) &&
-      (filterClass === 'All' || s.class === filterClass) &&
-      (s.name.toLowerCase().includes(search.toLowerCase()) ||
-       s.rollNumber.includes(search) ||
-       s.fatherName.toLowerCase().includes(search.toLowerCase()) ||
-       (s.admissionNo ?? '').toLowerCase().includes(search.toLowerCase()))
-    ), [students, filterClass, search]);
+    students
+      .filter(s =>
+        isActiveStudent(s) &&
+        (filterClass === 'All' || s.class === filterClass) &&
+        (s.name.toLowerCase().includes(search.toLowerCase()) ||
+         s.rollNumber.includes(search) ||
+         s.fatherName.toLowerCase().includes(search.toLowerCase()) ||
+         (s.admissionNo ?? '').toLowerCase().includes(search.toLowerCase()))
+      )
+      .sort((a, b) => {
+        if (filterClass === 'All') {
+          return a.class.localeCompare(b.class, undefined, { numeric: true, sensitivity: 'base' })
+            || compareStudentRollNumbers(a, b);
+        }
+        return compareStudentRollNumbers(a, b);
+      }), [students, filterClass, search]);
 
   const openAdd = () => {
     setEditing(null);

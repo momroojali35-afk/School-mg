@@ -9,7 +9,7 @@ import * as Haptics from 'expo-haptics';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Exam, ExamResult, SubjectSchedule, ClassSubjectAssignment, getExamSubjectsForClass, isActiveStudent } from '@/context/AppContext';
+import { useApp, Exam, ExamResult, SubjectSchedule, ClassSubjectAssignment, getExamSubjectsForClass, isActiveStudent, compareStudentRollNumbers } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import PremiumAlert from '@/components/PremiumAlert';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
@@ -96,7 +96,9 @@ export default function ExamsScreen() {
   // Combined per-student result rows, sorted by roll number
   const frRows = useMemo(() => {
     if (frSelectedExams.length === 0 || !frClass) return [];
-    const cls_students = students.filter(s => s.class === frClass && isActiveStudent(s));
+    const cls_students = students
+      .filter(s => s.class === frClass && isActiveStudent(s))
+      .sort(compareStudentRollNumbers);
 
     return cls_students
       .map(st => {
@@ -148,7 +150,9 @@ export default function ExamsScreen() {
   }, [selectedExam, selectedClass]);
 
   const examStudents = useMemo(
-    () => students.filter(s => s.class === (selectedClass ?? selectedExam?.class) && isActiveStudent(s)),
+    () => students
+      .filter(s => s.class === (selectedClass ?? selectedExam?.class) && isActiveStudent(s))
+      .sort(compareStudentRollNumbers),
     [students, selectedClass, selectedExam],
   );
 
@@ -183,7 +187,10 @@ export default function ExamsScreen() {
   const initMarks = (exam: Exam, cls: string) => {
     const subs = getExamSubjectsForClass(exam, cls);
     const data: Record<string, Record<string, string>> = {};
-    students.filter(s => s.class === cls && isActiveStudent(s)).forEach(s => {
+    students
+      .filter(s => s.class === cls && isActiveStudent(s))
+      .sort(compareStudentRollNumbers)
+      .forEach(s => {
       const existing = examResults.find(r => r.examId === exam.id && r.studentId === s.id);
       data[s.id] = {};
       subs.forEach(sub => { data[s.id][sub] = existing?.marks[sub] !== undefined ? String(existing.marks[sub]) : ''; });
@@ -225,7 +232,9 @@ export default function ExamsScreen() {
     if (!selectedExam || !selectedClass) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const subs = getExamSubjectsForClass(selectedExam, selectedClass);
-    const classStudents = students.filter(s => s.class === selectedClass && isActiveStudent(s));
+    const classStudents = students
+      .filter(s => s.class === selectedClass && isActiveStudent(s))
+      .sort(compareStudentRollNumbers);
     const results: Omit<ExamResult, 'id'>[] = classStudents.map(s => ({
       examId: selectedExam.id, studentId: s.id, studentName: s.name,
       class: s.class, rollNumber: s.rollNumber,

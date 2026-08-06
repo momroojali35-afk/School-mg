@@ -15,3 +15,4 @@
 - [Staff APK database readiness](staff-apk-database-readiness.md) — teacher login must verify the server directly; hosted environment databases count as ready.
 - [Finance salary reporting](finance-salary-reporting.md) — Finance reports salary totals/history read-only; salary payment management remains in Teachers.
 - [Promotion success modal](promotion-success-modal.md) — bulk promotion success uses a branded in-app modal instead of a native alert.
+- [Numeric roll-number ordering](roll-number-ordering.md) — student rosters use shared numeric ordering so 1, 2, 10 stays serially correct.
