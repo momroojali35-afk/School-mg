@@ -194,10 +194,9 @@ const ACTIONS: {
   { label: 'Attendance',   sub: 'Mark & View',     grad: ['#8B5CF6','#A855F7'], icon: 'check-square',    route: '/teacher/attendance' },
   { label: 'Enter Marks',  sub: 'Add & Manage',    grad: ['#F59E0B','#FBBF24'], icon: 'edit-2',          route: '/teacher/marks',   permKey: 'manageResults' },
   { label: 'View Salary',  sub: 'Details',         grad: ['#10B981','#34D399'], icon: 'credit-card',     route: '/teacher/salary' },
-  // ── Permission-gated (all 6 always rendered; locked when no access) ──
+  // ── Permission-gated actions (locked when the teacher lacks access) ────
   { label: 'Collect Fee',  sub: 'Add & View',      grad: ['#F43F5E','#FB7185'], icon: 'dollar-sign',     route: '/teacher/fees',    permKey: 'feeCollection',   actionKey: 'feeCollection' },
   { label: 'Add Student',  sub: 'New Admission',   grad: ['#3B82F6','#60A5FA'], icon: 'user-plus',                                  permKey: 'addStudent',      actionKey: 'addStudent' },
-  { label: 'Manage Students', sub: 'Edit Records',  grad: ['#2563EB','#38BDF8'], icon: 'users',          route: '/teacher/students', permKey: 'addStudent' },
   { label: 'Classes',      sub: 'Manage',          grad: ['#6366F1','#818CF8'], icon: 'layers',          route: '/teacher/classes', permKey: 'manageClasses' },
   { label: 'Exams',        sub: 'Create & Manage', grad: ['#0EA5E9','#38BDF8'], icon: 'book-open',       route: '/teacher/exams',   permKey: 'manageExams' },
   { label: 'Promote',      sub: 'Promote Class',   grad: ['#06B6D4','#22D3EE'], icon: 'arrow-up-circle', route: '/teacher/promote', permKey: 'promoteStudents', actionKey: 'promoteStudents' },
@@ -441,7 +440,7 @@ export default function TeacherDashboard() {
   const ITEM_W = Math.floor((screenW - H_PAD * 2 - GRID_GAP * (COLS - 1)) / COLS);
   const STAT_W = (screenW - H_PAD * 2 - GRID_GAP) / 2;
 
-  // ── Action items: all 9 rendered, permission ones show lock when disabled ────
+  // ── Action items: permission-gated actions show a lock when disabled ──────────
   const actionItems = ACTIONS.map(a => ({
     ...a,
     disabled: a.permKey
@@ -913,9 +912,23 @@ export default function TeacherDashboard() {
           <View style={[mo.sheet, { backgroundColor: '#fff' }]}>
             <View style={[mo.mHeader, { borderBottomColor: '#E2E8F0' }]}>
               <Text style={mo.mTitle}>Add New Student</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowAddStudent(false);
+                    setStudentForm(EMPTY_STUDENT);
+                    router.push('/teacher/students' as any);
+                  }}
+                  activeOpacity={0.8}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                >
+                  <Feather name="users" size={15} color={H_MID} />
+                  <Text style={{ color: H_MID, fontSize: 12, fontWeight: '700' }}>Manage Students</Text>
+                </TouchableOpacity>
               <TouchableOpacity onPress={() => { setShowAddStudent(false); setStudentForm(EMPTY_STUDENT); }}>
                 <Feather name="x" size={24} color="#64748B" />
               </TouchableOpacity>
+              </View>
             </View>
             <ScrollView style={{ padding: 20 }} keyboardShouldPersistTaps="handled">
               {/* Photo */}
