@@ -59,13 +59,13 @@ export default function TeachersScreen() {
   };
 
   const handleSave = async () => {
-    const monthlySalary = Number(form.salary);
+    const monthlySalary = form.salary.trim() === '' ? 0 : Number(form.salary);
     if (!form.name.trim() || !form.subject.trim() || !form.username.trim() || !form.password.trim()) {
       Alert.alert('Validation', 'Please fill all required fields');
       return;
     }
-    if (!Number.isInteger(monthlySalary) || monthlySalary <= 0) {
-      Alert.alert('Validation', 'Enter a valid monthly salary greater than ₹0');
+    if (form.salary.trim() !== '' && (!Number.isInteger(monthlySalary) || monthlySalary <= 0)) {
+      Alert.alert('Validation', 'Enter a valid monthly salary greater than ₹0, or leave it blank');
       return;
     }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -372,7 +372,7 @@ export default function TeachersScreen() {
                 { key: 'name', label: 'Full Name *', placeholder: 'Teacher full name' },
                 { key: 'subject', label: 'Subject *', placeholder: 'e.g. Mathematics' },
                 { key: 'mobileNumber', label: 'Mobile Number', placeholder: '10-digit number', keyboard: 'phone-pad' as const },
-                { key: 'salary', label: 'Monthly Salary (₹) *', placeholder: 'e.g. 25000', keyboard: 'number-pad' as const },
+                { key: 'salary', label: 'Monthly Salary (₹)', placeholder: 'Optional — e.g. 25000', keyboard: 'number-pad' as const },
                 { key: 'username', label: 'Username *', placeholder: 'Login username' },
                 { key: 'password', label: 'Password *', placeholder: 'Login password' },
               ] as { key: keyof typeof BLANK & string; label: string; placeholder: string; keyboard?: any }[]).map(f => (

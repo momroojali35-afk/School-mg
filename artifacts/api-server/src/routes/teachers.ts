@@ -37,8 +37,8 @@ router.post("/teachers/login", async (req, res) => {
 
 router.post("/teachers", async (req, res) => {
   const body = req.body;
-  if (!body.name || !body.username || !Number.isInteger(body.salary) || body.salary <= 0) {
-    res.status(400).json({ error: "name, username, and a positive monthly salary are required" });
+  if (!body.name || !body.username || (body.salary !== undefined && (!Number.isInteger(body.salary) || body.salary < 0))) {
+    res.status(400).json({ error: "name and username are required; monthly salary must be a non-negative integer when provided" });
     return;
   }
   const row = await getAdapter().teachers.create(body);
@@ -46,8 +46,8 @@ router.post("/teachers", async (req, res) => {
 });
 
 router.put("/teachers/:id", async (req, res) => {
-  if (req.body.salary !== undefined && (!Number.isInteger(req.body.salary) || req.body.salary <= 0)) {
-    res.status(400).json({ error: "monthly salary must be a positive integer" });
+  if (req.body.salary !== undefined && (!Number.isInteger(req.body.salary) || req.body.salary < 0)) {
+    res.status(400).json({ error: "monthly salary must be a non-negative integer" });
     return;
   }
   const row = await getAdapter().teachers.update(req.params.id, req.body);
