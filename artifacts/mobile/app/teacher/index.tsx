@@ -219,6 +219,7 @@ export default function TeacherDashboard() {
   const [showProfile,     setShowProfile]     = useState(false);
   const [showAddStudent,        setShowAddStudent]        = useState(false);
   const [showClassPicker,       setShowClassPicker]       = useState(false);
+  const [classSearch,           setClassSearch]           = useState('');
   const [showSectionPicker,     setShowSectionPicker]     = useState(false);
   const [showSectionsMgr,       setShowSectionsMgr]       = useState(false);
   const [formPausedForSections, setFormPausedForSections] = useState(false);
@@ -942,7 +943,7 @@ export default function TeacherDashboard() {
                 <Text style={mo.mLabel}>Class *</Text>
                 <TouchableOpacity
                   style={[mo.mInput, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
-                  onPress={() => setShowClassPicker(true)}
+                  onPress={() => { setClassSearch(''); setShowClassPicker(true); }}
                 >
                   <Text style={{ color: studentForm.class ? '#0F172A' : '#94A3B8', fontSize: 15 }}>
                     {studentForm.class || 'Select class...'}
@@ -1067,17 +1068,27 @@ export default function TeacherDashboard() {
           <View style={[mo.sheet, { backgroundColor: '#fff', maxHeight: 400 }]}>
             <View style={[mo.mHeader, { borderBottomColor: '#E2E8F0' }]}>
               <Text style={mo.mTitle}>Select Class</Text>
-              <TouchableOpacity onPress={() => setShowClassPicker(false)}>
+              <TouchableOpacity onPress={() => { setClassSearch(''); setShowClassPicker(false); }}>
                 <Feather name="x" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
+            <TextInput
+              value={classSearch}
+              onChangeText={setClassSearch}
+              placeholder="Search class..."
+              placeholderTextColor="#94A3B8"
+              style={[mo.mInput, { margin: 16, marginBottom: 8 }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
             <ScrollView>
-              {classes.map((cls: string) => (
+              {classes.filter((cls: string) => cls.toLowerCase().includes(classSearch.trim().toLowerCase())).map((cls: string) => (
                 <TouchableOpacity
                   key={cls}
                   style={mo.classRow}
                   onPress={() => {
                     setStudentForm(p => ({ ...p, class: cls }));
+                    setClassSearch('');
                     setShowClassPicker(false);
                   }}
                 >

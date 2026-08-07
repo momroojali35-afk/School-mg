@@ -131,6 +131,7 @@ export default function StudentsScreen() {
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [showClassPicker, setShowClassPicker] = useState(false);
+  const [classSearch, setClassSearch] = useState('');
   const [showSectionPicker, setShowSectionPicker] = useState(false);
   const [showSectionsMgr, setShowSectionsMgr] = useState(false);
   // When sections manager is opened from within the student form we
@@ -443,7 +444,7 @@ export default function StudentsScreen() {
                 <Text style={[modalStyles.label, { color: colors.text }]}>Class *</Text>
                 <TouchableOpacity
                   style={[modalStyles.input, modalStyles.picker, { backgroundColor: colors.muted, borderColor: colors.border }]}
-                  onPress={() => setShowClassPicker(true)}
+                  onPress={() => { setClassSearch(''); setShowClassPicker(true); }}
                 >
                   <Text style={{ color: form.class ? colors.text : colors.mutedForeground }}>{form.class || 'Select class...'}</Text>
                   <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
@@ -552,14 +553,23 @@ export default function StudentsScreen() {
           <View style={[modalStyles.sheet, { backgroundColor: colors.card, maxHeight: 400 }]}>
             <View style={[modalStyles.header, { borderBottomColor: colors.border }]}>
               <Text style={[modalStyles.title, { color: colors.text }]}>Select Class</Text>
-              <TouchableOpacity onPress={() => setShowClassPicker(false)}><Feather name="x" size={24} color={colors.mutedForeground} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => { setClassSearch(''); setShowClassPicker(false); }}><Feather name="x" size={24} color={colors.mutedForeground} /></TouchableOpacity>
             </View>
+            <TextInput
+              value={classSearch}
+              onChangeText={setClassSearch}
+              placeholder="Search class..."
+              placeholderTextColor={colors.mutedForeground}
+              style={[modalStyles.input, { borderColor: colors.border, color: colors.text, margin: 16, marginBottom: 8 }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
             <ScrollView>
-              {classes.map(cls => (
+              {classes.filter(cls => cls.toLowerCase().includes(classSearch.trim().toLowerCase())).map(cls => (
                 <TouchableOpacity
                   key={cls}
                   style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
-                  onPress={() => { setForm(prev => ({ ...prev, class: cls })); setShowClassPicker(false); }}
+                  onPress={() => { setForm(prev => ({ ...prev, class: cls })); setClassSearch(''); setShowClassPicker(false); }}
                   activeOpacity={0.7}
                 >
                   <Text style={[modalStyles.classOptionText, { color: form.class === cls ? colors.primary : colors.text }]}>{cls}</Text>
