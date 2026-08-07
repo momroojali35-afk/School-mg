@@ -186,7 +186,7 @@ function NativeTabLayout() {
         <Label>Exams</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="alumni">
-        <Icon sf={{ default: 'person.crop.circle.badge.checkmark', selected: 'person.crop.circle.badge.checkmark.fill' }} />
+        <Icon sf={{ default: 'person.crop.circle.badge.checkmark', selected: 'person.crop.circle.badge.checkmark' }} />
         <Label>Alumni</Label>
       </NativeTabs.Trigger>
     </NativeTabs>

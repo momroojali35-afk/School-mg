@@ -907,7 +907,7 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   tplCard: { flex: 1, borderRadius: 14, borderWidth: 2, overflow: 'hidden', position: 'relative', alignItems: 'center' },
   tplPreview: { width: '100%', aspectRatio: 0.63, padding: 8, alignItems: 'center' },
   tplAccentBar: { height: 3, width: '100%', borderRadius: 2, marginBottom: 6 },
-  tplAvatar: { width: 26, height: 26, borderRadius: 13, border: 2, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.2)' },
+  tplAvatar: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.2)' },
   tplFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', padding: 5 },
   tplName: { fontSize: 11, fontWeight: '800', paddingVertical: 6 },
   tplCheck: { position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },

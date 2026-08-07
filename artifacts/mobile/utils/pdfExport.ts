@@ -275,6 +275,79 @@ function applyNativePrintMargins(html: string, marginMm: number): string {
     : `${printOverrides}\n${html}`;
 }
 
+/**
+ * Android's print renderer has a much lower peak-memory ceiling than the
+ * application process. Rendering an entire class in one HTML document can
+ * therefore fail even when the phone has plenty of free storage.
+ *
+ * Keep the individual print jobs deliberately small, then merge the finished
+ * PDFs. The user still receives one PDF, but Android never has to layout all
+ * students at once.
+ */
+const NATIVE_PRINT_CHUNK_SIZE = 3;
+
+function buildNativeCombinedHtml(htmlPages: string[]): string {
+  if (htmlPages.length === 1) return htmlPages[0];
+
+  const headMatch = htmlPages[0].match(/<head>([\s\S]*?)<\/head>/i);
+  const headContent = headMatch ? headMatch[1] : '';
+  const bodyContents = htmlPages.map(html => {
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    return bodyMatch ? bodyMatch[1].trim() : '';
+  });
+
+  const pages = bodyContents.map((content, index) => {
+    const last = index === bodyContents.length - 1;
+    return `<div class="page-wrap${last ? ' page-wrap-last' : ''}">\n${content}\n</div>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+${headContent}
+<style>
+  .page-wrap { margin-bottom: 0; page-break-after: always; break-after: page; }
+  .page-wrap-last { page-break-after: auto; break-after: auto; }
+</style>
+</head>
+<body>
+${pages}
+</body>
+</html>`;
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  const CHUNK = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + CHUNK, bytes.length)));
+  }
+  return btoa(binary);
+}
+
+async function mergeNativePdfFiles(pdfUris: string[]): Promise<Uint8Array> {
+  const { PDFDocument } = await import('pdf-lib');
+  const merged = await PDFDocument.create();
+
+  for (const uri of pdfUris) {
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const source = await PDFDocument.load(base64ToBytes(base64));
+    const pages = await merged.copyPages(source, source.getPageIndices());
+    pages.forEach(page => merged.addPage(page));
+  }
+
+  return merged.save();
+}
+
 /* ─── Public API ──────────────────────────────────────────────────────────── */
 
 /**
@@ -550,65 +623,41 @@ export async function downloadMultipleHtmlsAsPdf(
   /* ── Native path: delegate to expo-print ──────────────────────────────── */
   if (Platform.OS !== 'web') {
     console.log('[PDF] Native bulk path — expo-print');
-
-    // Build a single valid HTML document from all pages.
-    // Naively joining complete HTML documents (each with its own <!DOCTYPE>,
-    // <html>, <head>, <body>) means the print engine only sees the first
-    // document and silently discards the rest — producing a single-page PDF
-    // regardless of how many students were selected.
-    let combinedHtml: string;
-    if (htmlPages.length === 1) {
-      combinedHtml = htmlPages[0];
-    } else {
-      // Extract <head> from the first document (styles are identical for all)
-      const headMatch = htmlPages[0].match(/<head>([\s\S]*?)<\/head>/);
-      const headContent = headMatch ? headMatch[1] : '';
-
-      // Extract the body content from each document
-      const bodyContents = htmlPages.map(html => {
-        const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-        return m ? m[1].trim() : '';
-      });
-
-      // Wrap each page with a print page-break container
-      const pages = bodyContents.map((content, i) => {
-        const isLast = i === bodyContents.length - 1;
-        return `<div class="page-wrap${isLast ? ' page-wrap-last' : ''}">\n${content}\n</div>`;
-      }).join('\n');
-
-      combinedHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-${headContent}
-<style>
-  .page-wrap { margin-bottom: 0; page-break-after: always; break-after: page; }
-  .page-wrap-last { page-break-after: auto; break-after: auto; }
-</style>
-</head>
-<body>
-${pages}
-</body>
-</html>`;
-    }
-
-    const { uri } = await Print.printToFileAsync({
-      html: applyNativePrintMargins(combinedHtml, marginMm),
-    });
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
-    // Explicitly check and delete any existing file before copying to avoid
-    // "file already exists" errors on Android when downloading the same marksheet again.
-    const existingFile = await FileSystem.getInfoAsync(destUri);
-    if (existingFile.exists) {
-      await FileSystem.deleteAsync(destUri);
+
+    const chunkUris: string[] = [];
+    try {
+      for (let start = 0; start < htmlPages.length; start += NATIVE_PRINT_CHUNK_SIZE) {
+        const chunk = htmlPages.slice(start, start + NATIVE_PRINT_CHUNK_SIZE);
+        console.log(
+          `[PDF] Native chunk ${Math.floor(start / NATIVE_PRINT_CHUNK_SIZE) + 1}/` +
+          `${Math.ceil(htmlPages.length / NATIVE_PRINT_CHUNK_SIZE)} (${chunk.length} page(s))`,
+        );
+        const { uri } = await Print.printToFileAsync({
+          html: applyNativePrintMargins(buildNativeCombinedHtml(chunk), marginMm),
+        });
+        chunkUris.push(uri);
+      }
+
+      const mergedBytes = await mergeNativePdfFiles(chunkUris);
+      const existingFile = await FileSystem.getInfoAsync(destUri);
+      if (existingFile.exists) await FileSystem.deleteAsync(destUri);
+      await FileSystem.writeAsStringAsync(destUri, bytesToBase64(mergedBytes), {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      if (onSaved) {
+        onSaved(`${safeName}.pdf`, destUri);
+      } else {
+        Alert.alert('PDF Saved', `"${safeName}.pdf" has been saved to your Files app.`);
+      }
+      return destUri;
+    } finally {
+      // The print service writes temporary PDFs outside the app's final file.
+      // Remove them after merging so repeated bulk exports do not accumulate.
+      await Promise.all(chunkUris.map(uri => FileSystem.deleteAsync(uri, { idempotent: true })));
     }
-    await FileSystem.copyAsync({ from: uri, to: destUri });
-    if (onSaved) {
-      onSaved(`${safeName}.pdf`, destUri);
-    } else {
-      Alert.alert('PDF Saved', `"${safeName}.pdf" has been saved to your Files app.`);
-    }
-    return destUri;
   }
 
   /* ── Single page: reuse the existing single-page pipeline ─────────────── */
