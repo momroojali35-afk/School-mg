@@ -40,8 +40,9 @@ function formFromStudent(student: Student): Form {
 export default function TeacherStudents() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { students, updateStudent } = useApp();
+  const { students, classes, updateStudent } = useApp();
   const [search, setSearch] = useState('');
+  const [filterClass, setFilterClass] = useState('All');
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -50,10 +51,11 @@ export default function TeacherStudents() {
     const q = search.trim().toLowerCase();
     return students
       .filter(student => !isGraduatedStudent(student))
+      .filter(student => filterClass === 'All' || student.class === filterClass)
       .filter(student => !q || [student.name, student.class, student.rollNumber, student.admissionNo ?? '']
         .some(value => value.toLowerCase().includes(q)))
       .sort(compareStudentRollNumbers);
-  }, [students, search]);
+  }, [students, search, filterClass]);
 
   const openEdit = (student: Student) => {
     setEditing(student);
@@ -134,6 +136,31 @@ export default function TeacherStudents() {
           style={[styles.search, { color: colors.text }]}
         />
       </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+        style={{ backgroundColor: colors.card }}
+      >
+        {['All', ...classes].map(className => (
+          <TouchableOpacity
+            key={className}
+            onPress={() => setFilterClass(className)}
+            activeOpacity={0.8}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: filterClass === className ? colors.primary : colors.muted,
+                borderColor: filterClass === className ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Text style={{ color: filterClass === className ? '#fff' : colors.mutedForeground, fontSize: 13, fontWeight: '600' }}>
+              {className}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
       <FlatList
         data={visibleStudents}
         keyExtractor={student => student.id}
@@ -204,6 +231,8 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, marginTop: 2 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderBottomWidth: 1 },
   search: { flex: 1, paddingVertical: 12, fontSize: 14 },
+  filterRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 10 },
   name: { fontSize: 15, fontWeight: '800' },
   meta: { fontSize: 12, marginTop: 4 },
