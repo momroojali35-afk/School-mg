@@ -24,5 +24,9 @@ description: Critical bugs found and fixed in the imported School Management App
 - `pgAdapter.ts` → `promotions.bulkPromote`: student class update and promotion record insert were separate queries.
 - Fix: wrapped in `db.transaction(async (tx) => { ... })`.
 
+## 5. Mark edit permission with legacy results
+- Existing exam results can predate `mark_submissions` metadata.
+- Fix: treat stored marks without a submission row as submitted/read-only for teachers unless the explicit `allowMarkEdit` permission is enabled; enforce the same rule before API writes.
+
 ## How to apply
 Any future edits to these methods should preserve the transaction wrappers. Teacher password is still stored as plaintext — hashing is a follow-up improvement.

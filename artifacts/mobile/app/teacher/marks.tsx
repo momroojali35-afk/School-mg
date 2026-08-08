@@ -59,8 +59,19 @@ export default function TeacherMarks() {
     const sub = markSubmissions.find(ms =>
       ms.examId === selectedExam.id && ms.class === selectedClass && ms.subject === subject,
     );
-    return (sub?.status as SubjectStatus) ?? 'draft';
-  }, [selectedExam, selectedClass, markSubmissions]);
+    if (sub?.status === 'submitted' || sub?.status === 'locked' || sub?.status === 'draft') {
+      return sub.status;
+    }
+
+    // Older results may exist without a mark-submission row. Treat those marks
+    // as submitted so the missing permission record cannot make them editable.
+    const hasRecordedMarks = examResults.some(result => {
+      if (result.examId !== selectedExam.id || result.class !== selectedClass) return false;
+      const mark = result.marks?.[subject];
+      return mark !== undefined && mark !== null && String(mark).trim() !== '';
+    });
+    return hasRecordedMarks ? 'submitted' : 'draft';
+  }, [selectedExam, selectedClass, markSubmissions, examResults]);
 
   const getSubjectSubmission = useCallback((subject: string) => {
     if (!selectedExam || !selectedClass) return null;
@@ -70,10 +81,10 @@ export default function TeacherMarks() {
   }, [selectedExam, selectedClass, markSubmissions]);
 
   const canStartTeacherEdit = useCallback((subject: string): boolean => {
-    const currentTeacher = teachers.find(teacher => teacher.id === user?.id);
+    const currentTeacher = teachers.find(teacher => String(teacher.id) === String(user?.id));
     if (user?.role !== 'teacher' || currentTeacher?.permissions.allowMarkEdit !== true) return false;
     const submission = getSubjectSubmission(subject);
-    return submission?.status === 'submitted' && submission.teacherId === user.id;
+    return submission?.status === 'submitted' && String(submission.teacherId) === String(user.id);
   }, [user, teachers, getSubjectSubmission]);
 
   // Draft subjects remain editable as before. Submitted subjects are editable

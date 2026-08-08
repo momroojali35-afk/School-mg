@@ -104,6 +104,15 @@ async function subjectHasCompleteMarks(examId: string, cls: string, subject: str
   return students.every((student: any) => isValidMark(marksByStudent.get(student.id)));
 }
 
+async function subjectHasStoredMarks(examId: string, cls: string, subject: string): Promise<boolean> {
+  const results = await getAdapter().examResults.list();
+  return results.some((result: any) => {
+    if (result.examId !== examId || result.class !== cls) return false;
+    const mark = result.marks?.[subject];
+    return mark !== undefined && mark !== null && String(mark).trim() !== "";
+  });
+}
+
 // ── Teacher submits a subject's marks (saves marks + locks subject) ────────────
 router.post("/mark-submissions/submit", async (req, res) => {
   const { examId, class: cls, subject, teacherId, teacherName, marks } = req.body;
@@ -128,18 +137,22 @@ router.post("/mark-submissions/submit", async (req, res) => {
   // administrator has enabled mark editing for that individual teacher.
   const existing = await getAdapter().markSubmissions.get(examId, cls, subject);
   const allowTeacherEdit = (teacher.permissions ?? {}).allowMarkEdit === true;
+  // Older data can contain marks without a corresponding submission row.
+  // Treat those marks as submitted instead of allowing an implicit edit.
+  const hasLegacyStoredMarks = !existing && await subjectHasStoredMarks(examId, cls, subject);
+  const effectiveExisting = existing ?? (hasLegacyStoredMarks ? { status: "submitted", teacherId: null } : null);
   const isTeacherEdit =
-    existing?.status === "submitted" &&
-    existing.teacherId === teacherId;
+    effectiveExisting?.status === "submitted" &&
+    (effectiveExisting.teacherId === teacherId || (hasLegacyStoredMarks && allowTeacherEdit));
 
-  if (existing?.status === "locked") {
+  if (effectiveExisting?.status === "locked") {
     res.status(409).json({
       error: `Subject "${subject}" marks are locked. Only an admin can unlock them.`,
       status: "locked",
     });
     return;
   }
-  if (existing?.status === "submitted" && !isTeacherEdit) {
+  if (effectiveExisting?.status === "submitted" && !isTeacherEdit) {
     res.status(403).json({
       error: `Only the teacher who submitted "${subject}" can edit these marks.`,
       status: "submitted",
