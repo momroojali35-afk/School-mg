@@ -45885,6 +45885,14 @@ function createPgAdapter(db2) {
       async list() {
         return db2.select().from(alumniTable2).orderBy(asc(alumniTable2.batch), asc(alumniTable2.name));
       },
+      async syncGraduatedStudents() {
+        const alumniRows = await db2.select({ studentId: alumniTable2.studentId }).from(alumniTable2);
+        const studentIds = Array.from(new Set(
+          alumniRows.map((row) => String(row.studentId ?? "")).filter(Boolean)
+        ));
+        if (studentIds.length === 0) return;
+        await db2.update(studentsTable2).set({ status: "graduated", class: "", section: null }).where(inArray(studentsTable2.id, studentIds));
+      },
       async create(data) {
         const values = {
           studentId: data.studentId ?? data.id ?? `manual-${Date.now()}`,
@@ -45909,7 +45917,7 @@ function createPgAdapter(db2) {
         return db2.transaction(async (tx) => {
           const [row] = await tx.insert(alumniTable2).values(values).returning();
           if (data.studentId) {
-            await tx.update(studentsTable2).set({ status: "graduated" }).where(eq(studentsTable2.id, String(data.studentId)));
+            await tx.update(studentsTable2).set({ status: "graduated", class: "", section: null }).where(eq(studentsTable2.id, String(data.studentId)));
           }
           return row;
         });
@@ -45976,7 +45984,7 @@ function createPgAdapter(db2) {
             }
           }).returning();
           if (studentIds.length > 0) {
-            await tx.update(studentsTable2).set({ status: "graduated" }).where(inArray(studentsTable2.id, studentIds));
+            await tx.update(studentsTable2).set({ status: "graduated", class: "", section: null }).where(inArray(studentsTable2.id, studentIds));
           }
           return rows;
         });
@@ -46179,6 +46187,24 @@ function createFirebaseAdapter(fs2) {
         const snap = await col("alumni").orderBy("batch").get();
         return snap.docs.map(mapDoc).sort((a, b) => String(a.batch).localeCompare(String(b.batch)) || String(a.name).localeCompare(String(b.name)));
       },
+      async syncGraduatedStudents() {
+        const snap = await col("alumni").get();
+        const studentIds = Array.from(new Set(
+          snap.docs.map((doc) => String(doc.data().studentId ?? "")).filter(Boolean)
+        ));
+        const studentSnapshots = await Promise.all(
+          studentIds.map((id) => col("students").doc(id).get())
+        );
+        const writes = studentSnapshots.filter((student) => student.exists).map((student) => ({
+          ref: student.ref,
+          data: { status: "graduated", class: "", section: FieldValue.delete() }
+        }));
+        for (let i = 0; i < writes.length; i += 450) {
+          const batch = fs2.batch();
+          writes.slice(i, i + 450).forEach(({ ref, data }) => batch.set(ref, data, { merge: true }));
+          await batch.commit();
+        }
+      },
       async create(data) {
         const id = data.id ?? newId();
         const doc = stamp({
@@ -46204,7 +46230,9 @@ function createFirebaseAdapter(fs2) {
         if (data.studentId) {
           const studentRef = col("students").doc(String(data.studentId));
           const student = await studentRef.get();
-          if (student.exists) await studentRef.update({ status: "graduated" });
+          if (student.exists) {
+            await studentRef.update({ status: "graduated", class: "", section: FieldValue.delete() });
+          }
         }
         return { id, ...doc };
       },
@@ -46239,7 +46267,11 @@ function createFirebaseAdapter(fs2) {
           const student = await col("students").doc(studentId).get();
           if (student.exists) updates.push({ id: studentId });
         }
-        const writes = updates.map(({ id }) => ({ ref: col("students").doc(id), data: { status: "graduated" } }));
+        const writes = updates.map(({ id }) => ({
+          ref: col("students").doc(id),
+          // Keep historical placement in Alumni, but remove active placement.
+          data: { status: "graduated", class: "", section: FieldValue.delete() }
+        }));
         for (let i = 0; i < writes.length; i += 450) {
           const batch = fs2.batch();
           writes.slice(i, i + 450).forEach(({ ref, data }) => batch.update(ref, data));
@@ -47470,6 +47502,7 @@ var dbConnections_default = router2;
 var import_express3 = __toESM(require_express2(), 1);
 var router3 = (0, import_express3.Router)();
 router3.get("/students", async (req, res) => {
+  await getAdapter().alumni.syncGraduatedStudents();
   const includeGraduated = req.query.includeGraduated === "true";
   const rows = await getAdapter().students.list(includeGraduated);
   res.json(rows);
@@ -47543,16 +47576,16 @@ router4.post("/teachers/login", async (req, res) => {
 });
 router4.post("/teachers", async (req, res) => {
   const body = req.body;
-  if (!body.name || !body.username || !Number.isInteger(body.salary) || body.salary <= 0) {
-    res.status(400).json({ error: "name, username, and a positive monthly salary are required" });
+  if (!body.name || !body.username || body.salary !== void 0 && (!Number.isInteger(body.salary) || body.salary < 0)) {
+    res.status(400).json({ error: "name and username are required; monthly salary must be a non-negative integer when provided" });
     return;
   }
   const row = await getAdapter().teachers.create(body);
   res.status(201).json(row);
 });
 router4.put("/teachers/:id", async (req, res) => {
-  if (req.body.salary !== void 0 && (!Number.isInteger(req.body.salary) || req.body.salary <= 0)) {
-    res.status(400).json({ error: "monthly salary must be a positive integer" });
+  if (req.body.salary !== void 0 && (!Number.isInteger(req.body.salary) || req.body.salary < 0)) {
+    res.status(400).json({ error: "monthly salary must be a non-negative integer" });
     return;
   }
   const row = await getAdapter().teachers.update(req.params.id, req.body);
@@ -47896,6 +47929,14 @@ async function subjectHasCompleteMarks(examId, cls, subject) {
   );
   return students.every((student) => isValidMark(marksByStudent.get(student.id)));
 }
+async function subjectHasStoredMarks(examId, cls, subject) {
+  const results = await getAdapter().examResults.list();
+  return results.some((result) => {
+    if (result.examId !== examId || result.class !== cls) return false;
+    const mark = result.marks?.[subject];
+    return mark !== void 0 && mark !== null && String(mark).trim() !== "";
+  });
+}
 router11.post("/mark-submissions/submit", async (req, res) => {
   const { examId, class: cls, subject, teacherId, teacherName, marks } = req.body;
   if (!examId || !cls || !subject || !teacherId || !Array.isArray(marks)) {
@@ -47915,15 +47956,17 @@ router11.post("/mark-submissions/submit", async (req, res) => {
   }
   const existing = await getAdapter().markSubmissions.get(examId, cls, subject);
   const allowTeacherEdit = (teacher.permissions ?? {}).allowMarkEdit === true;
-  const isTeacherEdit = existing?.status === "submitted" && existing.teacherId === teacherId;
-  if (existing?.status === "locked") {
+  const hasLegacyStoredMarks = !existing && await subjectHasStoredMarks(examId, cls, subject);
+  const effectiveExisting = existing ?? (hasLegacyStoredMarks ? { status: "submitted", teacherId: null } : null);
+  const isTeacherEdit = effectiveExisting?.status === "submitted" && (effectiveExisting.teacherId === teacherId || hasLegacyStoredMarks && allowTeacherEdit);
+  if (effectiveExisting?.status === "locked") {
     res.status(409).json({
       error: `Subject "${subject}" marks are locked. Only an admin can unlock them.`,
       status: "locked"
     });
     return;
   }
-  if (existing?.status === "submitted" && !isTeacherEdit) {
+  if (effectiveExisting?.status === "submitted" && !isTeacherEdit) {
     res.status(403).json({
       error: `Only the teacher who submitted "${subject}" can edit these marks.`,
       status: "submitted"
@@ -48239,6 +48282,8 @@ function normalizeImportRecord(data) {
   };
 }
 router17.get("/alumni", async (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  await getAdapter().alumni.syncGraduatedStudents();
   const rows = await getAdapter().alumni.list();
   res.json(rows);
 });

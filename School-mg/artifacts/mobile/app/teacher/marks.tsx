@@ -237,7 +237,10 @@ export default function TeacherMarks() {
       // again after returning to the summary view.
       setDirtySubjects(new Set());
       setEditingSubjects(new Set());
-      setMode('view');
+      // Keep teachers in the subject-by-subject entry view after submitting.
+      // Submitted subjects remain read-only through canEditSubject, while
+      // every other draft subject stays available to other teachers.
+      setMode(user?.role === 'teacher' ? 'edit' : 'view');
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Failed to save marks');
     } finally {

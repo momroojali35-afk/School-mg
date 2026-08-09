@@ -28,5 +28,9 @@ description: Critical bugs found and fixed in the imported School Management App
 - Existing exam results can predate `mark_submissions` metadata.
 - Fix: treat stored marks without a submission row as submitted/read-only for teachers unless the explicit `allowMarkEdit` permission is enabled; enforce the same rule before API writes.
 
+## 6. Subject-level mark entry locking
+- Teacher mark submission must not switch the entire entry screen into view mode.
+- Fix: keep teachers in edit mode after submit and rely on each subject's editability check, so only the submitted/locked subject is read-only while other subjects remain available.
+
 ## How to apply
 Any future edits to these methods should preserve the transaction wrappers. Teacher password is still stored as plaintext — hashing is a follow-up improvement.
