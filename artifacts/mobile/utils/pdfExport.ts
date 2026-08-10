@@ -46,6 +46,17 @@ interface QRCodeStatic {
   toDataURL(text: string, options?: Record<string, unknown>): Promise<string>;
 }
 
+/**
+ * A lazy bulk source keeps the caller from creating 100+ complete HTML
+ * documents before the first native print starts.  The native pipeline asks
+ * for one page, renders it, and lets it become unreachable before asking for
+ * the next page.
+ */
+export interface BulkHtmlPageSource {
+  count: number;
+  getPage: (index: number) => string | Promise<string>;
+}
+
 /* ─── Internal helpers ────────────────────────────────────────────────────── */
 
 /** Safe ArrayBuffer → base64 in chunks (avoids call-stack overflow on large fonts). */
@@ -95,7 +106,11 @@ function downloadPdfBlob(
  * generated client-side.  Must run BEFORE the iframe is created so the image
  * is fully loaded the instant the iframe renders — no CORS, no timing race.
  */
-async function preEmbedQrCodes(html: string, QRCode: QRCodeStatic): Promise<string> {
+async function preEmbedQrCodes(
+  html: string,
+  QRCode: QRCodeStatic,
+  resolutionMultiplier = 3,
+): Promise<string> {
   // Match bare URLs appearing in src="…" or similar attributes
   const QR_RE = /https:\/\/api\.qrserver\.com\/v1\/create-qr-code\/\?[^"'\s<>]*/g;
   const urls = [...new Set(html.match(QR_RE) ?? [])];
@@ -115,7 +130,7 @@ async function preEmbedQrCodes(html: string, QRCode: QRCodeStatic): Promise<stri
       const dark = colorRaw.startsWith('#') ? colorRaw : `#${colorRaw}`;
 
       const dataUrl = await QRCode.toDataURL(decodeURIComponent(data), {
-        width: Math.max(rawSize * 3, 270), // 3× for high-res output
+         width: Math.max(Math.round(rawSize * resolutionMultiplier), rawSize),
         margin: 1,
         color: { dark, light: '#FFFFFF' },
         errorCorrectionLevel: 'M',
@@ -276,44 +291,15 @@ function applyNativePrintMargins(html: string, marginMm: number): string {
 }
 
 /**
- * Android's print renderer has a much lower peak-memory ceiling than the
- * application process. Rendering an entire class in one HTML document can
- * therefore fail even when the phone has plenty of free storage.
- *
- * Keep the individual print jobs deliberately small, then merge the finished
- * PDFs. The user still receives one PDF, but Android never has to layout all
- * students at once.
+ * Keep the native print renderer's input small without changing the rendered
+ * page. Comments, indentation and inter-tag whitespace have no visual effect,
+ * but they are duplicated in every WebView document created by Expo Print.
  */
-const NATIVE_PRINT_CHUNK_SIZE = 3;
-
-function buildNativeCombinedHtml(htmlPages: string[]): string {
-  if (htmlPages.length === 1) return htmlPages[0];
-
-  const headMatch = htmlPages[0].match(/<head>([\s\S]*?)<\/head>/i);
-  const headContent = headMatch ? headMatch[1] : '';
-  const bodyContents = htmlPages.map(html => {
-    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    return bodyMatch ? bodyMatch[1].trim() : '';
-  });
-
-  const pages = bodyContents.map((content, index) => {
-    const last = index === bodyContents.length - 1;
-    return `<div class="page-wrap${last ? ' page-wrap-last' : ''}">\n${content}\n</div>`;
-  }).join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-${headContent}
-<style>
-  .page-wrap { margin-bottom: 0; page-break-after: always; break-after: page; }
-  .page-wrap-last { page-break-after: auto; break-after: auto; }
-</style>
-</head>
-<body>
-${pages}
-</body>
-</html>`;
+function compactNativeHtml(html: string): string {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/>\s+</g, '><')
+    .trim();
 }
 
 function base64ToBytes(base64: string): Uint8Array {
@@ -332,20 +318,156 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function mergeNativePdfFiles(pdfUris: string[]): Promise<Uint8Array> {
+function buildWebCombinedHtml(htmlPages: string[]): string {
+  if (htmlPages.length === 1) return htmlPages[0];
+
+  const headMatch = htmlPages[0].match(/<head>([\s\S]*?)<\/head>/i);
+  const headContent = headMatch ? headMatch[1] : '';
+  const pages = htmlPages.map((html, index) => {
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const body = bodyMatch ? bodyMatch[1].trim() : '';
+    const last = index === htmlPages.length - 1;
+    return `<div class="page-wrap${last ? ' page-wrap-last' : ''}">${body}</div>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>${headContent}
+<style>
+  html,body{height:auto!important;min-height:0!important;overflow:visible!important}
+  .page-wrap{page-break-after:always;break-after:page}
+  .page-wrap-last{page-break-after:auto;break-after:auto}
+</style>
+</head>
+<body>${pages}</body>
+</html>`;
+}
+
+async function mergeNativePdfFiles(pdfUris: string[], outputUri: string): Promise<void> {
   const { PDFDocument } = await import('pdf-lib');
   const merged = await PDFDocument.create();
 
   for (const uri of pdfUris) {
-    const base64 = await FileSystem.readAsStringAsync(uri, {
+    let base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
     });
     const source = await PDFDocument.load(base64ToBytes(base64));
     const pages = await merged.copyPages(source, source.getPageIndices());
     pages.forEach(page => merged.addPage(page));
+    // Release the largest temporary string as soon as this source is copied.
+    base64 = '';
   }
 
-  return merged.save();
+  let mergedBytes = await merged.save();
+  const mergedBase64 = bytesToBase64(mergedBytes);
+  await FileSystem.writeAsStringAsync(outputUri, mergedBase64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  mergedBytes = new Uint8Array(0);
+}
+
+function nativeTempUri(prefix: string, index: number): string {
+  const directory = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+  if (!directory) throw new Error('Device storage is unavailable for PDF export.');
+  return `${directory}${prefix}-${Date.now()}-${index}.pdf`;
+}
+
+async function deleteUris(uris: string[]): Promise<void> {
+  await Promise.all(
+    uris.map(uri => FileSystem.deleteAsync(uri, { idempotent: true })),
+  );
+}
+
+async function createNativeBulkPdf(
+  source: BulkHtmlPageSource,
+  filename: string,
+  marginMm: number,
+): Promise<string> {
+  const qrModule = await import('qrcode');
+  const QRCode = (qrModule.default ?? qrModule) as unknown as QRCodeStatic;
+  const safeName = filename.replace(/['"\\<>]/g, '').trim() || 'school-documents';
+  const pageUris: string[] = [];
+  const batchUris: string[] = [];
+  const batchFiles: string[] = [];
+  const createdFiles: string[] = [];
+  const cleanupUris: string[] = [];
+  const mergeBatchSize = 4;
+  let finalTempUri: string | null = null;
+
+  try {
+    for (let index = 0; index < source.count; index += 1) {
+      let html = await source.getPage(index);
+      try {
+        // Native rendering only needs the displayed QR dimensions.  Keeping
+        // the data URL at that size avoids allocating a 3x bitmap per page.
+        html = compactNativeHtml(
+          await preEmbedQrCodes(html, QRCode, 1),
+        );
+        const result = await Print.printToFileAsync({
+          html: applyNativePrintMargins(html, marginMm),
+        });
+        pageUris.push(result.uri);
+        batchUris.push(result.uri);
+      } finally {
+        // Drop both the source HTML and the margin-transformed copy before the
+        // next student is generated.
+        html = '';
+      }
+
+      if (batchUris.length === mergeBatchSize || index === source.count - 1) {
+        const batchFile = nativeTempUri(`${safeName}-batch`, batchFiles.length);
+        batchFiles.push(batchFile);
+        createdFiles.push(batchFile);
+        cleanupUris.push(batchFile);
+        await mergeNativePdfFiles(batchUris, batchFile);
+        await deleteUris(batchUris);
+        batchUris.length = 0;
+        // Give the native print service a scheduling point between batches.
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    if (batchFiles.length === 0) {
+      throw new Error('No PDF pages were generated.');
+    }
+
+    let mergeInputs = [...batchFiles];
+    let mergeLevel = 0;
+    while (mergeInputs.length > 1) {
+      const nextLevel: string[] = [];
+      for (let start = 0; start < mergeInputs.length; start += mergeBatchSize) {
+        const group = mergeInputs.slice(start, start + mergeBatchSize);
+        const mergedFile = nativeTempUri(
+          `${safeName}-merge-${mergeLevel}`,
+          nextLevel.length,
+        );
+        createdFiles.push(mergedFile);
+        cleanupUris.push(mergedFile);
+        await mergeNativePdfFiles(group, mergedFile);
+        nextLevel.push(mergedFile);
+      }
+      // Only the next level is needed after all groups have been created.
+      await deleteUris(mergeInputs);
+      mergeInputs = nextLevel;
+      mergeLevel += 1;
+    }
+
+    finalTempUri = mergeInputs[0];
+    // The caller owns the returned file and is responsible for deleting it
+    // after sharing/printing is finished.
+    return finalTempUri;
+  } catch (error) {
+    await deleteUris(batchUris);
+    throw error;
+  } finally {
+    // Individual print outputs are no longer needed after their batch is
+    // merged.  Intermediate batch files remain only until final merge/copy.
+    await deleteUris(pageUris);
+    await deleteUris(
+      [...pageUris, ...createdFiles, ...cleanupUris]
+        .filter(uri => uri !== finalTempUri),
+    );
+  }
 }
 
 /* ─── Public API ──────────────────────────────────────────────────────────── */
@@ -375,7 +497,7 @@ export async function downloadHtmlAsPdf(
     const { uri } = await Print.printToFileAsync({
       html: applyNativePrintMargins(html, marginMm),
     });
-    const safeName = filename.replace(/['"\\<>]/g, '').trim();
+    const safeName = filename.replace(/['"\\<>]/g, '').trim() || 'school-documents';
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
     // Explicitly check and delete any existing file before copying to avoid
     // "file already exists" errors on Android when downloading the same marksheet again.
@@ -611,41 +733,28 @@ export async function downloadHtmlAsPdf(
  * @param pageSelector CSS selector for the page container. Default: '.page'.
  */
 export async function downloadMultipleHtmlsAsPdf(
-  htmlPages: string[],
+  htmlPages: string[] | BulkHtmlPageSource,
   filename: string,
   pageSelector = '.page',
   triggerDownload = true,
   onSaved?: (filename: string, fileUri: string) => void,
   marginMm = 0,
 ): Promise<string | null> {
-  if (htmlPages.length === 0) return null;
+  const source: BulkHtmlPageSource = Array.isArray(htmlPages)
+    ? { count: htmlPages.length, getPage: index => htmlPages[index] }
+    : htmlPages;
+  if (source.count === 0) return null;
 
   /* ── Native path: delegate to expo-print ──────────────────────────────── */
   if (Platform.OS !== 'web') {
     console.log('[PDF] Native bulk path — expo-print');
     const safeName = filename.replace(/['"\\<>]/g, '').trim();
     const destUri = `${FileSystem.documentDirectory}${safeName}.pdf`;
-
-    const chunkUris: string[] = [];
+    const generatedUri = await createNativeBulkPdf(source, filename, marginMm);
     try {
-      for (let start = 0; start < htmlPages.length; start += NATIVE_PRINT_CHUNK_SIZE) {
-        const chunk = htmlPages.slice(start, start + NATIVE_PRINT_CHUNK_SIZE);
-        console.log(
-          `[PDF] Native chunk ${Math.floor(start / NATIVE_PRINT_CHUNK_SIZE) + 1}/` +
-          `${Math.ceil(htmlPages.length / NATIVE_PRINT_CHUNK_SIZE)} (${chunk.length} page(s))`,
-        );
-        const { uri } = await Print.printToFileAsync({
-          html: applyNativePrintMargins(buildNativeCombinedHtml(chunk), marginMm),
-        });
-        chunkUris.push(uri);
-      }
-
-      const mergedBytes = await mergeNativePdfFiles(chunkUris);
       const existingFile = await FileSystem.getInfoAsync(destUri);
       if (existingFile.exists) await FileSystem.deleteAsync(destUri);
-      await FileSystem.writeAsStringAsync(destUri, bytesToBase64(mergedBytes), {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      await FileSystem.copyAsync({ from: generatedUri, to: destUri });
 
       if (onSaved) {
         onSaved(`${safeName}.pdf`, destUri);
@@ -654,16 +763,14 @@ export async function downloadMultipleHtmlsAsPdf(
       }
       return destUri;
     } finally {
-      // The print service writes temporary PDFs outside the app's final file.
-      // Remove them after merging so repeated bulk exports do not accumulate.
-      await Promise.all(chunkUris.map(uri => FileSystem.deleteAsync(uri, { idempotent: true })));
+      await FileSystem.deleteAsync(generatedUri, { idempotent: true });
     }
   }
 
   /* ── Single page: reuse the existing single-page pipeline ─────────────── */
-  if (htmlPages.length === 1) {
+  if (source.count === 1) {
     return downloadHtmlAsPdf(
-      htmlPages[0],
+      await source.getPage(0),
       filename,
       pageSelector,
       'img[alt="QR Code"],img[alt="QR"]',
@@ -674,7 +781,8 @@ export async function downloadMultipleHtmlsAsPdf(
   }
 
   const safeName = filename.replace(/['"\\<>]/g, '').trim();
-  console.log('[PDF] ── Bulk generation:', safeName, `(${htmlPages.length} pages) ──`);
+  console.log('[PDF] ── Bulk generation:', safeName, `(${source.count} pages) ──`);
+  const firstPage = await source.getPage(0);
 
   /* ── Load deps once ───────────────────────────────────────────────────── */
   const [h2cMod, jspdfMod, qrMod] = await Promise.all([
@@ -689,7 +797,7 @@ export async function downloadMultipleHtmlsAsPdf(
 
   /* ── Fetch & embed Google Fonts once (all pages share identical fonts) ── */
   console.log('[PDF] Pre-fetching Google Fonts from first page…');
-  const firstWithFonts = await embedGoogleFonts(htmlPages[0]);
+  const firstWithFonts = await embedGoogleFonts(firstPage);
   // Extract just the injected <style>…</style> block so we can reuse it
   const fontStyleMatch = firstWithFonts.match(
     /<style>\s*\/\* ─── Embedded Google Fonts[\s\S]*?<\/style>/,
@@ -829,10 +937,11 @@ export async function downloadMultipleHtmlsAsPdf(
   const A4_H = 297;
   const pdf  = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-  for (let i = 0; i < htmlPages.length; i++) {
-    console.log(`[PDF] ── Page ${i + 1}/${htmlPages.length} ──`);
+  for (let i = 0; i < source.count; i++) {
+    console.log(`[PDF] ── Page ${i + 1}/${source.count} ──`);
 
-    const preparedHtml = await prepareSinglePage(htmlPages[i]);
+    const pageHtml = i === 0 ? firstPage : await source.getPage(i);
+    const preparedHtml = await prepareSinglePage(pageHtml);
     const canvas       = await capturePageCanvas(preparedHtml, i + 1);
 
     if (i > 0) pdf.addPage();
@@ -851,7 +960,39 @@ export async function downloadMultipleHtmlsAsPdf(
 
   console.log('[PDF] Saving:', `${safeName}.pdf`);
   return downloadPdfBlob(pdf, `${safeName}.pdf`, triggerDownload);
-  console.log('[PDF] Bulk done ✓');
+}
+
+/**
+ * Generate a native bulk PDF with the same bounded-memory pipeline used by
+ * downloads, then open the system print dialog for the finished file.
+ *
+ * Keeping this separate from printHtml is important: Print.printAsync({ html })
+ * would ask Android to layout the entire class again in one renderer process.
+ */
+export async function printMultipleHtmlsAsPdf(
+  htmlPages: string[] | BulkHtmlPageSource,
+  filename: string,
+  marginMm = 0,
+): Promise<void> {
+  const source: BulkHtmlPageSource = Array.isArray(htmlPages)
+    ? { count: htmlPages.length, getPage: index => htmlPages[index] }
+    : htmlPages;
+  if (source.count === 0) return;
+
+  if (Platform.OS === 'web') {
+    const pages = await Promise.all(
+      Array.from({ length: source.count }, (_, index) => source.getPage(index)),
+    );
+    await printHtml(buildWebCombinedHtml(pages));
+    return;
+  }
+
+  const generatedUri = await createNativeBulkPdf(source, filename, marginMm);
+  try {
+    await Print.printAsync({ uri: generatedUri });
+  } finally {
+    await FileSystem.deleteAsync(generatedUri, { idempotent: true });
+  }
 }
 
 /**

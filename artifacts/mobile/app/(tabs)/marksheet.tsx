@@ -9,12 +9,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import { useApp, Student, Exam, ExamResult, isActiveStudent } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
-import { downloadHtmlAsPdf, downloadMultipleHtmlsAsPdf, printHtml as sharedPrintHtml } from '@/utils/pdfExport';
+import {
+  downloadHtmlAsPdf,
+  downloadMultipleHtmlsAsPdf,
+  printHtml as sharedPrintHtml,
+  printMultipleHtmlsAsPdf,
+} from '@/utils/pdfExport';
 import {
   documentLogoHtml,
   principalSignatureHtml,
@@ -681,60 +685,6 @@ function buildSingleMarksheetHtml(
 </html>`;
 }
 
-function buildBulkSingleHtml(
-  dataList: MarksheetData[],
-  branding: DocumentBranding = EMPTY_BRANDING,
-  academicSession: string = getAcademicYear(),
-): string {
-  if (dataList.length === 0) return '';
-  if (dataList.length === 1) return buildSingleMarksheetHtml(dataList[0], branding, academicSession);
-
-  const htmls = dataList.map(data => buildSingleMarksheetHtml(data, branding, academicSession));
-
-  // Extract <head> content from the first document (styles are identical across all)
-  const headMatch = htmls[0].match(/<head>([\s\S]*?)<\/head>/);
-  const headContent = headMatch ? headMatch[1] : '';
-
-  // Extract the body content (the .page div) from each document
-  const bodyContents = htmls.map(html => {
-    const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-    return m ? m[1].trim() : '';
-  });
-
-  // Wrap each page in a container that carries its own page break
-  const pages = bodyContents.map((content, i) => {
-    const isLast = i === bodyContents.length - 1;
-    return `<div class="page-wrap${isLast ? ' page-wrap-last' : ''}">\n${content}\n</div>`;
-  }).join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-${headContent}
-<style>
-  /* ── Bulk-mode override: unlock body height so all pages are reachable ──
-     Each individual marksheet injects "html,body{height:297mm;overflow:hidden}"
-     which clips everything after page 1 when merged into one document.
-     The !important rules below cancel those constraints so querySelectorAll('.page')
-     finds every student and html2canvas can scroll to each one. */
-  html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }
-  .page-wrap {
-    margin-bottom: 0;
-    page-break-after: always;
-    break-after: page;
-  }
-  .page-wrap-last {
-    page-break-after: auto;
-    break-after: auto;
-  }
-</style>
-</head>
-<body>
-${pages}
-</body>
-</html>`;
-}
-
 // ─── Combined Annual HTML ─────────────────────────────────────────────────────
 // Columns: Subject | 1st Unit Test (OBT./max) | 2nd Unit Test | Half Yearly | Annual Exam | TOTAL | % | GRADE
 function buildCombinedMarksheetHtml(
@@ -1143,60 +1093,6 @@ function buildCombinedMarksheetHtml(
 </html>`;
 }
 
-function buildBulkCombinedHtml(
-  dataList: CombinedMarksheetData[],
-  branding: DocumentBranding = EMPTY_BRANDING,
-  academicSession: string = getAcademicYear(),
-): string {
-  if (dataList.length === 0) return '';
-  if (dataList.length === 1) return buildCombinedMarksheetHtml(dataList[0], branding, academicSession);
-
-  const htmls = dataList.map(data => buildCombinedMarksheetHtml(data, branding, academicSession));
-
-  // Extract <head> content from the first document (styles are identical across all)
-  const headMatch = htmls[0].match(/<head>([\s\S]*?)<\/head>/);
-  const headContent = headMatch ? headMatch[1] : '';
-
-  // Extract the body content (the .page div) from each document
-  const bodyContents = htmls.map(html => {
-    const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-    return m ? m[1].trim() : '';
-  });
-
-  // Wrap each page in a container that carries its own page break
-  const pages = bodyContents.map((content, i) => {
-    const isLast = i === dataList.length - 1;
-    return `<div class="page-wrap${isLast ? ' page-wrap-last' : ''}">\n${content}\n</div>`;
-  }).join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-${headContent}
-<style>
-  /* ── Bulk-mode override: unlock body height so all pages are reachable ──
-     Each individual marksheet injects "html,body{height:297mm;overflow:hidden}"
-     which clips everything after page 1 when pages are merged into one document.
-     The !important rules below cancel those constraints so querySelectorAll('.page')
-     finds every student and html2canvas can scroll to each one. */
-  html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }
-  .page-wrap {
-    margin-bottom: 0;
-    page-break-after: always;
-    break-after: page;
-  }
-  .page-wrap-last {
-    page-break-after: auto;
-    break-after: auto;
-  }
-</style>
-</head>
-<body>
-${pages}
-</body>
-</html>`;
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function MarksheetScreen() {
   const insets = useSafeAreaInsets();
@@ -1450,8 +1346,22 @@ export default function MarksheetScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      const dataList = list.map(s => buildSingleData(s)).filter(Boolean) as MarksheetData[];
-      await printHtml(buildBulkSingleHtml(dataList, documentBranding, academicSession));
+      const dataList = list
+        .map(s => buildSingleData(s))
+        .filter(Boolean) as MarksheetData[];
+      await printMultipleHtmlsAsPdf(
+        {
+          count: dataList.length,
+          getPage: index =>
+            buildSingleMarksheetHtml(
+              dataList[index],
+              documentBranding,
+              academicSession,
+            ),
+        },
+        `Marksheets – ${selectedClass}`,
+        8,
+      );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
   }, [bulkStudents, bulkSelected, buildSingleData, documentBranding, academicSession]);
@@ -1464,15 +1374,20 @@ export default function MarksheetScreen() {
     try {
       const dataList = list.map(s => buildSingleData(s)).filter(Boolean) as MarksheetData[];
       if (dataList.length === 0) { Alert.alert('No Data', 'No marksheet data available.'); return; }
-      const htmlPages = dataList.map(data =>
-        buildSingleMarksheetHtml(data, documentBranding, academicSession),
-      );
       const filename = `Marksheets – ${selectedClass}`;
       const onSaved = Platform.OS !== 'web'
         ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
         : undefined;
       const url = await downloadMultipleHtmlsAsPdf(
-        htmlPages,
+        {
+          count: dataList.length,
+          getPage: index =>
+            buildSingleMarksheetHtml(
+              dataList[index],
+              documentBranding,
+              academicSession,
+            ),
+        },
         filename,
         '.page',
         Platform.OS === 'web' ? false : true,
@@ -1523,8 +1438,22 @@ export default function MarksheetScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      const dataList = combinedStudents.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
-      await printHtml(buildBulkCombinedHtml(dataList, documentBranding, academicSession));
+      const dataList = combinedStudents
+        .map(s => buildCombinedData(s))
+        .filter(Boolean) as CombinedMarksheetData[];
+      await printMultipleHtmlsAsPdf(
+        {
+          count: dataList.length,
+          getPage: index =>
+            buildCombinedMarksheetHtml(
+              dataList[index],
+              documentBranding,
+              academicSession,
+            ),
+        },
+        `Combined Marksheets – ${combinedClass}`,
+        8,
+      );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
   }, [combinedStudents, buildCombinedData, documentBranding, academicSession]);
@@ -1536,15 +1465,20 @@ export default function MarksheetScreen() {
     try {
       const dataList = combinedStudents.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
       if (dataList.length === 0) { Alert.alert('No Data', 'No marksheet data available.'); return; }
-      const htmlPages = dataList.map(data =>
-        buildCombinedMarksheetHtml(data, documentBranding, academicSession),
-      );
       const filename = combinedMarksheetDownloadName(`Combined Marksheets – ${combinedClass}`);
       const onSaved = Platform.OS !== 'web'
         ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
         : undefined;
       const url = await downloadMultipleHtmlsAsPdf(
-        htmlPages,
+        {
+          count: dataList.length,
+          getPage: index =>
+            buildCombinedMarksheetHtml(
+              dataList[index],
+              documentBranding,
+              academicSession,
+            ),
+        },
         filename,
         '.page',
         Platform.OS === 'web' ? false : true,

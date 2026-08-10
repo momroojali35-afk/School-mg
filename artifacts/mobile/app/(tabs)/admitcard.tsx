@@ -19,7 +19,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
 import {
   useApp,
@@ -33,6 +32,7 @@ import { SCHOOL_INFO } from "@/constants/schoolInfo";
 import {
   downloadHtmlAsPdf,
   downloadMultipleHtmlsAsPdf,
+  printMultipleHtmlsAsPdf,
 } from "@/utils/pdfExport";
 import {
   documentLogoHtml,
@@ -616,28 +616,6 @@ function buildHtml(
   return buildPremiumHtml(student, exam, branding, academicYear);
 }
 
-function buildBulkHtml(
-  students: Student[],
-  exam: Exam,
-  template: Template,
-  branding: DocumentBranding = EMPTY_BRANDING,
-  academicYear?: string,
-): string {
-  return students
-    .map((s, i) => {
-      const html = buildHtml(s, exam, template, branding, academicYear);
-      if (i < students.length - 1) {
-        // Inject page-break between students
-        return html.replace(
-          "</body>",
-          '<div style="page-break-after:always"></div></body>',
-        );
-      }
-      return html;
-    })
-    .join("\n");
-}
-
 // ─── Template Preview Card ─────────────────────────────────────────────────────
 const TEMPLATES: {
   id: Template;
@@ -832,14 +810,20 @@ export default function AdmitCardScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      const html = buildBulkHtml(
-        list,
-        selectedExam,
-        template,
-        documentBranding,
-        academicSession,
+      await printMultipleHtmlsAsPdf(
+        {
+          count: list.length,
+          getPage: (index) =>
+            buildHtml(
+              list[index],
+              selectedExam,
+              template,
+              documentBranding,
+              academicSession,
+            ),
+        },
+        `Admit Cards – Class ${selectedClass}`,
       );
-      await Print.printAsync({ html });
     } catch (e: any) {
       if (!e?.message?.includes("cancelled"))
         Alert.alert("Error", e?.message ?? "Print failed");
@@ -870,13 +854,18 @@ export default function AdmitCardScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      // Build a separate complete HTML document per student so each is rendered
-      // in its own iframe — eliminates blank pages caused by joining full documents.
-      const htmlPages = list.map((s) =>
-        buildHtml(s, selectedExam, template, documentBranding, academicSession),
-      );
       await downloadMultipleHtmlsAsPdf(
-        htmlPages,
+        {
+          count: list.length,
+          getPage: (index) =>
+            buildHtml(
+              list[index],
+              selectedExam,
+              template,
+              documentBranding,
+              academicSession,
+            ),
+        },
         `Admit Cards – Class ${selectedClass}`,
         ".pg",
         true,
