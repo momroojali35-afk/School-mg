@@ -303,7 +303,12 @@ export default function StudentsScreen() {
             <Feather name="plus" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 10 }}
+          contentContainerStyle={topBarSt.chipRow}
+        >
           {['All', ...classes].map(cls => (
             <TouchableOpacity
               key={cls}
@@ -901,6 +906,16 @@ const topBarSt = StyleSheet.create({
   searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 12, gap: 8 },
   iconBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   addBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, marginRight: 8 },
+  chipRow: { alignItems: 'center', paddingRight: 8 },
+  chip: {
+    flexGrow: 0,
+    flexShrink: 0,
+    alignSelf: 'flex-start',
+    minWidth: 56,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    marginRight: 8,
+  },
   chipText: { fontSize: 13, fontWeight: '600' },
 });
