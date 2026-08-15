@@ -155,7 +155,13 @@ export default function TeacherStudents() {
               },
             ]}
           >
-            <Text style={{ color: filterClass === className ? '#fff' : colors.mutedForeground, fontSize: 13, fontWeight: '600' }}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.filterText,
+                { color: filterClass === className ? '#fff' : colors.mutedForeground },
+              ]}
+            >
               {className}
             </Text>
           </TouchableOpacity>
@@ -240,6 +246,7 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     flexShrink: 0,
+    flexGrow: 0,
     minWidth: 72,
     alignItems: 'center',
     justifyContent: 'center',
@@ -248,6 +255,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
+  filterText: { flexShrink: 0, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 10 },
   name: { fontSize: 15, fontWeight: '800' },
   meta: { fontSize: 12, marginTop: 4 },
