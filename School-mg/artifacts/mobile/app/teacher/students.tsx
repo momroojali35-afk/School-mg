@@ -140,7 +140,7 @@ export default function TeacherStudents() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
-        style={{ backgroundColor: colors.card }}
+        style={[styles.filterScroll, { backgroundColor: colors.card }]}
       >
         {['All', ...classes].map(className => (
           <TouchableOpacity
@@ -237,10 +237,12 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, marginTop: 2 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderBottomWidth: 1 },
   search: { flex: 1, paddingVertical: 12, fontSize: 14 },
+  filterScroll: { flexGrow: 0, flexShrink: 0 },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
+    paddingTop: 6,
     paddingBottom: 12,
     gap: 8,
   },
