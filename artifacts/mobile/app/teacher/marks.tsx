@@ -9,7 +9,12 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, Exam, getExamSubjectsForClass } from '@/context/AppContext';
+import {
+  useApp,
+  Exam,
+  getExamScheduleForClass,
+  getExamSubjectsForClass,
+} from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
@@ -109,6 +114,20 @@ export default function TeacherMarks() {
   const examSubjects = useMemo(() => {
     if (!selectedExam || !selectedClass) return [];
     return getExamSubjectsForClass(selectedExam, selectedClass);
+  }, [selectedExam, selectedClass]);
+
+  /** Maximum marks for one subject, with an exam-level fallback for older exams. */
+  const getSubjectMaxMarks = useCallback((subject: string): number => {
+    if (!selectedExam) return 100;
+
+    const scheduledMarks = getExamScheduleForClass(selectedExam, selectedClass ?? '')
+      ?.find(schedule => schedule.subject === subject)
+      ?.maxMarks;
+    const maxMarks = Number(scheduledMarks);
+
+    return Number.isFinite(maxMarks) && maxMarks > 0
+      ? maxMarks
+      : selectedExam.maxMarks;
   }, [selectedExam, selectedClass]);
 
   /** Students in the selected class */
@@ -549,6 +568,7 @@ export default function TeacherMarks() {
                   {examSubjects.map(sub => {
                     const editable = canEditSubject(sub);
                     const status = getSubjectStatus(sub);
+                    const subjectMaxMarks = getSubjectMaxMarks(sub);
                     const statusColor =
                       status === 'locked' ? colors.destructive
                       : status === 'submitted' ? colors.success
@@ -568,7 +588,7 @@ export default function TeacherMarks() {
                               value={marksData[student.id]?.[sub] ?? ''}
                               onChangeText={v => {
                                 const num = Number(v);
-                                if (v !== '' && (isNaN(num) || num < 0 || num > (selectedExam?.maxMarks ?? 100))) return;
+                                if (v !== '' && (isNaN(num) || num < 0 || num > subjectMaxMarks)) return;
                                 setMarksData(prev => ({ ...prev, [student.id]: { ...(prev[student.id] ?? {}), [sub]: v } }));
                                 // Mark this subject as touched so only it gets submitted
                                 setDirtySubjects(prev => { const next = new Set(prev); next.add(sub); return next; });
@@ -585,7 +605,7 @@ export default function TeacherMarks() {
                               </Text>
                             </View>
                           )}
-                          <Text style={[mc.maxText, { color: colors.mutedForeground }]}>/{selectedExam.maxMarks}</Text>
+                          <Text style={[mc.maxText, { color: colors.mutedForeground }]}>/{subjectMaxMarks}</Text>
                         </View>
                       </View>
                     );
@@ -599,7 +619,10 @@ export default function TeacherMarks() {
                   (sum, sub) => sum + Number(marksData[student.id]?.[sub] ?? 0),
                   0,
                 );
-                const maxTotal = examSubjects.length * selectedExam.maxMarks;
+                const maxTotal = examSubjects.reduce(
+                  (sum, sub) => sum + getSubjectMaxMarks(sub),
+                  0,
+                );
                 const percentage = maxTotal > 0 ? (totalMarks / maxTotal) * 100 : 0;
                 const grade = getGrade(percentage);
                 let gradeColor = colors.success;
@@ -623,6 +646,7 @@ export default function TeacherMarks() {
                     <View style={{ padding: 14, backgroundColor: colors.muted + '40' }}>
                       {examSubjects.map(sub => {
                         const status = getSubjectStatus(sub);
+                        const subjectMaxMarks = getSubjectMaxMarks(sub);
                         const statusColor =
                           status === 'locked' ? colors.destructive
                           : status === 'submitted' ? colors.success
@@ -637,7 +661,7 @@ export default function TeacherMarks() {
                               <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
                                 {marksData[student.id]?.[sub] ?? '0'}{' '}
                                 <Text style={{ color: colors.mutedForeground, fontWeight: '400' }}>
-                                  / {selectedExam.maxMarks}
+                                  / {subjectMaxMarks}
                                 </Text>
                               </Text>
                               {user?.role === 'teacher' && canStartTeacherEdit(sub) && !editingSubjects.has(sub) && (
