@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
@@ -40,7 +40,7 @@ export default function TeacherMarks() {
   const {
     exams, students, examResults, teachers,
     saveExamResults, markSubmissions,
-    submitSubjectMarks, lockSubject, unlockSubject,
+    submitSubjectMarks, lockSubject, unlockSubject, refreshTeachers,
   } = useApp();
 
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
@@ -57,6 +57,15 @@ export default function TeacherMarks() {
   const [dirtySubjects, setDirtySubjects] = useState<Set<string>>(new Set());
   // Submitted subjects require an explicit Edit tap by their original submitter.
   const [editingSubjects, setEditingSubjects] = useState<Set<string>>(new Set());
+
+  // Permissions can be changed by an administrator on another device while a
+  // teacher app remains open. Refresh before evaluating edit controls so the
+  // UI cannot continue using an old allowMarkEdit value.
+  useFocusEffect(useCallback(() => {
+    refreshTeachers().catch(() => {
+      // Keep the existing cached permissions if the refresh is temporarily unavailable.
+    });
+  }, [refreshTeachers]));
 
   // ── Subject status helpers ───────────────────────────────────────────────────
   const getSubjectStatus = useCallback((subject: string): SubjectStatus => {
@@ -85,12 +94,17 @@ export default function TeacherMarks() {
     ) ?? null;
   }, [selectedExam, selectedClass, markSubmissions]);
 
+  const currentTeacher = useMemo(
+    () => teachers.find(teacher => String(teacher.id) === String(user?.id)),
+    [teachers, user?.id],
+  );
+  const effectivePermissions = currentTeacher?.permissions ?? user?.permissions;
+
   const canStartTeacherEdit = useCallback((subject: string): boolean => {
-    const currentTeacher = teachers.find(teacher => String(teacher.id) === String(user?.id));
     if (user?.role !== 'teacher' || currentTeacher?.permissions.allowMarkEdit !== true) return false;
     const submission = getSubjectSubmission(subject);
     return submission?.status === 'submitted' && String(submission.teacherId) === String(user.id);
-  }, [user, teachers, getSubjectSubmission]);
+  }, [user, currentTeacher, getSubjectSubmission]);
 
   // Draft subjects remain editable as before. Submitted subjects are editable
   // only after the original teacher taps Edit and only while the admin toggle
@@ -299,7 +313,7 @@ export default function TeacherMarks() {
   const saveLabel = user?.role === 'teacher' ? 'Submit Marks' : 'Save Marks';
 
   // ── Permission gate ────────────────────────────────────────────────────────
-  if (!user?.permissions?.manageResults && user?.role !== 'admin') {
+  if (user?.role !== 'admin' && effectivePermissions?.manageResults !== true) {
     return (
       <View style={[s.root, { backgroundColor: colors.background }]}>
         <View style={[s.headerTop, { paddingTop: topPad }]}>
