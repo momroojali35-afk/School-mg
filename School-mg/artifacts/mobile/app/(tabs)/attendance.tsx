@@ -34,11 +34,11 @@ function StudentAttendanceDetailModal({
     [allRecords, studentId],
   );
 
-  const totalDays   = records.length;
   const presentDays = records.filter(r => r.status === 'present').length;
   const absentDays  = records.filter(r => r.status === 'absent').length;
   const holidayDays = records.filter(r => r.status === 'holiday').length;
-  const attendancePct = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+  const attendanceDays = presentDays + absentDays;
+  const attendancePct = attendanceDays > 0 ? Math.round((presentDays / attendanceDays) * 100) : 0;
   const pctColor = attendancePct >= 75 ? colors.success : attendancePct >= 50 ? colors.warning : colors.destructive;
 
   // Group by month (YYYY-MM)
@@ -84,8 +84,8 @@ function StudentAttendanceDetailModal({
             {/* Overall Stats */}
             <View style={det.statsRow}>
               <View style={[det.statBox, { backgroundColor: colors.primary + '15' }]}>
-                <Text style={[det.statVal, { color: colors.primary }]}>{totalDays}</Text>
-                <Text style={[det.statLbl, { color: colors.primary }]}>Total Days</Text>
+                <Text style={[det.statVal, { color: colors.primary }]}>{attendanceDays}</Text>
+                <Text style={[det.statLbl, { color: colors.primary }]}>Attendance Days</Text>
               </View>
               <View style={[det.statBox, { backgroundColor: pctColor + '15' }]}>
                 <Text style={[det.statVal, { color: pctColor }]}>{attendancePct}%</Text>
@@ -116,7 +116,7 @@ function StudentAttendanceDetailModal({
             ) : (
               months.map(month => {
                 const { present, absent, holiday } = monthMap[month];
-                const mTotal = present.length + absent.length + holiday.length;
+                const mTotal = present.length + absent.length;
                 const mPct = mTotal > 0 ? Math.round((present.length / mTotal) * 100) : 0;
                 const mColor = mPct >= 75 ? colors.success : mPct >= 50 ? colors.warning : colors.destructive;
                 return (
@@ -243,9 +243,10 @@ export default function AttendanceScreen() {
   const presentCount = records.filter(r => r.status === 'present').length;
   const absentCount = records.filter(r => r.status === 'absent').length;
   const holidayCount = records.filter(r => r.status === 'holiday').length;
+  const attendanceDays = presentCount + absentCount;
 
-  const presentPct = total > 0 ? Math.round((presentCount / total) * 100) : 0;
-  const absentPct = total > 0 ? Math.round((absentCount / total) * 100) : 0;
+  const presentPct = attendanceDays > 0 ? Math.round((presentCount / attendanceDays) * 100) : 0;
+  const absentPct = attendanceDays > 0 ? Math.round((absentCount / attendanceDays) * 100) : 0;
   const holidayPct = total > 0 ? Math.round((holidayCount / total) * 100) : 0;
 
   const s = styles(colors);
@@ -300,7 +301,8 @@ export default function AttendanceScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
         ListEmptyComponent={<EmptyState icon="users" title="No Students" subtitle="Adjust filters or search" />}
         renderItem={({ item: stat }) => {
-          const pct = stat.total > 0 ? Math.round((stat.present / stat.total) * 100) : 0;
+          const attendanceDays = stat.present + stat.absent;
+          const pct = attendanceDays > 0 ? Math.round((stat.present / attendanceDays) * 100) : 0;
           return (
             <TouchableOpacity
               activeOpacity={0.75}
@@ -309,7 +311,7 @@ export default function AttendanceScreen() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={[c.name, { color: colors.text }]}>{stat.name}</Text>
-                <Text style={[c.sub, { color: colors.mutedForeground }]}>{stat.cls} • {stat.total} Days Total</Text>
+                <Text style={[c.sub, { color: colors.mutedForeground }]}>{stat.cls} • {attendanceDays} Attendance Days</Text>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4, flexDirection: 'row', alignSelf: 'center' }}>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
