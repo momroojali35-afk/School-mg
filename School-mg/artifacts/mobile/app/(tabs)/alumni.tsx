@@ -337,7 +337,12 @@ export default function AlumniScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.filterBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]} contentContainerStyle={styles.filterContent}>
         {batches.map(batch => (
           <TouchableOpacity key={batch} style={[styles.filter, { backgroundColor: batchFilter === batch ? colors.primary : colors.muted }]} onPress={() => setBatchFilter(batch)}>
-            <Text style={{ color: batchFilter === batch ? '#fff' : colors.text, fontSize: 12, fontWeight: '700' }}>{batch}</Text>
+            <Text
+              numberOfLines={1}
+              style={[styles.filterText, { color: batchFilter === batch ? '#fff' : colors.text }]}
+            >
+              {batch}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -618,9 +623,10 @@ const styles = StyleSheet.create({
   headerIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 10 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  filterBar: { maxHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth },
-  filterContent: { gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  filter: { borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 },
+  filterBar: { flexGrow: 0, flexShrink: 0, borderBottomWidth: StyleSheet.hairlineWidth },
+  filterContent: { gap: 8, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 12 },
+  filter: { flexGrow: 0, flexShrink: 0, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 },
+  filterText: { flexShrink: 0, fontSize: 12, fontWeight: '700' },
   summary: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderRadius: 12, padding: 14 },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryValue: { fontSize: 22, fontWeight: '800' },
