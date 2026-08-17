@@ -12,6 +12,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { useApp, InactivationRequest, isGraduatedStudent, compareStudentRollNumbers } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
+import AttendanceDetailModal from '@/components/AttendanceDetailModal';
 
 type Status = 'present' | 'absent' | 'holiday';
 
@@ -253,6 +254,7 @@ export default function TeacherAttendance() {
   const [filterReportClass, setFilterReportClass] = useState('All');
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string } | null>(null);
 
   // Inactivation request modal
   const [inactiveModalStudent, setInactiveModalStudent] = useState<typeof classStudents[0] | null>(null);
@@ -619,7 +621,11 @@ export default function TeacherAttendance() {
               if (item.status === 'absent') color = colors.destructive;
               else if (item.status === 'holiday') color = colors.warning;
               return (
-                <View style={[rp.row, { backgroundColor: colors.card }]}>
+                <TouchableOpacity
+                  style={[rp.row, { backgroundColor: colors.card }]}
+                  onPress={() => setDetailStudent({ id: item.studentId, name: item.studentName, cls: item.class })}
+                  activeOpacity={0.75}
+                >
                   <View style={[rp.dateBadge, { backgroundColor: colors.secondary }]}>
                     <Text style={[rp.dateText, { color: colors.primary }]}>{item.date.split('-').slice(1).join('/')}</Text>
                   </View>
@@ -632,11 +638,24 @@ export default function TeacherAttendance() {
                       {item.status.charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                </View>
+                  <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+                </TouchableOpacity>
               );
             }}
           />
         </>
+      )}
+
+      {detailStudent && (
+        <AttendanceDetailModal
+          visible={!!detailStudent}
+          studentId={detailStudent.id}
+          studentName={detailStudent.name}
+          studentClass={detailStudent.cls}
+          allRecords={attendanceRecords}
+          onClose={() => setDetailStudent(null)}
+          colors={colors}
+        />
       )}
     </View>
   );
