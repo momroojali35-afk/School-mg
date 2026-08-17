@@ -15,6 +15,7 @@ import EmptyState from '@/components/EmptyState';
 import AttendanceDetailModal from '@/components/AttendanceDetailModal';
 
 type Status = 'present' | 'absent' | 'holiday';
+type ReportRange = 'all' | 'monthly' | 'yearly' | 'custom';
 
 // ─── Reactivation Request Modal ────────────────────────────────────────────────
 function ReactivationModal({
@@ -252,6 +253,11 @@ export default function TeacherAttendance() {
   const [attendance, setAttendance] = useState<Record<string, Status | undefined>>({});
   const [view, setView] = useState<'take' | 'report'>('take');
   const [filterReportClass, setFilterReportClass] = useState('All');
+  const [reportRange, setReportRange] = useState<ReportRange>('all');
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [reportYear, setReportYear] = useState(String(new Date().getFullYear()));
+  const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string } | null>(null);
@@ -376,8 +382,21 @@ export default function TeacherAttendance() {
   const reportRecords = useMemo(() => {
     let records = attendanceRecords;
     if (filterReportClass !== 'All') records = records.filter(a => a.class === filterReportClass);
+    if (reportRange === 'monthly') {
+      records = records.filter(a => a.date.startsWith(reportMonth));
+    } else if (reportRange === 'yearly') {
+      records = records.filter(a => a.date.startsWith(reportYear));
+    } else if (reportRange === 'custom') {
+      const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+      if (!validDate(customStartDate) || !validDate(customEndDate) || customStartDate > customEndDate) return [];
+      records = records.filter(a => a.date >= customStartDate && a.date <= customEndDate);
+    }
     return [...records].sort((a, b) => b.date.localeCompare(a.date));
-  }, [attendanceRecords, filterReportClass]);
+  }, [attendanceRecords, filterReportClass, reportRange, reportMonth, reportYear, customStartDate, customEndDate]);
+
+  const customRangeValid = /^\d{4}-\d{2}-\d{2}$/.test(customStartDate)
+    && /^\d{4}-\d{2}-\d{2}$/.test(customEndDate)
+    && customStartDate <= customEndDate;
 
   const pendingCount = activeStudents.filter(s => !attendance[s.id]).length;
 
@@ -603,6 +622,87 @@ export default function TeacherAttendance() {
       ) : (
         <>
           <View style={[s.controls, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[s.reportLabel, { color: colors.mutedForeground }]}>Attendance Period</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {([
+                ['all', 'All Time'],
+                ['monthly', 'Monthly'],
+                ['yearly', 'Yearly'],
+                ['custom', 'Custom Dates'],
+              ] as const).map(([value, label]) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[s.classChip, reportRange === value && { backgroundColor: colors.primary }]}
+                  onPress={() => setReportRange(value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.classChipText, reportRange === value && { color: '#fff' }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {reportRange === 'monthly' && (
+              <View style={s.reportDateField}>
+                <Text style={[s.reportDateLabel, { color: colors.mutedForeground }]}>Month (YYYY-MM)</Text>
+                <TextInput
+                  value={reportMonth}
+                  onChangeText={setReportMonth}
+                  placeholder="2026-08"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[s.reportDateInput, { backgroundColor: colors.muted, color: colors.text }]}
+                  autoCapitalize="none"
+                />
+              </View>
+            )}
+
+            {reportRange === 'yearly' && (
+              <View style={s.reportDateField}>
+                <Text style={[s.reportDateLabel, { color: colors.mutedForeground }]}>Year (YYYY)</Text>
+                <TextInput
+                  value={reportYear}
+                  onChangeText={setReportYear}
+                  placeholder="2026"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[s.reportDateInput, { backgroundColor: colors.muted, color: colors.text }]}
+                  keyboardType="number-pad"
+                />
+              </View>
+            )}
+
+            {reportRange === 'custom' && (
+              <View style={s.customDateRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.reportDateLabel, { color: colors.mutedForeground }]}>From (YYYY-MM-DD)</Text>
+                  <TextInput
+                    value={customStartDate}
+                    onChangeText={setCustomStartDate}
+                    placeholder="2026-08-01"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[s.reportDateInput, { backgroundColor: colors.muted, color: colors.text }]}
+                    autoCapitalize="none"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.reportDateLabel, { color: colors.mutedForeground }]}>To (YYYY-MM-DD)</Text>
+                  <TextInput
+                    value={customEndDate}
+                    onChangeText={setCustomEndDate}
+                    placeholder="2026-08-31"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[s.reportDateInput, { backgroundColor: colors.muted, color: colors.text }]}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+            )}
+
+            {reportRange === 'custom' && !customRangeValid && (
+              <Text style={[s.rangeError, { color: colors.destructive }]}>
+                Enter dates as YYYY-MM-DD with the start date before the end date.
+              </Text>
+            )}
+
+            <Text style={[s.reportLabel, { color: colors.mutedForeground, marginTop: 4 }]}>Class</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {['All', ...classes].map(cls => (
                 <TouchableOpacity key={cls} style={[s.classChip, filterReportClass === cls && { backgroundColor: colors.primary }]} onPress={() => setFilterReportClass(cls)} activeOpacity={0.8}>
@@ -652,7 +752,7 @@ export default function TeacherAttendance() {
           studentId={detailStudent.id}
           studentName={detailStudent.name}
           studentClass={detailStudent.cls}
-          allRecords={attendanceRecords}
+          allRecords={reportRecords}
           onClose={() => setDetailStudent(null)}
           colors={colors}
         />
@@ -687,6 +787,12 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabText: { fontSize: 14, fontWeight: '700' },
   controls: { padding: 16, borderBottomWidth: 1 },
+  reportLabel: { fontSize: 11, fontWeight: '700', marginBottom: 7, textTransform: 'uppercase', letterSpacing: 0.5 },
+  reportDateField: { marginBottom: 12 },
+  reportDateLabel: { fontSize: 11, fontWeight: '600', marginBottom: 5 },
+  reportDateInput: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, fontSize: 14 },
+  customDateRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  rangeError: { fontSize: 12, marginTop: -4, marginBottom: 10 },
   controlLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   classChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.muted, marginRight: 8 },
   classChipText: { fontSize: 13, fontWeight: '600', color: c.mutedForeground },
