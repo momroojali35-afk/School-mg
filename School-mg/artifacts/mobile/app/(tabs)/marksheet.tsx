@@ -74,8 +74,13 @@ function getAcademicYear(): string {
 }
 
 function fmtDate(d: string): string {
-  if (!d) return '—';
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const raw = String(d ?? '').trim();
+  if (!raw) return '—';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? new Date(`${raw}T00:00:00`)
+    : new Date(raw);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function getInitials(name: string): string {
