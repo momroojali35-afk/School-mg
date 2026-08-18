@@ -26,6 +26,8 @@ export const studentsTable = pgTable("students", {
   dateOfBirth: text("date_of_birth").notNull().default(""),
   address: text("address"),
   photo: text("photo"),
+  gender: text("gender"),
+  caste: text("caste"),
   annualFee: integer("annual_fee"),
   discountType: text("discount_type"),
   discountValue: integer("discount_value"),

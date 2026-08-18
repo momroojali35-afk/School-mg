@@ -114,6 +114,7 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
           mobileNumber: data.mobileNumber ?? "", class: data.class, section: data.section ?? null,
           admissionNo: data.admissionNo ?? null, rollNumber: data.rollNumber,
           dateOfBirth: data.dateOfBirth ?? "", address: data.address ?? null, photo: data.photo ?? null,
+          gender: data.gender ?? null, caste: data.caste ?? null,
           annualFee: data.annualFee ?? null, discountType: data.discountType ?? null, discountValue: data.discountValue ?? null,
           status: data.status ?? "active",
         });
@@ -138,6 +139,8 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
         if (data.dateOfBirth !== undefined) updates.dateOfBirth = data.dateOfBirth;
         if ("address" in data) updates.address = data.address ?? null;
         if ("photo" in data) updates.photo = data.photo ?? null;
+        if ("gender" in data) updates.gender = data.gender ?? null;
+        if ("caste" in data) updates.caste = data.caste ?? null;
         if ("annualFee" in data) updates.annualFee = data.annualFee ?? null;
         if ("discountType" in data) updates.discountType = data.discountType ?? null;
         if ("discountValue" in data) updates.discountValue = data.discountValue ?? null;

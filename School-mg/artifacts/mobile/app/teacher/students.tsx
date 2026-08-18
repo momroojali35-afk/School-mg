@@ -10,18 +10,20 @@ import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import {
   Student, compareStudentRollNumbers, isGraduatedStudent, useApp,
+  STUDENT_CASTE_OPTIONS, STUDENT_GENDER_OPTIONS,
 } from '@/context/AppContext';
 
 type Form = {
   name: string; fatherName: string; motherName: string; mobileNumber: string;
   class: string; section: string; admissionNo: string; rollNumber: string;
-  dateOfBirth: string; address: string; annualFee: string;
+  dateOfBirth: string; address: string; gender: string; caste: string; annualFee: string;
   discountType: 'fixed' | 'percent'; discountValue: string;
 };
 
 const emptyForm: Form = {
   name: '', fatherName: '', motherName: '', mobileNumber: '', class: '',
   section: '', admissionNo: '', rollNumber: '', dateOfBirth: '', address: '',
+  gender: '', caste: '',
   annualFee: '', discountType: 'fixed', discountValue: '',
 };
 
@@ -31,6 +33,7 @@ function formFromStudent(student: Student): Form {
     mobileNumber: student.mobileNumber, class: student.class, section: student.section ?? '',
     admissionNo: student.admissionNo ?? '', rollNumber: student.rollNumber,
     dateOfBirth: student.dateOfBirth ?? '', address: student.address ?? '',
+    gender: student.gender ?? '', caste: student.caste ?? '',
     annualFee: student.annualFee == null ? '' : String(student.annualFee),
     discountType: student.discountType ?? 'fixed',
     discountValue: student.discountValue == null ? '' : String(student.discountValue),
@@ -46,6 +49,8 @@ export default function TeacherStudents() {
   const [editing, setEditing] = useState<Student | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
+  const [showCastePicker, setShowCastePicker] = useState(false);
 
   const visibleStudents = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -88,6 +93,8 @@ export default function TeacherStudents() {
         rollNumber: form.rollNumber.trim(),
         dateOfBirth: form.dateOfBirth.trim(),
         address: form.address.trim() || undefined,
+        gender: form.gender || undefined,
+        caste: form.caste || undefined,
         annualFee: form.annualFee.trim() ? Number(form.annualFee) : undefined,
         discountType: form.annualFee.trim() ? form.discountType : undefined,
         discountValue: form.discountValue.trim() ? Number(form.discountValue) : undefined,
@@ -208,6 +215,30 @@ export default function TeacherStudents() {
               {field('admissionNo', 'Admission Number', 'Admission number')}
               {field('dateOfBirth', 'Date of Birth', 'DD-MM-YYYY')}
               {field('address', 'Address', 'Residential address')}
+              <View style={styles.field}>
+                <Text style={[styles.label, { color: colors.text }]}>Gender</Text>
+                <TouchableOpacity
+                  style={[styles.input, styles.picker, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                  onPress={() => setShowGenderPicker(true)}
+                >
+                  <Text style={{ color: form.gender ? colors.text : colors.mutedForeground }}>
+                    {form.gender || 'Select gender...'}
+                  </Text>
+                  <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.field}>
+                <Text style={[styles.label, { color: colors.text }]}>Caste</Text>
+                <TouchableOpacity
+                  style={[styles.input, styles.picker, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                  onPress={() => setShowCastePicker(true)}
+                >
+                  <Text style={{ color: form.caste ? colors.text : colors.mutedForeground }}>
+                    {form.caste || 'Select caste...'}
+                  </Text>
+                  <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
               {field('class', 'Class *', 'Class name')}
               {field('section', 'Section', 'Section name')}
               {field('annualFee', 'Annual Fee', 'Amount', 'number-pad')}
@@ -225,6 +256,61 @@ export default function TeacherStudents() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={showGenderPicker} animationType="slide" transparent>
+        <View style={styles.overlay}>
+          <View style={[styles.sheet, { backgroundColor: colors.card, maxHeight: 400 }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Gender</Text>
+              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
+                <Feather name="x" size={24} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {['', ...STUDENT_GENDER_OPTIONS].map(option => (
+                <TouchableOpacity
+                  key={option || 'unspecified'}
+                  style={[styles.option, { borderBottomColor: colors.border }]}
+                  onPress={() => { setForm(previous => ({ ...previous, gender: option })); setShowGenderPicker(false); }}
+                >
+                  <Text style={{ color: form.gender === option ? colors.primary : option ? colors.text : colors.mutedForeground, fontSize: 15, fontStyle: option ? 'normal' : 'italic' }}>
+                    {option || 'Not specified'}
+                  </Text>
+                  {form.gender === option && <Feather name="check" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showCastePicker} animationType="slide" transparent>
+        <View style={styles.overlay}>
+          <View style={[styles.sheet, { backgroundColor: colors.card, maxHeight: 400 }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Caste</Text>
+              <TouchableOpacity onPress={() => setShowCastePicker(false)}>
+                <Feather name="x" size={24} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {['', ...STUDENT_CASTE_OPTIONS].map(option => (
+                <TouchableOpacity
+                  key={option || 'unspecified'}
+                  style={[styles.option, { borderBottomColor: colors.border }]}
+                  onPress={() => { setForm(previous => ({ ...previous, caste: option })); setShowCastePicker(false); }}
+                >
+                  <Text style={{ color: form.caste === option ? colors.primary : option ? colors.text : colors.mutedForeground, fontSize: 15, fontStyle: option ? 'normal' : 'italic' }}>
+                    {option || 'Not specified'}
+                  </Text>
+                  {form.caste === option && <Feather name="check" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -272,6 +358,8 @@ const styles = StyleSheet.create({
   field: { marginBottom: 14 },
   label: { fontSize: 13, fontWeight: '700', marginBottom: 7 },
   input: { borderWidth: 1, borderRadius: 11, paddingHorizontal: 13, paddingVertical: 12, fontSize: 14 },
+  picker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  option: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 15, borderBottomWidth: 1 },
   footer: { flexDirection: 'row', gap: 10, padding: 16, borderTopWidth: 1 },
   cancel: { flex: 1, borderWidth: 1, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingVertical: 13 },
   save: { flex: 1.5, flexDirection: 'row', gap: 7, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingVertical: 13 },

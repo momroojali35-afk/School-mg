@@ -17,11 +17,16 @@ export interface Student {
   dateOfBirth: string;
   address?: string;
   photo?: string;
+  gender?: string;
+  caste?: string;
   annualFee?: number;
   discountType?: 'fixed' | 'percent';
   discountValue?: number;
   status?: 'active' | 'inactive' | 'graduated';
 }
+
+export const STUDENT_GENDER_OPTIONS = ['Male', 'Female', 'Other'] as const;
+export const STUDENT_CASTE_OPTIONS = ['General', 'OBC', 'SC', 'ST', 'Other'] as const;
 
 /**
  * Sort roll numbers in the order people expect to see them:
@@ -510,6 +515,7 @@ function mapStudent(r: any): Student {
     class: r.class, section: r.section ?? undefined, admissionNo: r.admissionNo ?? r.admission_no ?? undefined,
     rollNumber: r.rollNumber ?? r.roll_number ?? '', dateOfBirth: r.dateOfBirth ?? r.date_of_birth ?? '',
     address: r.address ?? undefined, photo: r.photo ?? undefined,
+    gender: r.gender ?? undefined, caste: r.caste ?? undefined,
     annualFee: r.annualFee ?? r.annual_fee ?? undefined,
     discountType: (r.discountType ?? r.discount_type) as any ?? undefined,
     discountValue: r.discountValue ?? r.discount_value ?? undefined,

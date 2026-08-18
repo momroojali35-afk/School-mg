@@ -8,7 +8,10 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Student, getStudentFeeInfo, isActiveStudent, compareStudentRollNumbers } from '@/context/AppContext';
+import {
+  useApp, Student, getStudentFeeInfo, isActiveStudent, compareStudentRollNumbers,
+  STUDENT_CASTE_OPTIONS, STUDENT_GENDER_OPTIONS,
+} from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import PremiumAlert from '@/components/PremiumAlert';
 
@@ -38,6 +41,7 @@ const BLANK_FORM = {
   name: '', fatherName: '', motherName: '', mobileNumber: '', class: '',
   section: '', admissionNo: '',
   rollNumber: '', dateOfBirth: '', address: '', photo: '' as string,
+  gender: '', caste: '',
   annualFee: '', discountType: 'fixed' as 'fixed' | 'percent', discountValue: '',
 };
 
@@ -133,6 +137,8 @@ export default function StudentsScreen() {
   const [showClassPicker, setShowClassPicker] = useState(false);
   const [classSearch, setClassSearch] = useState('');
   const [showSectionPicker, setShowSectionPicker] = useState(false);
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
+  const [showCastePicker, setShowCastePicker] = useState(false);
   const [showSectionsMgr, setShowSectionsMgr] = useState(false);
   // When sections manager is opened from within the student form we
   // temporarily dismiss the form so the two modals don't stack (stacked
@@ -181,6 +187,7 @@ export default function StudentsScreen() {
       mobileNumber: s.mobileNumber, class: s.class, section: s.section || '',
       admissionNo: s.admissionNo || '', rollNumber: s.rollNumber,
       dateOfBirth: s.dateOfBirth || '', address: s.address || '', photo: s.photo || '',
+      gender: s.gender || '', caste: s.caste || '',
       annualFee: s.annualFee ? String(s.annualFee) : '',
       discountType: s.discountType ?? 'fixed',
       discountValue: s.discountValue ? String(s.discountValue) : '',
@@ -203,6 +210,8 @@ export default function StudentsScreen() {
       rollNumber: form.rollNumber.trim(),
       dateOfBirth: form.dateOfBirth, address: form.address || undefined,
       photo: form.photo || undefined,
+      gender: form.gender || undefined,
+      caste: form.caste || undefined,
       annualFee: annualFeeNum,
       discountType: annualFeeNum ? form.discountType : undefined,
       discountValue: (annualFeeNum && form.discountValue) ? Number(form.discountValue) : undefined,
@@ -447,6 +456,30 @@ export default function StudentsScreen() {
                 </View>
               ))}
 
+              {/* Gender Picker */}
+              <View style={modalStyles.fieldGroup}>
+                <Text style={[modalStyles.label, { color: colors.text }]}>Gender</Text>
+                <TouchableOpacity
+                  style={[modalStyles.input, modalStyles.picker, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                  onPress={() => setShowGenderPicker(true)}
+                >
+                  <Text style={{ color: form.gender ? colors.text : colors.mutedForeground }}>{form.gender || 'Select gender...'}</Text>
+                  <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Caste Picker */}
+              <View style={modalStyles.fieldGroup}>
+                <Text style={[modalStyles.label, { color: colors.text }]}>Caste</Text>
+                <TouchableOpacity
+                  style={[modalStyles.input, modalStyles.picker, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                  onPress={() => setShowCastePicker(true)}
+                >
+                  <Text style={{ color: form.caste ? colors.text : colors.mutedForeground }}>{form.caste || 'Select caste...'}</Text>
+                  <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
+
               {/* Class Picker */}
               <View style={modalStyles.fieldGroup}>
                 <Text style={[modalStyles.label, { color: colors.text }]}>Class *</Text>
@@ -582,6 +615,76 @@ export default function StudentsScreen() {
                 >
                   <Text style={[modalStyles.classOptionText, { color: form.class === cls ? colors.primary : colors.text }]}>{cls}</Text>
                   {form.class === cls && <Feather name="check" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Gender Picker Modal */}
+      <Modal visible={showGenderPicker} animationType="slide" transparent>
+        <View style={modalStyles.overlay}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.card, maxHeight: 400 }]}>
+            <View style={[modalStyles.header, { borderBottomColor: colors.border }]}>
+              <Text style={[modalStyles.title, { color: colors.text }]}>Select Gender</Text>
+              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
+                <Feather name="x" size={24} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              <TouchableOpacity
+                style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
+                onPress={() => { setForm(prev => ({ ...prev, gender: '' })); setShowGenderPicker(false); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[modalStyles.classOptionText, { color: !form.gender ? colors.primary : colors.mutedForeground, fontStyle: 'italic' }]}>Not specified</Text>
+                {!form.gender && <Feather name="check" size={18} color={colors.primary} />}
+              </TouchableOpacity>
+              {STUDENT_GENDER_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option}
+                  style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
+                  onPress={() => { setForm(prev => ({ ...prev, gender: option })); setShowGenderPicker(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[modalStyles.classOptionText, { color: form.gender === option ? colors.primary : colors.text }]}>{option}</Text>
+                  {form.gender === option && <Feather name="check" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Caste Picker Modal */}
+      <Modal visible={showCastePicker} animationType="slide" transparent>
+        <View style={modalStyles.overlay}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.card, maxHeight: 400 }]}>
+            <View style={[modalStyles.header, { borderBottomColor: colors.border }]}>
+              <Text style={[modalStyles.title, { color: colors.text }]}>Select Caste</Text>
+              <TouchableOpacity onPress={() => setShowCastePicker(false)}>
+                <Feather name="x" size={24} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              <TouchableOpacity
+                style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
+                onPress={() => { setForm(prev => ({ ...prev, caste: '' })); setShowCastePicker(false); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[modalStyles.classOptionText, { color: !form.caste ? colors.primary : colors.mutedForeground, fontStyle: 'italic' }]}>Not specified</Text>
+                {!form.caste && <Feather name="check" size={18} color={colors.primary} />}
+              </TouchableOpacity>
+              {STUDENT_CASTE_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option}
+                  style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
+                  onPress={() => { setForm(prev => ({ ...prev, caste: option })); setShowCastePicker(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[modalStyles.classOptionText, { color: form.caste === option ? colors.primary : colors.text }]}>{option}</Text>
+                  {form.caste === option && <Feather name="check" size={18} color={colors.primary} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>

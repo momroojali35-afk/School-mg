@@ -119,6 +119,7 @@ export function createPgAdapter(db: DB): DataAdapter {
           mobileNumber: data.mobileNumber ?? "", class: data.class, section: data.section ?? null,
           admissionNo: data.admissionNo ?? null, rollNumber: data.rollNumber,
           dateOfBirth: data.dateOfBirth ?? "", address: data.address ?? null, photo: data.photo ?? null,
+          gender: data.gender ?? null, caste: data.caste ?? null,
           annualFee: data.annualFee ?? null, discountType: data.discountType ?? null,
           discountValue: data.discountValue ?? null,
           status: data.status ?? "active",
@@ -142,6 +143,8 @@ export function createPgAdapter(db: DB): DataAdapter {
         if (data.dateOfBirth !== undefined) setValues.dateOfBirth = data.dateOfBirth;
         if ("address" in data) setValues.address = data.address ?? null;
         if ("photo" in data) setValues.photo = data.photo ?? null;
+        if ("gender" in data) setValues.gender = data.gender ?? null;
+        if ("caste" in data) setValues.caste = data.caste ?? null;
         if ("annualFee" in data) setValues.annualFee = data.annualFee ?? null;
         if ("discountType" in data) setValues.discountType = data.discountType ?? null;
         if ("discountValue" in data) setValues.discountValue = data.discountValue ?? null;

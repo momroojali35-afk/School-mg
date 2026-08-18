@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS students (
   date_of_birth TEXT NOT NULL DEFAULT '',
   address       TEXT,
   photo         TEXT,
+  gender        TEXT,
+  caste         TEXT,
   annual_fee    INTEGER,
   discount_type TEXT,
   discount_value INTEGER,
@@ -42,6 +44,8 @@ CREATE TABLE IF NOT EXISTS students (
 -- Idempotent column additions for databases created before sections/admission_no/status were added
 ALTER TABLE students ADD COLUMN IF NOT EXISTS section TEXT;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS admission_no TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS gender TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS caste TEXT;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
 
 CREATE TABLE IF NOT EXISTS alumni (
