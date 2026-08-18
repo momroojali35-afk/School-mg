@@ -82,11 +82,17 @@ function getAcademicYear(): string {
 function fmtDate(d: string): string {
   const raw = String(d ?? '').trim();
   if (!raw) return '—';
+  const isoParts = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/);
+  if (isoParts) return `${isoParts[3]}/${isoParts[2]}/${isoParts[1]}`;
+  const localParts = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (localParts) {
+    return `${localParts[1].padStart(2, '0')}/${localParts[2].padStart(2, '0')}/${localParts[3]}`;
+  }
   const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
     ? new Date(`${raw}T00:00:00`)
     : new Date(raw);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
 function getInitials(name: string): string {
