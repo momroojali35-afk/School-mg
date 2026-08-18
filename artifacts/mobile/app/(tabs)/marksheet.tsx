@@ -80,8 +80,13 @@ function getAcademicYear(): string {
 }
 
 function fmtDate(d: string): string {
-  if (!d) return '—';
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const raw = String(d ?? '').trim();
+  if (!raw) return '—';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? new Date(`${raw}T00:00:00`)
+    : new Date(raw);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function getInitials(name: string): string {
@@ -519,7 +524,7 @@ function buildSingleMarksheetHtml(
         <div class="irow"><span class="ic">👨</span><span class="lbl">Father's Name</span><span class="colon">:</span><span class="val">${(student.fatherName||'—').toUpperCase()}</span></div>
         <div class="irow"><span class="ic">👩</span><span class="lbl">Mother's Name</span><span class="colon">:</span><span class="val">${(student.motherName||'—').toUpperCase()}</span></div>
         <div class="irow"><span class="ic">🎓</span><span class="lbl">Class</span><span class="colon">:</span><span class="val">${exam.class}</span></div>
-        <div class="irow"><span class="ic">📘</span><span class="lbl">Section</span><span class="colon">:</span><span class="val">${student.section||'—'}</span></div>
+        <div class="irow"><span class="ic">📘</span><span class="lbl">Section</span><span class="colon">:</span><span class="val">${student.section?.trim() || '—'}</span></div>
       </div>
       <div class="info-col">
         <div class="irow"><span class="ic">🪪</span><span class="lbl">Adm. No.</span><span class="colon">:</span><span class="val">${student.admissionNo||'—'}</span></div>
@@ -815,11 +820,11 @@ function buildCombinedMarksheetHtml(
   .comb-title .stars { font-size:11px; color:#c8a040; letter-spacing:5px; margin-top:2px; }
   /* info box */
   .info-box { border:1.5px solid #c8a040; border-radius:8px; display:flex; margin-top:7px; overflow:hidden; background:#fdfcf5; }
-  .info-col { flex:1; padding:9px 14px; }
+  .info-col { flex:1; padding:7px 14px; }
   .info-col + .info-col { border-left:1px solid #e8d9a8; }
-  .irow { display:flex; align-items:center; gap:10px; margin-bottom:6px; font-size:12.5px; }
+  .irow { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12.5px; line-height:1.15; }
   .irow:last-child { margin-bottom:0; }
-  .irow .ic { width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .irow .ic { width:24px; height:21px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .irow .lbl { font-weight:600; color:#0c1f4a; min-width:88px; flex-shrink:0; }
   .irow .colon { font-weight:700; color:#c8a040; margin:0 4px; flex-shrink:0; }
   .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:0; }
@@ -926,7 +931,7 @@ function buildCombinedMarksheetHtml(
         <div class="irow"><span class="ic">👨</span><span class="lbl">Father's Name</span><span class="colon">:</span><span class="val">${(student.fatherName||'—').toUpperCase()}</span></div>
         <div class="irow"><span class="ic">👩</span><span class="lbl">Mother's Name</span><span class="colon">:</span><span class="val">${(student.motherName||'—').toUpperCase()}</span></div>
         <div class="irow"><span class="ic">🎓</span><span class="lbl">Class</span><span class="colon">:</span><span class="val">${data.className}</span></div>
-        <div class="irow"><span class="ic">📘</span><span class="lbl">Section</span><span class="colon">:</span><span class="val">${student.section||'—'}</span></div>
+        <div class="irow"><span class="ic">📘</span><span class="lbl">Section</span><span class="colon">:</span><span class="val">${student.section?.trim() || '—'}</span></div>
       </div>
       <div class="info-col">
         <div class="irow"><span class="ic">🪪</span><span class="lbl">Adm. No.</span><span class="colon">:</span><span class="val">${student.admissionNo||'—'}</span></div>
