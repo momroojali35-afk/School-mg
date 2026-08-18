@@ -161,9 +161,29 @@ export function getExamSubjectsForClass(exam: Exam, className: string): string[]
 export function getExamScheduleForClass(exam: Exam, className: string): SubjectSchedule[] | undefined {
   if (exam.classSubjects && exam.classSubjects.length > 0) {
     const entry = exam.classSubjects.find(cs => cs.class === className);
-    if (entry) return entry.subjectSchedule ?? exam.subjectSchedule;
+    if (entry) {
+      const classSchedule = entry.subjectSchedule ?? (entry as ClassSubjectAssignment & { subjectSchedules?: SubjectSchedule[] }).subjectSchedules;
+      return classSchedule ?? exam.subjectSchedule;
+    }
   }
   return exam.subjectSchedule;
+}
+
+/**
+ * Return the configured maximum for one subject. Subject-level schedules take
+ * priority over the legacy exam-wide maximum so a 25-mark subject is not
+ * treated as a 50- or 100-mark subject.
+ */
+export function getSubjectMaxMarksForClass(exam: Exam, subject: string, className?: string | null): number {
+  const schedule = getExamScheduleForClass(exam, className ?? exam.class)
+    ?.find(item => item.subject === subject);
+  const scheduledMax = Number(
+    schedule?.maxMarks ?? (schedule as SubjectSchedule & { max_marks?: number } | undefined)?.max_marks,
+  );
+  if (Number.isFinite(scheduledMax) && scheduledMax > 0) return scheduledMax;
+
+  const examMax = Number(exam.maxMarks);
+  return Number.isFinite(examMax) && examMax > 0 ? examMax : 100;
 }
 
 export interface ExamResult {
@@ -580,7 +600,12 @@ function mapExam(r: any): Exam {
     id: r.id, name: r.name, class: r.class,
     subjects: Array.isArray(r.subjects) ? r.subjects : [],
     subjectSchedule: r.subjectSchedule ?? r.subject_schedule ?? undefined,
-    classSubjects: Array.isArray(cs) ? cs : undefined,
+    classSubjects: Array.isArray(cs)
+      ? cs.map((assignment: any) => ({
+          ...assignment,
+          subjectSchedule: assignment.subjectSchedule ?? assignment.subjectSchedules,
+        }))
+      : undefined,
     date: r.date, maxMarks: r.maxMarks ?? r.max_marks ?? 100,
   };
 }

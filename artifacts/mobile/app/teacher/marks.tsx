@@ -12,8 +12,8 @@ import { useAuth } from '@/context/AuthContext';
 import {
   useApp,
   Exam,
-  getExamScheduleForClass,
   getExamSubjectsForClass,
+  getSubjectMaxMarksForClass,
 } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
@@ -132,16 +132,9 @@ export default function TeacherMarks() {
 
   /** Maximum marks for one subject, with an exam-level fallback for older exams. */
   const getSubjectMaxMarks = useCallback((subject: string): number => {
-    if (!selectedExam) return 100;
-
-    const scheduledMarks = getExamScheduleForClass(selectedExam, selectedClass ?? '')
-      ?.find(schedule => schedule.subject === subject)
-      ?.maxMarks;
-    const maxMarks = Number(scheduledMarks);
-
-    return Number.isFinite(maxMarks) && maxMarks > 0
-      ? maxMarks
-      : selectedExam.maxMarks;
+    return selectedExam
+      ? getSubjectMaxMarksForClass(selectedExam, subject, selectedClass)
+      : 100;
   }, [selectedExam, selectedClass]);
 
   /** Students in the selected class */
@@ -385,7 +378,7 @@ export default function TeacherMarks() {
         {selectedExam && selectedClass && (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
             <Text style={[s.selectedInfo, { color: colors.mutedForeground, flex: 1 }]}>
-              {selectedClass} • {examSubjects.length} subjects • Max {selectedExam.maxMarks}
+              {selectedClass} • {examSubjects.length} subjects • Individual subject maximums
             </Text>
             {/* Single Edit button for admin (view→edit toggle) */}
             {user?.role === 'admin' && mode === 'view' && (

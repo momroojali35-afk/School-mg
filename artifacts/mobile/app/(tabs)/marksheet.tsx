@@ -10,7 +10,9 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
 import * as Haptics from 'expo-haptics';
-import { useApp, Student, Exam, ExamResult, isActiveStudent } from '@/context/AppContext';
+import {
+  useApp, Student, Exam, ExamResult, getSubjectMaxMarksForClass, isActiveStudent,
+} from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import {
@@ -111,9 +113,8 @@ function combinedMarksheetDownloadName(label: string): string {
 }
 
 // ─── Per-subject max marks lookup ─────────────────────────────────────────────
-function getSubjectMaxMarks(exam: Exam, sub: string): number {
-  const sched = exam.subjectSchedule?.find(s => s.subject === sub);
-  return sched?.maxMarks ?? exam.maxMarks;
+function getSubjectMaxMarks(exam: Exam, sub: string, className?: string): number {
+  return getSubjectMaxMarksForClass(exam, sub, className);
 }
 
 // ─── Grade calculation ────────────────────────────────────────────────────────
@@ -155,7 +156,7 @@ function calcMarksheet(
 
   // Build per-subject max marks from subjectSchedule, falling back to exam.maxMarks
   const subjectMaxMarks: Record<string, number> = {};
-  subjects.forEach(sub => { subjectMaxMarks[sub] = getSubjectMaxMarks(exam, sub); });
+  subjects.forEach(sub => { subjectMaxMarks[sub] = getSubjectMaxMarks(exam, sub, student.class); });
 
   const passMarks = Math.ceil(exam.maxMarks * 0.30); // kept for banner display
 
@@ -232,7 +233,7 @@ function calcCombinedMarksheet(
       const val = result ? (result.marks[sub] ?? 0) : null;
       marks[key] = val;
       if (val !== null) total += val;
-      max += getSubjectMaxMarks(exam, sub);
+      max += getSubjectMaxMarks(exam, sub, className);
     });
     const pct = max > 0 ? (total / max) * 100 : 0;
     const grade = getGrade(pct).grade;
@@ -246,7 +247,7 @@ function calcCombinedMarksheet(
     if (!exam) return;
     const result = resultMap[key];
     const obtained = result ? exam.subjects.reduce((s, sub) => s + (result.marks[sub] ?? 0), 0) : 0;
-    const max = exam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(exam, sub), 0);
+    const max = exam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(exam, sub, className), 0);
     examTotals[key] = { obtained, max };
   });
 
@@ -735,7 +736,7 @@ function buildCombinedMarksheetHtml(
         return `<td style="padding:6px 4px;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0;color:#c0c9d8">—</td>`
              + `<td style="padding:6px 4px;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0;color:#c0c9d8">—</td>`;
       return `<td style="padding:6px 4px;font-size:13px;font-weight:800;color:#0c1f4a;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0">${v}</td>`
-           + `<td style="padding:6px 4px;font-size:11px;color:#0c1f4a;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0">${getSubjectMaxMarks(ex, row.subject)}</td>`;
+           + `<td style="padding:6px 4px;font-size:11px;color:#0c1f4a;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0">${getSubjectMaxMarks(ex, row.subject, student.class)}</td>`;
     }).join('');
     return `<tr style="background:${bg}">
       <td style="padding:6px 12px;font-size:12px;font-weight:700;color:#0c1f4a;text-transform:uppercase;border-bottom:1px solid #dde4f0;border-right:1px solid #dde4f0;white-space:nowrap">${icon}&nbsp;${row.subject}</td>
@@ -1760,7 +1761,7 @@ export default function MarksheetScreen() {
               <View style={s.examBanner}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.examBannerTitle}>{selectedExam.name}</Text>
-                  <Text style={s.examBannerSub}>{selectedExam.class} · {selectedExam.subjects.length} subjects · Max {selectedExam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(selectedExam, sub), 0)} total marks</Text>
+                  <Text style={s.examBannerSub}>{selectedExam.class} · {selectedExam.subjects.length} subjects · Max {selectedExam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(selectedExam, sub, selectedClass), 0)} total marks</Text>
                   <Text style={s.examBannerSub}>Pass mark: 30% of each subject's maximum marks</Text>
                 </View>
                 <View style={s.examBannerBadge}>

@@ -9,7 +9,10 @@ import * as Haptics from 'expo-haptics';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Exam, ExamResult, SubjectSchedule, ClassSubjectAssignment, getExamSubjectsForClass, isActiveStudent } from '@/context/AppContext';
+import {
+  useApp, Exam, ExamResult, SubjectSchedule, ClassSubjectAssignment,
+  getExamSubjectsForClass, getSubjectMaxMarksForClass, isActiveStudent,
+} from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import PremiumAlert from '@/components/PremiumAlert';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
@@ -161,14 +164,7 @@ export default function ExamsScreen() {
     examResultsList.find(r => r.studentId === studentId);
 
   const getSubjectMax = (exam: Exam, sub: string, forClass?: string | null) => {
-    const cls = forClass ?? selectedClass;
-    if (cls && exam.classSubjects) {
-      const ca = exam.classSubjects.find(c => c.class === cls);
-      const sched = ca?.subjectSchedule?.find(s => s.subject === sub);
-      if (sched) return sched.maxMarks;
-    }
-    const sched = exam.subjectSchedule?.find(s => s.subject === sub);
-    return sched?.maxMarks ?? exam.maxMarks;
+    return getSubjectMaxMarksForClass(exam, sub, forClass ?? selectedClass);
   };
 
   const computeResult = (marks: Record<string, number>, exam: Exam) => {
