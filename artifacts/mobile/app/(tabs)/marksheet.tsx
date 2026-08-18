@@ -1439,9 +1439,13 @@ export default function MarksheetScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      const dataList = combinedStudents
+      const studentsToPrint = bulkSelected.size > 0
+        ? combinedStudents.filter(s => bulkSelected.has(s.id))
+        : combinedStudents;
+      const dataList = studentsToPrint
         .map(s => buildCombinedData(s))
         .filter(Boolean) as CombinedMarksheetData[];
+      if (dataList.length === 0) { Alert.alert('No Data', 'No marksheet data available.'); return; }
       await printMultipleHtmlsAsPdf(
         {
           count: dataList.length,
@@ -1457,14 +1461,17 @@ export default function MarksheetScreen() {
       );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
-  }, [combinedStudents, buildCombinedData, documentBranding, academicSession]);
+  }, [combinedStudents, bulkSelected, buildCombinedData, documentBranding, academicSession]);
 
   const bulkCombinedDownload = useCallback(async () => {
     if (combinedStudents.length === 0) { Alert.alert('No Students', 'No students with results.'); return; }
     if (!beginDownload()) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
-      const dataList = combinedStudents.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
+      const studentsToDownload = bulkSelected.size > 0
+        ? combinedStudents.filter(s => bulkSelected.has(s.id))
+        : combinedStudents;
+      const dataList = studentsToDownload.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
       if (dataList.length === 0) { Alert.alert('No Data', 'No marksheet data available.'); return; }
       const filename = combinedMarksheetDownloadName(`Combined Marksheets – ${combinedClass}`);
       const onSaved = Platform.OS !== 'web'
@@ -1491,15 +1498,19 @@ export default function MarksheetScreen() {
       }
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
-  }, [combinedStudents, buildCombinedData, combinedClass, documentBranding, academicSession]);
+  }, [combinedStudents, bulkSelected, buildCombinedData, combinedClass, documentBranding, academicSession]);
 
   const toggleBulk = useCallback((id: string) => {
     setBulkSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }, []);
 
-  const toggleAll = useCallback(() => {
-    setBulkSelected(prev => prev.size === bulkStudents.length ? new Set() : new Set(bulkStudents.map(s => s.id)));
-  }, [bulkStudents]);
+  const toggleAll = useCallback((students: Student[]) => {
+    setBulkSelected(prev => (
+      prev.size === students.length
+        ? new Set()
+        : new Set(students.map(s => s.id))
+    ));
+  }, []);
 
   // ── Render ────────────────────────────────────────────────────────────────────
   const isCombined = marksheetType === 'combined';
@@ -1633,14 +1644,43 @@ export default function MarksheetScreen() {
             {/* Bulk controls for combined */}
             {isBulk && combinedStudents.length > 0 && (
               <View style={s.bulkControls}>
-                <Text style={s.bulkCount}>{combinedStudents.length} students with results</Text>
-                <TouchableOpacity style={[s.bulkAction, { backgroundColor: '#EFF6FF' }]} onPress={bulkCombinedDownload} activeOpacity={0.7}>
-                  <Feather name="download" size={15} color="#2563EB" />
-                  <Text style={[s.bulkActionTxt, { color: '#2563EB' }]}>All PDFs</Text>
+                <TouchableOpacity
+                  style={s.bulkToggle}
+                  onPress={() => toggleAll(combinedStudents)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    s.checkbox,
+                    bulkSelected.size === combinedStudents.length && {
+                      backgroundColor: '#1e3a8a',
+                      borderColor: '#1e3a8a',
+                    },
+                  ]}>
+                    {bulkSelected.size === combinedStudents.length && (
+                      <Feather name="check" size={12} color="#fff" />
+                    )}
+                  </View>
+                  <Text style={s.bulkToggleTxt}>
+                    {bulkSelected.size === 0
+                      ? `Select all (${combinedStudents.length})`
+                      : `${bulkSelected.size} selected`}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[s.bulkAction, { backgroundColor: '#FFF7ED' }]} onPress={bulkCombinedPrint} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={[s.bulkAction, { backgroundColor: '#EFF6FF' }]}
+                  onPress={bulkCombinedDownload}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="download" size={15} color="#2563EB" />
+                  <Text style={[s.bulkActionTxt, { color: '#2563EB' }]}>PDF</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.bulkAction, { backgroundColor: '#FFF7ED' }]}
+                  onPress={bulkCombinedPrint}
+                  activeOpacity={0.7}
+                >
                   <Feather name="printer" size={15} color="#C2410C" />
-                  <Text style={[s.bulkActionTxt, { color: '#C2410C' }]}>Print All</Text>
+                  <Text style={[s.bulkActionTxt, { color: '#C2410C' }]}>Print</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1669,9 +1709,26 @@ export default function MarksheetScreen() {
                 {combinedStudents.map((item, idx) => {
                   const data = buildCombinedData(item);
                   const clr  = studentColor(item.name);
+                  const isSelected = bulkSelected.has(item.id);
                   return (
                     <View key={item.id} style={{ borderBottomWidth: idx < combinedStudents.length - 1 ? 1 : 0, borderBottomColor: '#F1F5F9' }}>
-                      <View style={s.studentRow}>
+                      <View style={[s.studentRow, isBulk && isSelected && { backgroundColor: '#EFF6FF' }]}>
+                        {isBulk && (
+                          <TouchableOpacity
+                            onPress={() => toggleBulk(item.id)}
+                            activeOpacity={0.7}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: isSelected }}
+                            accessibilityLabel={`Select ${item.name}`}
+                          >
+                            <View style={[
+                              s.checkbox,
+                              isSelected && { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+                            ]}>
+                              {isSelected && <Feather name="check" size={12} color="#fff" />}
+                            </View>
+                          </TouchableOpacity>
+                        )}
                         <View style={[s.avatar, { backgroundColor: clr }]}>
                           <Text style={s.avatarTxt}>{getInitials(item.name)}</Text>
                         </View>
@@ -1774,7 +1831,7 @@ export default function MarksheetScreen() {
             {/* Bulk controls */}
             {isBulk && selectedExam && bulkStudents.length > 0 && (
               <View style={s.bulkControls}>
-                <TouchableOpacity style={s.bulkToggle} onPress={toggleAll} activeOpacity={0.7}>
+                <TouchableOpacity style={s.bulkToggle} onPress={() => toggleAll(bulkStudents)} activeOpacity={0.7}>
                   <View style={[s.checkbox, bulkSelected.size === bulkStudents.length && { backgroundColor: '#1e3a8a', borderColor: '#1e3a8a' }]}>
                     {bulkSelected.size === bulkStudents.length && <Feather name="check" size={12} color="#fff" />}
                   </View>
