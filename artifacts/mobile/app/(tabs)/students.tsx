@@ -142,6 +142,7 @@ export default function StudentsScreen() {
   const [showFeeDetail, setShowFeeDetail] = useState<Student | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Student | null>(null);
   const [showValidationAlert, setShowValidationAlert] = useState(false);
+  const [showStudentSuccess, setShowStudentSuccess] = useState(false);
 
   // Section manager state
   const [newSectionName, setNewSectionName] = useState('');
@@ -889,6 +890,13 @@ export default function StudentsScreen() {
           </View>
         </View>
       </Modal>
+      <PremiumAlert
+        visible={showStudentSuccess}
+        variant="success"
+        title="Student added"
+        message="The student has been added successfully."
+        onDismiss={() => setShowStudentSuccess(false)}
+      />
       <PremiumAlert
         visible={showValidationAlert}
         variant="warning"
