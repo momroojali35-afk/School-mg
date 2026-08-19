@@ -106,9 +106,33 @@ type Mode = "individual" | "class";
 type Template = "premium";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+function parseStudentDate(value: string): Date | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const isoParts = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/);
+  const localParts = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  const date = isoParts
+    ? new Date(Number(isoParts[1]), Number(isoParts[2]) - 1, Number(isoParts[3]))
+    : localParts
+      ? new Date(Number(localParts[3]), Number(localParts[2]) - 1, Number(localParts[1]))
+      : new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  if (isoParts && (
+    date.getFullYear() !== Number(isoParts[1]) ||
+    date.getMonth() !== Number(isoParts[2]) - 1 ||
+    date.getDate() !== Number(isoParts[3])
+  )) return null;
+  if (localParts && (
+    date.getFullYear() !== Number(localParts[3]) ||
+    date.getMonth() !== Number(localParts[2]) - 1 ||
+    date.getDate() !== Number(localParts[1])
+  )) return null;
+  return date;
+}
+
 function calcAge(dob: string): number {
-  if (!dob) return 0;
-  const b = new Date(dob);
+  const b = parseStudentDate(dob);
+  if (!b) return 0;
   const t = new Date();
   let a = t.getFullYear() - b.getFullYear();
   const m = t.getMonth() - b.getMonth();
@@ -117,13 +141,9 @@ function calcAge(dob: string): number {
 }
 
 function fmtDate(d: string): string {
-  if (!d) return "—";
-  const dt = new Date(d + "T00:00:00");
-  return dt.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date = parseStudentDate(d);
+  if (!date) return "—";
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
 }
 
 function getInitials(name: string): string {
