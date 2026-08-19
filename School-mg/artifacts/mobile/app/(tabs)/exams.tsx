@@ -9,7 +9,11 @@ import * as Haptics from 'expo-haptics';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Exam, ExamResult, SubjectSchedule, ClassSubjectAssignment, getExamSubjectsForClass, isActiveStudent, compareStudentRollNumbers } from '@/context/AppContext';
+import {
+  useApp, Exam, ExamResult, SubjectSchedule, ClassSubjectAssignment,
+  getExamSubjectsForClass, getSubjectMaxMarksForClass,
+  isActiveStudent, compareStudentRollNumbers,
+} from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import PremiumAlert from '@/components/PremiumAlert';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
@@ -105,12 +109,10 @@ export default function ExamsScreen() {
         const examTotals = frSelectedExams.map(ex => {
           const subs = getExamSubjectsForClass(ex, frClass);
           const res = examResults.find(r => r.examId === ex.id && r.studentId === st.id);
-          const maxTotal = subs.reduce((sm, sub) => {
-            const cs = ex.classSubjects?.find(c => c.class === frClass);
-            const sched = cs?.subjectSchedule?.find(sc => sc.subject === sub)
-              ?? ex.subjectSchedule?.find(sc => sc.subject === sub);
-            return sm + (sched?.maxMarks ?? ex.maxMarks);
-          }, 0);
+          const maxTotal = subs.reduce(
+            (sm, sub) => sm + getSubjectMaxMarksForClass(ex, sub, frClass),
+            0,
+          );
           if (!res) return { examId: ex.id, total: 0, maxTotal, hasResult: false };
           const total = subs.reduce((s, sub) => s + (res.marks[sub] ?? 0), 0);
           return { examId: ex.id, total, maxTotal, hasResult: true };
@@ -166,13 +168,7 @@ export default function ExamsScreen() {
 
   const getSubjectMax = (exam: Exam, sub: string, forClass?: string | null) => {
     const cls = forClass ?? selectedClass;
-    if (cls && exam.classSubjects) {
-      const ca = exam.classSubjects.find(c => c.class === cls);
-      const sched = ca?.subjectSchedule?.find(s => s.subject === sub);
-      if (sched) return sched.maxMarks;
-    }
-    const sched = exam.subjectSchedule?.find(s => s.subject === sub);
-    return sched?.maxMarks ?? exam.maxMarks;
+    return getSubjectMaxMarksForClass(exam, sub, cls);
   };
 
   const computeResult = (marks: Record<string, number>, exam: Exam) => {
@@ -1243,7 +1239,7 @@ export default function ExamsScreen() {
               </View>
             ))}
             <View style={[res.subChip, { backgroundColor: colors.muted }]}>
-              <Text style={[res.subChipText, { color: colors.mutedForeground }]}>Max: {selectedExam.maxMarks}</Text>
+              <Text style={[res.subChipText, { color: colors.mutedForeground }]}>Individual maximums</Text>
             </View>
           </ScrollView>
         )}

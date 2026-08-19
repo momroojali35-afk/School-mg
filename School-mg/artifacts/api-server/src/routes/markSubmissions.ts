@@ -46,7 +46,19 @@ async function getCompleteSubjectMarks(
   if (!allowedSubjects.includes(subject)) {
     throw new Error(`Subject "${subject}" is not assigned to ${cls} for this exam`);
   }
-  const maxMarks = Number(exam.maxMarks);
+  const subjectSchedule = classAssignment?.subjectSchedule
+    ?? classAssignment?.subjectSchedules
+    ?? exam.subjectSchedule
+    ?? exam.subjectSchedules
+    ?? [];
+  const configuredSubject = Array.isArray(subjectSchedule)
+    ? subjectSchedule.find((schedule: any) => schedule?.subject === subject)
+    : undefined;
+  const maxMarks = Number(
+    configuredSubject?.maxMarks
+      ?? configuredSubject?.max_marks
+      ?? exam.maxMarks,
+  );
   if (!Number.isFinite(maxMarks) || maxMarks < 0) {
     throw new Error("Exam has an invalid maximum mark");
   }

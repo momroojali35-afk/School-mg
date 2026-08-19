@@ -9,7 +9,10 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, Exam, getExamSubjectsForClass, isActiveStudent, compareStudentRollNumbers } from '@/context/AppContext';
+import {
+  useApp, Exam, getExamSubjectsForClass, getSubjectMaxMarksForClass,
+  isActiveStudent, compareStudentRollNumbers,
+} from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
@@ -109,6 +112,12 @@ export default function TeacherMarks() {
   const examSubjects = useMemo(() => {
     if (!selectedExam || !selectedClass) return [];
     return getExamSubjectsForClass(selectedExam, selectedClass);
+  }, [selectedExam, selectedClass]);
+
+  const getSubjectMaxMarks = useCallback((subject: string): number => {
+    return selectedExam
+      ? getSubjectMaxMarksForClass(selectedExam, subject, selectedClass)
+      : 100;
   }, [selectedExam, selectedClass]);
 
   /** Students in the selected class */
@@ -356,7 +365,7 @@ export default function TeacherMarks() {
         {selectedExam && selectedClass && (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
             <Text style={[s.selectedInfo, { color: colors.mutedForeground, flex: 1 }]}>
-              {selectedClass} • {examSubjects.length} subjects • Max {selectedExam.maxMarks}
+              {selectedClass} • {examSubjects.length} subjects • Individual subject maximums
             </Text>
             {/* Single Edit button for admin (view→edit toggle) */}
             {user?.role === 'admin' && mode === 'view' && (
@@ -572,7 +581,7 @@ export default function TeacherMarks() {
                               value={marksData[student.id]?.[sub] ?? ''}
                               onChangeText={v => {
                                 const num = Number(v);
-                                if (v !== '' && (isNaN(num) || num < 0 || num > (selectedExam?.maxMarks ?? 100))) return;
+                                if (v !== '' && (isNaN(num) || num < 0 || num > getSubjectMaxMarks(sub))) return;
                                 setMarksData(prev => ({ ...prev, [student.id]: { ...(prev[student.id] ?? {}), [sub]: v } }));
                                 // Mark this subject as touched so only it gets submitted
                                 setDirtySubjects(prev => { const next = new Set(prev); next.add(sub); return next; });
@@ -589,7 +598,7 @@ export default function TeacherMarks() {
                               </Text>
                             </View>
                           )}
-                          <Text style={[mc.maxText, { color: colors.mutedForeground }]}>/{selectedExam.maxMarks}</Text>
+                          <Text style={[mc.maxText, { color: colors.mutedForeground }]}>/{getSubjectMaxMarks(sub)}</Text>
                         </View>
                       </View>
                     );
@@ -603,7 +612,7 @@ export default function TeacherMarks() {
                   (sum, sub) => sum + Number(marksData[student.id]?.[sub] ?? 0),
                   0,
                 );
-                const maxTotal = examSubjects.length * selectedExam.maxMarks;
+                const maxTotal = examSubjects.reduce((sum, sub) => sum + getSubjectMaxMarks(sub), 0);
                 const percentage = maxTotal > 0 ? (totalMarks / maxTotal) * 100 : 0;
                 const grade = getGrade(percentage);
                 let gradeColor = colors.success;
@@ -641,7 +650,7 @@ export default function TeacherMarks() {
                               <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
                                 {marksData[student.id]?.[sub] ?? '0'}{' '}
                                 <Text style={{ color: colors.mutedForeground, fontWeight: '400' }}>
-                                  / {selectedExam.maxMarks}
+                                  / {getSubjectMaxMarks(sub)}
                                 </Text>
                               </Text>
                               {user?.role === 'teacher' && canStartTeacherEdit(sub) && !editingSubjects.has(sub) && (

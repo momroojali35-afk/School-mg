@@ -11,7 +11,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
-import { useApp, Student, Exam, ExamResult, isActiveStudent } from '@/context/AppContext';
+import {
+  useApp, Student, Exam, ExamResult, isActiveStudent,
+  getSubjectMaxMarksForClass,
+} from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
 import { downloadHtmlAsPdf, downloadMultipleHtmlsAsPdf, printHtml as sharedPrintHtml } from '@/utils/pdfExport';
@@ -119,8 +122,7 @@ function combinedMarksheetDownloadName(label: string): string {
 
 // ─── Per-subject max marks lookup ─────────────────────────────────────────────
 function getSubjectMaxMarks(exam: Exam, sub: string): number {
-  const sched = exam.subjectSchedule?.find(s => s.subject === sub);
-  return sched?.maxMarks ?? exam.maxMarks;
+  return getSubjectMaxMarksForClass(exam, sub, exam.class);
 }
 
 // ─── Grade calculation ────────────────────────────────────────────────────────
