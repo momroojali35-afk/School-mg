@@ -396,7 +396,7 @@ export default function TeacherDashboard() {
     });
     setStudentForm({ ...EMPTY_STUDENT, admissionNo: genAdmissionNo(students.length + 2) });
     setShowAddStudent(false);
-    Alert.alert('Success', 'Student added successfully!');
+    setShowStudentSuccess(true);
   };
 
 
@@ -1328,6 +1328,14 @@ export default function TeacherDashboard() {
         </View>
       </Modal>
 
+
+      <PremiumAlert
+        visible={showStudentSuccess}
+        variant="success"
+        title="Student added"
+        message="The student has been added successfully."
+        onDismiss={() => setShowStudentSuccess(false)}
+      />
     </ScrollView>
   );
 }
