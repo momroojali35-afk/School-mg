@@ -237,6 +237,7 @@ export default function TeacherDashboard() {
   const [birthdaySharing, setBirthdaySharing]  = useState(false);
   const birthdayCardRef = useRef<View>(null);
   const [showMonthBirthdays, setShowMonthBirthdays] = useState(false);
+  const [showStudentSuccess, setShowStudentSuccess] = useState(false);
 
   // ── Stable values needed by hooks below (must be before early-return) ───────
   const now      = new Date();
