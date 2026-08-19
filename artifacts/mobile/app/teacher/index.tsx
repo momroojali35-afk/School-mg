@@ -15,6 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useApp, Student, alumniToStudent, isActiveStudent } from '@/context/AppContext';
 import { isBirthdayToday, daysUntilBirthday, extractMMDD } from '@/utils/dateUtils';
 import { sendBirthdayCardWhatsApp, sendReminderWhatsApp } from '@/utils/reminder';
+import PremiumAlert from '@/components/PremiumAlert';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function calcFinalPayable(annualFee: string, discountType: 'fixed' | 'percent', discountValue: string) {
