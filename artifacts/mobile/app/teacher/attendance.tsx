@@ -364,11 +364,30 @@ export default function TeacherAttendance() {
     setRequestSuccess(`Reactivation request for ${inactiveModalStudent.name} sent to admin.`);
   };
 
+function getInactiveDays(status: string | undefined, records: Array<{ date: string }>): number {
+    if (status !== 'inactive' || records.length === 0) return 0;
+    const last = records.reduce((latest, record) => record.date > latest ? record.date : latest, records[0].date);
+    const start = new Date(`${last}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() + 1);
+    return Math.max(0, Math.floor((today.getTime() - start.getTime()) / 86400000) + 1);
+  }
+
   const reportRecords = useMemo(() => {
     let records = attendanceRecords;
     if (filterReportClass !== 'All') records = records.filter(a => a.class === filterReportClass);
     return [...records].sort((a, b) => b.date.localeCompare(a.date));
   }, [attendanceRecords, filterReportClass]);
+
+  const reportStudentStats = useMemo(() => {
+    const byStudent: Record<string, { id: string; name: string; cls: string; present: number; absent: number; leave: number; total: number; inactiveDays: number }> = {};
+    const inClass = students.filter(s => !isGraduatedStudent(s) && (filterReportClass === 'All' || s.class === filterReportClass));
+    inClass.forEach(s => { byStudent[s.id] = { id: s.id, name: s.name, cls: s.class, present: 0, absent: 0, leave: 0, total: 0, inactiveDays: 0 }; });
+    reportRecords.forEach(r => { const stat = byStudent[r.studentId]; if (stat) { stat[r.status]++; stat.total++; } });
+    Object.values(byStudent).forEach(stat => { stat.inactiveDays = getInactiveDays(students.find(s => s.id === stat.id)?.status, reportRecords.filter(r => r.studentId === stat.id)); });
+    return Object.values(byStudent).sort((a, b) => a.name.localeCompare(b.name));
+  }, [students, reportRecords, filterReportClass]);
 
   const pendingCount = activeStudents.filter(s => !attendance[s.id]).length;
 
@@ -603,27 +622,28 @@ export default function TeacherAttendance() {
             </ScrollView>
           </View>
           <FlatList
-            data={reportRecords}
+            data={reportStudentStats}
             keyExtractor={i => i.id}
             contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
             ListEmptyComponent={<EmptyState icon="calendar" title="No Records" subtitle="No attendance records found" />}
             renderItem={({ item }) => {
-              let color = colors.success;
-              if (item.status === 'absent') color = colors.destructive;
-              else if (item.status === 'leave') color = colors.warning;
+              const totalDays = item.total + item.inactiveDays;
+              const absentDays = item.absent + item.inactiveDays;
+              const pct = totalDays > 0 ? Math.round((item.present / totalDays) * 100) : 0;
+              const color = pct >= 75 ? colors.success : pct >= 50 ? colors.warning : colors.destructive;
               return (
                 <View style={[rp.row, { backgroundColor: colors.card }]}>
                   <View style={[rp.dateBadge, { backgroundColor: colors.secondary }]}>
-                    <Text style={[rp.dateText, { color: colors.primary }]}>{item.date.split('-').slice(1).join('/')}</Text>
+                    <Text style={[rp.dateText, { color: colors.primary }]}>{totalDays}</Text>
+                    <Text style={[rp.dateText, { color: colors.mutedForeground, fontSize: 9 }]}>days</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[rp.stuName, { color: colors.text }]}>{item.studentName}</Text>
-                    <Text style={[rp.meta, { color: colors.mutedForeground }]}>{item.class} · By {item.takenBy}</Text>
+                    <Text style={[rp.stuName, { color: colors.text }]}>{item.name}</Text>
+                    <Text style={[rp.meta, { color: colors.mutedForeground }]}>{item.cls} · P: {item.present} · A: {absentDays}</Text>
+                    {item.inactiveDays > 0 && <Text style={[rp.meta, { color: colors.destructive }]}>Inactive: {item.inactiveDays} days counted absent</Text>}
                   </View>
                   <View style={[rp.statusBadge, { backgroundColor: color + '20' }]}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: color }}>
-                      {item.status.charAt(0).toUpperCase()}
-                    </Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color }}>{pct}%</Text>
                   </View>
                 </View>
               );
