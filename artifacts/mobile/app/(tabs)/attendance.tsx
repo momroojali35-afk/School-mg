@@ -11,12 +11,28 @@ import EmptyState from '@/components/EmptyState';
 
 type ReportMode = 'daily' | 'monthly' | 'class' | 'student';
 
+function getInactiveDates(status: string | undefined, records: Array<{ date: string }>): string[] {
+  if (status !== 'inactive' || records.length === 0) return [];
+  const last = records.reduce((latest, record) => record.date > latest ? record.date : latest, records[0].date);
+  const start = new Date(`${last}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dates: string[] = [];
+  start.setDate(start.getDate() + 1);
+  while (start <= today) {
+    dates.push(start.toISOString().slice(0, 10));
+    start.setDate(start.getDate() + 1);
+  }
+  return dates;
+}
+
 // ─── Student Attendance Detail Modal ─────────────────────────────────────────
 function StudentAttendanceDetailModal({
   visible,
   studentId,
   studentName,
   studentClass,
+  studentStatus,
   allRecords,
   onClose,
   colors,
@@ -25,6 +41,7 @@ function StudentAttendanceDetailModal({
   studentId: string;
   studentName: string;
   studentClass: string;
+  studentStatus?: string;
   allRecords: ReturnType<typeof useApp>['attendanceRecords'];
   onClose: () => void;
   colors: ReturnType<typeof useColors>;
@@ -34,23 +51,29 @@ function StudentAttendanceDetailModal({
     [allRecords, studentId],
   );
 
-  const totalDays   = records.length;
+  const inactiveDates = getInactiveDates(studentStatus, records);
+  const totalDays   = records.length + inactiveDates.length;
   const presentDays = records.filter(r => r.status === 'present').length;
-  const absentDays  = records.filter(r => r.status === 'absent').length;
+  const absentDays  = records.filter(r => r.status === 'absent').length + inactiveDates.length;
   const leaveDays   = records.filter(r => r.status === 'leave').length;
   const attendancePct = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
   const pctColor = attendancePct >= 75 ? colors.success : attendancePct >= 50 ? colors.warning : colors.destructive;
 
   // Group by month (YYYY-MM)
   const monthMap = useMemo(() => {
-    const map: Record<string, { present: string[]; absent: string[]; leave: string[] }> = {};
+    const map: Record<string, { present: string[]; absent: string[]; leave: string[]; inactive: string[] }> = {};
     records.forEach(r => {
       const month = r.date.slice(0, 7); // YYYY-MM
-      if (!map[month]) map[month] = { present: [], absent: [], leave: [] };
+      if (!map[month]) map[month] = { present: [], absent: [], leave: [], inactive: [] };
       map[month][r.status as 'present' | 'absent' | 'leave'].push(r.date);
     });
+    inactiveDates.forEach(date => {
+      const month = date.slice(0, 7);
+      if (!map[month]) map[month] = { present: [], absent: [], leave: [], inactive: [] };
+      map[month].inactive.push(date);
+    });
     return map;
-  }, [records]);
+  }, [records, inactiveDates]);
 
   const months = Object.keys(monthMap).sort().reverse();
 
@@ -99,6 +122,12 @@ function StudentAttendanceDetailModal({
                 <Text style={[det.statVal, { color: colors.destructive }]}>{absentDays}</Text>
                 <Text style={[det.statLbl, { color: colors.destructive }]}>Absent</Text>
               </View>
+              {inactiveDates.length > 0 && (
+                <View style={[det.statBox, { backgroundColor: colors.destructive + '15' }]}>
+                  <Text style={[det.statVal, { color: colors.destructive }]}>{inactiveDates.length}</Text>
+                  <Text style={[det.statLbl, { color: colors.destructive }]}>Inactive</Text>
+                </View>
+              )}
               {leaveDays > 0 && (
                 <View style={[det.statBox, { backgroundColor: colors.warning + '15' }]}>
                   <Text style={[det.statVal, { color: colors.warning }]}>{leaveDays}</Text>
@@ -115,8 +144,8 @@ function StudentAttendanceDetailModal({
               </View>
             ) : (
               months.map(month => {
-                const { present, absent, leave } = monthMap[month];
-                const mTotal = present.length + absent.length + leave.length;
+                const { present, absent, leave, inactive } = monthMap[month];
+                const mTotal = present.length + absent.length + leave.length + inactive.length;
                 const mPct = mTotal > 0 ? Math.round((present.length / mTotal) * 100) : 0;
                 const mColor = mPct >= 75 ? colors.success : mPct >= 50 ? colors.warning : colors.destructive;
                 return (
@@ -127,7 +156,7 @@ function StudentAttendanceDetailModal({
                       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
                         <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
                           P: <Text style={{ color: colors.success, fontWeight: '700' }}>{present.length}</Text>
-                          {'  '}A: <Text style={{ color: colors.destructive, fontWeight: '700' }}>{absent.length}</Text>
+                          {'  '}A: <Text style={{ color: colors.destructive, fontWeight: '700' }}>{absent.length + inactive.length}</Text>
                           {leave.length > 0 ? <>{'  '}L: <Text style={{ color: colors.warning, fontWeight: '700' }}>{leave.length}</Text></> : null}
                         </Text>
                         <View style={[det.pctBadge, { backgroundColor: mColor + '20' }]}>
@@ -152,7 +181,23 @@ function StudentAttendanceDetailModal({
                       </View>
                     )}
 
-                    {/* Leave dates */}
+
+                    {inactive.length > 0 && (
+                      <View style={det.absentSection}>
+                        <Text style={[det.absentTitle, { color: colors.destructive }]}>
+                          <Feather name="pause-circle" size={11} color={colors.destructive} /> Inactive Dates
+                        </Text>
+                        <View style={det.datePills}>
+                          {inactive.map(d => (
+                            <View key={`inactive-${d}`} style={[det.datePill, { backgroundColor: colors.destructive + '15' }]}>
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.destructive }}>{formatDate(d)}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Leave dates */
                     {leave.length > 0 && (
                       <View style={det.absentSection}>
                         <Text style={[det.absentTitle, { color: colors.warning }]}>
@@ -222,7 +267,7 @@ export default function AttendanceScreen() {
   const [showClassPicker, setShowClassPicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
 
-  const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string } | null>(null);
+  const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string; status?: string } | null>(null);
 
   const getFilteredRecords = () => {
     let records = visibleAttendanceRecords;
@@ -312,7 +357,7 @@ export default function AttendanceScreen() {
           return (
             <TouchableOpacity
               activeOpacity={0.75}
-              onPress={() => setDetailStudent({ id: stat.id, name: stat.name, cls: stat.cls })}
+              onPress={() => setDetailStudent({ id: stat.id, name: stat.name, cls: stat.cls, status: students.find(s => s.id === stat.id)?.status })}
               style={[c.card, { backgroundColor: colors.card }]}
             >
               <View style={{ flex: 1 }}>
@@ -419,6 +464,7 @@ export default function AttendanceScreen() {
           studentId={detailStudent.id}
           studentName={detailStudent.name}
           studentClass={detailStudent.cls}
+          studentStatus={detailStudent.status}
           allRecords={visibleAttendanceRecords}
           onClose={() => setDetailStudent(null)}
           colors={colors}
