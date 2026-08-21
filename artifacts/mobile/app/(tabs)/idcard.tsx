@@ -480,7 +480,6 @@ function PreviewModal({
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const tpl = TPL[template];
-  const activeStudents = students.filter(isActiveStudent);
   const topPad = Platform.OS === 'web' ? 16 : insets.top;
   const botPad = Platform.OS === 'web' ? 16 : insets.bottom;
 
@@ -524,10 +523,10 @@ function PreviewModal({
             </Text>
           </View>
 
-          {activeStudents.map((student, i) => (
+          {students.filter(isActiveStudent).map((student, i) => (
             <View key={student.id} style={{ alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>
-                {i + 1} of {activeStudents.length}
+                {i + 1} of {students.length}
               </Text>
               {orientation === 'vertical'
                 ? <NativeVerticalCard student={student} tpl={tpl} />

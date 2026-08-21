@@ -8,9 +8,13 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '@/hooks/useColors';
-import { useApp, Student, getStudentFeeInfo, isActiveStudent } from '@/context/AppContext';
+import {
+  useApp, Student, getStudentFeeInfo, isActiveStudent, compareStudentRollNumbers,
+  STUDENT_CASTE_OPTIONS, STUDENT_GENDER_OPTIONS,
+} from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import PremiumAlert from '@/components/PremiumAlert';
+import { getAttendanceCounts } from '@/utils/attendance';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function calcFinalPayable(annualFee: string, discountType: 'fixed' | 'percent', discountValue: string) {
@@ -38,6 +42,7 @@ const BLANK_FORM = {
   name: '', fatherName: '', motherName: '', mobileNumber: '', class: '',
   section: '', admissionNo: '',
   rollNumber: '', dateOfBirth: '', address: '', photo: '' as string,
+  gender: '', caste: '',
   annualFee: '', discountType: 'fixed' as 'fixed' | 'percent', discountValue: '',
 };
 
@@ -133,6 +138,8 @@ export default function StudentsScreen() {
   const [showClassPicker, setShowClassPicker] = useState(false);
   const [classSearch, setClassSearch] = useState('');
   const [showSectionPicker, setShowSectionPicker] = useState(false);
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
+  const [showCastePicker, setShowCastePicker] = useState(false);
   const [showSectionsMgr, setShowSectionsMgr] = useState(false);
   // When sections manager is opened from within the student form we
   // temporarily dismiss the form so the two modals don't stack (stacked
@@ -142,7 +149,6 @@ export default function StudentsScreen() {
   const [showFeeDetail, setShowFeeDetail] = useState<Student | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Student | null>(null);
   const [showValidationAlert, setShowValidationAlert] = useState(false);
-  const [showStudentSuccess, setShowStudentSuccess] = useState(false);
 
   // Section manager state
   const [newSectionName, setNewSectionName] = useState('');
@@ -152,14 +158,22 @@ export default function StudentsScreen() {
   const [confirmDeleteSection, setConfirmDeleteSection] = useState<string | null>(null);
 
   const filtered = useMemo(() =>
-    students.filter(s =>
-      isActiveStudent(s) &&
-      (filterClass === 'All' || s.class === filterClass) &&
-      (s.name.toLowerCase().includes(search.toLowerCase()) ||
-       s.rollNumber.includes(search) ||
-       s.fatherName.toLowerCase().includes(search.toLowerCase()) ||
-       (s.admissionNo ?? '').toLowerCase().includes(search.toLowerCase()))
-    ), [students, filterClass, search]);
+    students
+      .filter(s =>
+        isActiveStudent(s) &&
+        (filterClass === 'All' || s.class === filterClass) &&
+        (s.name.toLowerCase().includes(search.toLowerCase()) ||
+         s.rollNumber.includes(search) ||
+         s.fatherName.toLowerCase().includes(search.toLowerCase()) ||
+         (s.admissionNo ?? '').toLowerCase().includes(search.toLowerCase()))
+      )
+      .sort((a, b) => {
+        if (filterClass === 'All') {
+          return a.class.localeCompare(b.class, undefined, { numeric: true, sensitivity: 'base' })
+            || compareStudentRollNumbers(a, b);
+        }
+        return compareStudentRollNumbers(a, b);
+      }), [students, filterClass, search]);
 
   const openAdd = () => {
     setEditing(null);
@@ -174,6 +188,7 @@ export default function StudentsScreen() {
       mobileNumber: s.mobileNumber, class: s.class, section: s.section || '',
       admissionNo: s.admissionNo || '', rollNumber: s.rollNumber,
       dateOfBirth: s.dateOfBirth || '', address: s.address || '', photo: s.photo || '',
+      gender: s.gender || '', caste: s.caste || '',
       annualFee: s.annualFee ? String(s.annualFee) : '',
       discountType: s.discountType ?? 'fixed',
       discountValue: s.discountValue ? String(s.discountValue) : '',
@@ -196,6 +211,8 @@ export default function StudentsScreen() {
       rollNumber: form.rollNumber.trim(),
       dateOfBirth: form.dateOfBirth, address: form.address || undefined,
       photo: form.photo || undefined,
+      gender: form.gender || undefined,
+      caste: form.caste || undefined,
       annualFee: annualFeeNum,
       discountType: annualFeeNum ? form.discountType : undefined,
       discountValue: (annualFeeNum && form.discountValue) ? Number(form.discountValue) : undefined,
@@ -217,12 +234,7 @@ export default function StudentsScreen() {
 
   const getStudentAttendance = (studentId: string) => {
     const records = attendanceRecords.filter(a => a.studentId === studentId);
-    return {
-      total: records.length,
-      present: records.filter(a => a.status === 'present').length,
-      absent: records.filter(a => a.status === 'absent').length,
-      leave: records.filter(a => a.status === 'leave').length,
-    };
+    return getAttendanceCounts(records);
   };
 
   // Section manager actions
@@ -304,12 +316,7 @@ export default function StudentsScreen() {
             <Feather name="plus" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginBottom: 10 }}
-          contentContainerStyle={topBarSt.chipRow}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
           {['All', ...classes].map(cls => (
             <TouchableOpacity
               key={cls}
@@ -444,6 +451,30 @@ export default function StudentsScreen() {
                   />
                 </View>
               ))}
+
+              {/* Gender Picker */}
+              <View style={modalStyles.fieldGroup}>
+                <Text style={[modalStyles.label, { color: colors.text }]}>Gender</Text>
+                <TouchableOpacity
+                  style={[modalStyles.input, modalStyles.picker, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                  onPress={() => setShowGenderPicker(true)}
+                >
+                  <Text style={{ color: form.gender ? colors.text : colors.mutedForeground }}>{form.gender || 'Select gender...'}</Text>
+                  <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Caste Picker */}
+              <View style={modalStyles.fieldGroup}>
+                <Text style={[modalStyles.label, { color: colors.text }]}>Caste</Text>
+                <TouchableOpacity
+                  style={[modalStyles.input, modalStyles.picker, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                  onPress={() => setShowCastePicker(true)}
+                >
+                  <Text style={{ color: form.caste ? colors.text : colors.mutedForeground }}>{form.caste || 'Select caste...'}</Text>
+                  <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              </View>
 
               {/* Class Picker */}
               <View style={modalStyles.fieldGroup}>
@@ -580,6 +611,76 @@ export default function StudentsScreen() {
                 >
                   <Text style={[modalStyles.classOptionText, { color: form.class === cls ? colors.primary : colors.text }]}>{cls}</Text>
                   {form.class === cls && <Feather name="check" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Gender Picker Modal */}
+      <Modal visible={showGenderPicker} animationType="slide" transparent>
+        <View style={modalStyles.overlay}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.card, maxHeight: 400 }]}>
+            <View style={[modalStyles.header, { borderBottomColor: colors.border }]}>
+              <Text style={[modalStyles.title, { color: colors.text }]}>Select Gender</Text>
+              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
+                <Feather name="x" size={24} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              <TouchableOpacity
+                style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
+                onPress={() => { setForm(prev => ({ ...prev, gender: '' })); setShowGenderPicker(false); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[modalStyles.classOptionText, { color: !form.gender ? colors.primary : colors.mutedForeground, fontStyle: 'italic' }]}>Not specified</Text>
+                {!form.gender && <Feather name="check" size={18} color={colors.primary} />}
+              </TouchableOpacity>
+              {STUDENT_GENDER_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option}
+                  style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
+                  onPress={() => { setForm(prev => ({ ...prev, gender: option })); setShowGenderPicker(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[modalStyles.classOptionText, { color: form.gender === option ? colors.primary : colors.text }]}>{option}</Text>
+                  {form.gender === option && <Feather name="check" size={18} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Caste Picker Modal */}
+      <Modal visible={showCastePicker} animationType="slide" transparent>
+        <View style={modalStyles.overlay}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.card, maxHeight: 400 }]}>
+            <View style={[modalStyles.header, { borderBottomColor: colors.border }]}>
+              <Text style={[modalStyles.title, { color: colors.text }]}>Select Caste</Text>
+              <TouchableOpacity onPress={() => setShowCastePicker(false)}>
+                <Feather name="x" size={24} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              <TouchableOpacity
+                style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
+                onPress={() => { setForm(prev => ({ ...prev, caste: '' })); setShowCastePicker(false); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[modalStyles.classOptionText, { color: !form.caste ? colors.primary : colors.mutedForeground, fontStyle: 'italic' }]}>Not specified</Text>
+                {!form.caste && <Feather name="check" size={18} color={colors.primary} />}
+              </TouchableOpacity>
+              {STUDENT_CASTE_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option}
+                  style={[modalStyles.classOption, { borderBottomColor: colors.border }]}
+                  onPress={() => { setForm(prev => ({ ...prev, caste: option })); setShowCastePicker(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[modalStyles.classOptionText, { color: form.caste === option ? colors.primary : colors.text }]}>{option}</Text>
+                  {form.caste === option && <Feather name="check" size={18} color={colors.primary} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -850,7 +951,7 @@ export default function StudentsScreen() {
           <View style={[modalStyles.sheet, { backgroundColor: colors.card }]}>
             {showAttendance && (() => {
               const att = getStudentAttendance(showAttendance.id);
-              const pct = att.total > 0 ? Math.round((att.present / att.total) * 100) : 0;
+              const pct = att.percentage;
               const records = attendanceRecords.filter(a => a.studentId === showAttendance.id).sort((a, b) => b.date.localeCompare(a.date));
               return (
                 <>
@@ -862,7 +963,8 @@ export default function StudentsScreen() {
                     {[
                       { label: 'Present', value: att.present, color: colors.success },
                       { label: 'Absent', value: att.absent, color: colors.destructive },
-                      { label: 'Leave', value: att.leave, color: colors.warning },
+                      { label: 'Inactive', value: att.inactive, color: colors.mutedForeground },
+                      { label: 'Holiday', value: att.holiday, color: colors.warning },
                       { label: 'Percent', value: `${pct}%`, color: pct >= 75 ? colors.success : colors.destructive },
                     ].map(stat => (
                       <View key={stat.label} style={[attStyles.statBox, { borderColor: stat.color + '40', backgroundColor: stat.color + '10' }]}>
@@ -876,8 +978,8 @@ export default function StudentsScreen() {
                     {records.map(r => (
                       <View key={r.id} style={[attStyles.row, { borderBottomColor: colors.border }]}>
                         <Text style={{ color: colors.text, fontSize: 14 }}>{r.date}</Text>
-                        <View style={[attStyles.badge, { backgroundColor: r.status === 'present' ? colors.success + '20' : r.status === 'absent' ? colors.destructive + '20' : colors.warning + '20' }]}>
-                          <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'capitalize', color: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : colors.warning }}>
+                        <View style={[attStyles.badge, { backgroundColor: r.status === 'present' ? colors.success + '20' : r.status === 'absent' ? colors.destructive + '20' : r.status === 'inactive' ? colors.mutedForeground + '20' : colors.warning + '20' }]}>
+                          <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'capitalize', color: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : r.status === 'inactive' ? colors.mutedForeground : colors.warning }}>
                             {r.status}
                           </Text>
                         </View>
@@ -890,13 +992,6 @@ export default function StudentsScreen() {
           </View>
         </View>
       </Modal>
-      <PremiumAlert
-        visible={showStudentSuccess}
-        variant="success"
-        title="Student added"
-        message="The student has been added successfully."
-        onDismiss={() => setShowStudentSuccess(false)}
-      />
       <PremiumAlert
         visible={showValidationAlert}
         variant="warning"
@@ -914,16 +1009,6 @@ const topBarSt = StyleSheet.create({
   searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 12, gap: 8 },
   iconBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   addBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  chipRow: { alignItems: 'center', paddingRight: 8 },
-  chip: {
-    flexGrow: 0,
-    flexShrink: 0,
-    alignSelf: 'flex-start',
-    minWidth: 56,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    marginRight: 8,
-  },
+  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, marginRight: 8 },
   chipText: { fontSize: 13, fontWeight: '600' },
 });

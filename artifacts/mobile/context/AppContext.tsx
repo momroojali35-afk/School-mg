@@ -17,10 +17,35 @@ export interface Student {
   dateOfBirth: string;
   address?: string;
   photo?: string;
+  gender?: string;
+  caste?: string;
   annualFee?: number;
   discountType?: 'fixed' | 'percent';
   discountValue?: number;
   status?: 'active' | 'inactive' | 'graduated';
+}
+
+export const STUDENT_GENDER_OPTIONS = ['Male', 'Female', 'Other'] as const;
+export const STUDENT_CASTE_OPTIONS = ['General', 'OBC', 'SC', 'ST', 'Other'] as const;
+
+/**
+ * Sort roll numbers in the order people expect to see them:
+ * 1, 2, 10 instead of the text order 1, 10, 2.
+ * Blank or non-numeric roll numbers remain deterministic after numeric ones.
+ */
+export function compareStudentRollNumbers(a: Pick<Student, 'rollNumber' | 'name'>, b: Pick<Student, 'rollNumber' | 'name'>): number {
+  const aRoll = String(a.rollNumber ?? '').trim();
+  const bRoll = String(b.rollNumber ?? '').trim();
+  const aNumber = Number(aRoll);
+  const bNumber = Number(bRoll);
+  const aIsNumeric = aRoll !== '' && Number.isFinite(aNumber);
+  const bIsNumeric = bRoll !== '' && Number.isFinite(bNumber);
+
+  if (aIsNumeric && bIsNumeric && aNumber !== bNumber) return aNumber - bNumber;
+  if (aIsNumeric !== bIsNumeric) return aIsNumeric ? -1 : 1;
+
+  const rollOrder = aRoll.localeCompare(bRoll, undefined, { numeric: true, sensitivity: 'base' });
+  return rollOrder || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 }
 
 export function isGraduatedStudent(student: Pick<Student, 'status'>): boolean {
@@ -94,7 +119,7 @@ export interface AttendanceRecord {
   studentName: string;
   class: string;
   date: string;
-  status: 'present' | 'absent' | 'leave';
+  status: 'present' | 'absent' | 'inactive' | 'holiday';
   takenBy: string;
 }
 
@@ -129,6 +154,7 @@ export interface ClassSubjectAssignment {
   class: string;
   subjects: string[];
   subjectSchedule?: SubjectSchedule[];
+  subjectSchedules?: SubjectSchedule[];
 }
 
 export interface Exam {
@@ -161,24 +187,22 @@ export function getExamSubjectsForClass(exam: Exam, className: string): string[]
 export function getExamScheduleForClass(exam: Exam, className: string): SubjectSchedule[] | undefined {
   if (exam.classSubjects && exam.classSubjects.length > 0) {
     const entry = exam.classSubjects.find(cs => cs.class === className);
-    if (entry) {
-      const classSchedule = entry.subjectSchedule ?? (entry as ClassSubjectAssignment & { subjectSchedules?: SubjectSchedule[] }).subjectSchedules;
-      return classSchedule ?? exam.subjectSchedule;
-    }
+    if (entry) return entry.subjectSchedule ?? entry.subjectSchedules ?? exam.subjectSchedule;
   }
   return exam.subjectSchedule;
 }
 
-/**
- * Return the configured maximum for one subject. Subject-level schedules take
- * priority over the legacy exam-wide maximum so a 25-mark subject is not
- * treated as a 50- or 100-mark subject.
- */
-export function getSubjectMaxMarksForClass(exam: Exam, subject: string, className?: string | null): number {
+/** Return the configured maximum for one subject, with legacy fallback support. */
+export function getSubjectMaxMarksForClass(
+  exam: Exam,
+  subject: string,
+  className?: string | null,
+): number {
   const schedule = getExamScheduleForClass(exam, className ?? exam.class)
     ?.find(item => item.subject === subject);
   const scheduledMax = Number(
-    schedule?.maxMarks ?? (schedule as SubjectSchedule & { max_marks?: number } | undefined)?.max_marks,
+    schedule?.maxMarks
+      ?? (schedule as SubjectSchedule & { max_marks?: number } | undefined)?.max_marks,
   );
   if (Number.isFinite(scheduledMax) && scheduledMax > 0) return scheduledMax;
 
@@ -302,51 +326,6 @@ export interface Alumni {
   createdAt?: string;
 }
 
-/** Convert an alumni record to the student shape used by the birthday UI. */
-export function alumniToStudent(alumnus: Alumni): Student {
-  const record = alumnus as Alumni & Record<string, any>;
-  const name = record.name ?? record.studentName ?? record.student_name ?? '';
-  return {
-    id: record.studentId ?? record.student_id ?? record.id,
-    name,
-    fatherName: record.fatherName ?? record.father_name ?? '',
-    motherName: '',
-    mobileNumber: record.mobileNumber ?? record.mobile_number ?? '',
-    class: record.class ?? record.passOutClass ?? record.pass_out_class ?? '',
-    section: record.section,
-    admissionNo: record.admissionNo ?? record.admission_no,
-    rollNumber: record.rollNumber ?? record.roll_number ?? '',
-    dateOfBirth: record.dateOfBirth ?? record.date_of_birth ?? '',
-    address: record.address,
-    photo: record.photo,
-    status: 'graduated',
-  };
-}
-
-function mapAlumni(r: any): Alumni {
-  return {
-    id: r.id,
-    studentId: r.studentId ?? r.student_id ?? undefined,
-    studentName: r.studentName ?? r.student_name ?? r.name ?? '',
-    class: r.class ?? r.passOutClass ?? r.pass_out_class ?? '',
-    section: r.section ?? undefined,
-    graduationYear: r.graduationYear ?? r.graduation_year ?? r.batch ?? '',
-    name: r.name ?? r.studentName ?? r.student_name ?? '',
-    fatherName: r.fatherName ?? r.father_name ?? '',
-    mobileNumber: r.mobileNumber ?? r.mobile_number ?? '',
-    batch: r.batch ?? r.graduationYear ?? r.graduation_year ?? '',
-    passOutClass: r.passOutClass ?? r.pass_out_class ?? r.class ?? '',
-    rollNumber: r.rollNumber ?? r.roll_number ?? '',
-    admissionNo: r.admissionNo ?? r.admission_no ?? undefined,
-    dateOfBirth: r.dateOfBirth ?? r.date_of_birth ?? '',
-    address: r.address ?? undefined,
-    photo: r.photo ?? undefined,
-    achievements: r.achievements ?? undefined,
-    currentStatus: r.currentStatus ?? r.current_status ?? undefined,
-    createdAt: r.createdAt ?? r.created_at ?? undefined,
-  };
-}
-
 interface AppState {
   students: Student[];
   teachers: Teacher[];
@@ -379,11 +358,10 @@ export interface DocumentBranding {
 
 interface AppContextType extends AppState {
   addStudent: (s: Omit<Student, 'id'>) => void;
-  updateStudent: (id: string, s: Partial<Student>) => void;
+  updateStudent: (id: string, s: Partial<Student>) => Promise<void>;
   deleteStudent: (id: string) => void;
   addTeacher: (t: Omit<Teacher, 'id'>) => void;
   updateTeacher: (id: string, t: Partial<Teacher>) => void;
-  refreshTeachers: () => Promise<void>;
   deleteTeacher: (id: string) => void;
   addClass: (name: string) => Promise<void>;
   updateClass: (oldName: string, newName: string) => Promise<void>;
@@ -556,6 +534,7 @@ function mapStudent(r: any): Student {
     class: r.class, section: r.section ?? undefined, admissionNo: r.admissionNo ?? r.admission_no ?? undefined,
     rollNumber: r.rollNumber ?? r.roll_number ?? '', dateOfBirth: r.dateOfBirth ?? r.date_of_birth ?? '',
     address: r.address ?? undefined, photo: r.photo ?? undefined,
+    gender: r.gender ?? undefined, caste: r.caste ?? undefined,
     annualFee: r.annualFee ?? r.annual_fee ?? undefined,
     discountType: (r.discountType ?? r.discount_type) as any ?? undefined,
     discountValue: r.discountValue ?? r.discount_value ?? undefined,
@@ -590,7 +569,10 @@ function mapFeeType(r: any): FeeType {
 function mapAttendance(r: any): AttendanceRecord {
   return {
     id: r.id, studentId: r.studentId ?? r.student_id, studentName: r.studentName ?? r.student_name ?? '',
-    class: r.class, date: r.date, status: r.status, takenBy: r.takenBy ?? r.taken_by ?? '',
+    class: r.class, date: r.date,
+    // Older records used "leave"; display them with the new Holiday label.
+    status: r.status === 'leave' ? 'holiday' : r.status,
+    takenBy: r.takenBy ?? r.taken_by ?? '',
   };
 }
 
@@ -700,7 +682,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const [classes, sections, students, teachers, subjects, feeTypes, attendance, exams, results, fees, expenses, salaries, promotions, markSubs, auditLog, inactivationReqs, classAbsentLimitsRaw, documentBranding, alumniRows] = await Promise.all([
         apiGet<string[]>('/classes'),
         apiGet<string[]>('/sections').catch(() => [] as string[]),
-        apiGet<any[]>('/students'),
+        apiGet<any[]>('/students?includeGraduated=true'),
         apiGet<any[]>('/teachers'),
         apiGet<string[]>('/subjects'),
         apiGet<any[]>('/fee-types'),
@@ -716,7 +698,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         apiGet<any[]>('/inactivation-requests', { cache: 'no-store' }).catch(() => [] as any[]),
         apiGet<Record<string, number>>('/settings/class-absent-limits').catch(() => ({} as Record<string, number>)),
         apiGet<DocumentBranding>('/settings/document-branding').catch(() => DEFAULT_STATE.documentBranding),
-        apiGet<any[]>('/alumni', { cache: 'no-store' }).catch(() => [] as any[]),
+        apiGet<any[]>('/alumni').catch(() => [] as any[]),
       ]);
 
       const isEmpty = classes.length === 0 && students.length === 0 && teachers.length === 0;
@@ -725,7 +707,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await seedAllData();
         const [c2, sec2, s2, t2, sub2, ft2, att2, ex2, res2, fee2, exp2, sal2, pro2, ms2, auditLog2, ir2, cal2, branding2, alumni2] = await Promise.all([
           apiGet<string[]>('/classes'), apiGet<string[]>('/sections').catch(() => [] as string[]),
-          apiGet<any[]>('/students'), apiGet<any[]>('/teachers'),
+          apiGet<any[]>('/students?includeGraduated=true'), apiGet<any[]>('/teachers'),
           apiGet<string[]>('/subjects'), apiGet<any[]>('/fee-types'), apiGet<any[]>('/attendance'),
           apiGet<any[]>('/exams'), apiGet<any[]>('/exam-results'), apiGet<any[]>('/fee-records'),
           apiGet<any[]>('/expenses'), apiGet<any[]>('/salary-records'), apiGet<any[]>('/promotion-records'),
@@ -734,7 +716,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           apiGet<any[]>('/inactivation-requests', { cache: 'no-store' }).catch(() => [] as any[]),
           apiGet<Record<string, number>>('/settings/class-absent-limits').catch(() => ({} as Record<string, number>)),
           apiGet<DocumentBranding>('/settings/document-branding').catch(() => DEFAULT_STATE.documentBranding),
-          apiGet<any[]>('/alumni', { cache: 'no-store' }).catch(() => [] as any[]),
+          apiGet<any[]>('/alumni').catch(() => [] as any[]),
         ]);
         setState({
           classes: c2.sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })), sections: sec2, students: s2.map(mapStudent), teachers: t2.map(mapTeacher),
@@ -745,7 +727,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           inactivationRequests: ir2.map(mapInactivationRequest),
           classAbsentLimits: cal2,
           documentBranding: branding2,
-          alumni: alumni2.map(mapAlumni),
+          alumni: alumni2,
         });
       } else {
         setState({
@@ -757,7 +739,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           inactivationRequests: inactivationReqs.map(mapInactivationRequest),
           classAbsentLimits: classAbsentLimitsRaw,
           documentBranding,
-          alumni: alumniRows.map(mapAlumni),
+          alumni: alumniRows,
         });
       }
       return true;
@@ -833,9 +815,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }).catch(console.error);
   }, []);
 
-  const updateStudent = useCallback((id: string, s: Partial<Student>) => {
+  const updateStudent = useCallback(async (id: string, s: Partial<Student>) => {
     setState(prev => ({ ...prev, students: prev.students.map(x => x.id === id ? { ...x, ...s } : x) }));
-    apiPut(`/students/${id}`, s).catch(console.error);
+    await apiPut(`/students/${id}`, s);
   }, []);
 
   const deleteStudent = useCallback((id: string) => {
@@ -857,11 +839,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     apiPut(`/teachers/${id}`, t).then(row => {
       setState(prev => ({ ...prev, teachers: prev.teachers.map(x => x.id === id ? mapTeacher(row as any) : x) }));
     }).catch(console.error);
-  }, []);
-
-  const refreshTeachers = useCallback(async () => {
-    const rows = await apiGet<any[]>('/teachers', { cache: 'no-store' });
-    setState(prev => ({ ...prev, teachers: rows.map(mapTeacher) }));
   }, []);
 
   const deleteTeacher = useCallback((id: string) => {
@@ -1309,7 +1286,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const na: Alumni = { ...a, id: genId() };
     setState(prev => ({ ...prev, alumni: [...prev.alumni, na] }));
     apiPost('/alumni', na).then(row => {
-      setState(prev => ({ ...prev, alumni: prev.alumni.map(x => x.id === na.id ? mapAlumni(row) : x) }));
+      setState(prev => ({ ...prev, alumni: prev.alumni.map(x => x.id === na.id ? row as Alumni : x) }));
     }).catch(console.error);
   }, []);
 
@@ -1324,7 +1301,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const bulkAddAlumni = useCallback(async (records: Omit<Alumni, 'id' | 'batch'>[], batch: string): Promise<void> => {
-    const withIds: Alumni[] = records.map(r => mapAlumni({ ...r, id: genId(), batch }));
+    const withIds: Alumni[] = records.map(r => ({ ...r, id: genId(), batch }));
     // Optimistic update — show immediately in UI
     setState(prev => ({ ...prev, alumni: [...prev.alumni, ...withIds] }));
     try {
@@ -1335,12 +1312,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Reload the canonical list so duplicate updates and server-generated IDs
       // are reflected immediately after an import.
       const [refreshed, refreshedStudents] = await Promise.all([
-        apiGet<Alumni[]>('/alumni', { cache: 'no-store' }),
-        apiGet<any[]>('/students'),
+        apiGet<Alumni[]>('/alumni'),
+        apiGet<any[]>('/students?includeGraduated=true'),
       ]);
       setState(prev => ({
         ...prev,
-        alumni: refreshed.map(mapAlumni),
+        alumni: refreshed,
         students: refreshedStudents.map(mapStudent),
       }));
     } catch (e) {
@@ -1357,7 +1334,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider value={{
       ...state,
       addStudent, updateStudent, deleteStudent,
-      addTeacher, updateTeacher, refreshTeachers, deleteTeacher,
+      addTeacher, updateTeacher, deleteTeacher,
       addClass, updateClass, deleteClass,
       addSection, updateSection, deleteSection,
       addSubject, deleteSubject,

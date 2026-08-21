@@ -10,10 +10,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { useApp, InactivationRequest, isGraduatedStudent } from '@/context/AppContext';
+import { useApp, InactivationRequest, isGraduatedStudent, compareStudentRollNumbers } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
+import AttendanceDetailModal from '@/components/AttendanceDetailModal';
 
-type Status = 'present' | 'absent' | 'leave';
+type Status = 'present' | 'absent' | 'holiday';
+type ReportRange = 'all' | 'monthly' | 'yearly' | 'custom';
 
 // ─── Reactivation Request Modal ────────────────────────────────────────────────
 function ReactivationModal({
@@ -251,8 +253,14 @@ export default function TeacherAttendance() {
   const [attendance, setAttendance] = useState<Record<string, Status | undefined>>({});
   const [view, setView] = useState<'take' | 'report'>('take');
   const [filterReportClass, setFilterReportClass] = useState('All');
+  const [reportRange, setReportRange] = useState<ReportRange>('all');
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [reportYear, setReportYear] = useState(String(new Date().getFullYear()));
+  const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string } | null>(null);
 
   // Inactivation request modal
   const [inactiveModalStudent, setInactiveModalStudent] = useState<typeof classStudents[0] | null>(null);
@@ -260,7 +268,12 @@ export default function TeacherAttendance() {
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
 
   // Split active vs inactive students in the selected class
-  const classStudents = useMemo(() => students.filter(s => s.class === selectedClass && !isGraduatedStudent(s)), [students, selectedClass]);
+  const classStudents = useMemo(
+    () => students
+      .filter(s => s.class === selectedClass && !isGraduatedStudent(s))
+      .sort(compareStudentRollNumbers),
+    [students, selectedClass],
+  );
   const activeStudents = useMemo(() => classStudents.filter(s => (s.status ?? 'active') === 'active'), [classStudents]);
   const inactiveStudents = useMemo(() => classStudents.filter(s => s.status === 'inactive'), [classStudents]);
 
@@ -277,11 +290,18 @@ export default function TeacherAttendance() {
     setSubmitSuccess(false);
     setSubmitError('');
     setRequestSuccess(null);
-    const studs = students.filter(s => s.class === cls && (s.status ?? 'active') === 'active');
+    const studs = students
+      .filter(s => s.class === cls && (s.status ?? 'active') === 'active')
+      .sort(compareStudentRollNumbers);
     const existing = attendanceRecords.filter(a => a.class === cls && a.date === selectedDate);
     const init: Record<string, Status | undefined> = {};
     if (existing.length > 0) {
-      studs.forEach(s => { init[s.id] = existing.find(e => e.studentId === s.id)?.status; });
+      studs.forEach(s => {
+        const existingStatus = existing.find(e => e.studentId === s.id)?.status;
+        init[s.id] = existingStatus === 'present' || existingStatus === 'absent' || existingStatus === 'holiday'
+          ? existingStatus
+          : undefined;
+      });
     } else {
       studs.forEach(s => { init[s.id] = undefined; });
     }
@@ -302,12 +322,8 @@ export default function TeacherAttendance() {
 
   const handleSubmit = async () => {
     if (!selectedClass) { setSubmitError('Please select a class first.'); return; }
-    if (activeStudents.length === 0 && inactiveStudents.length === 0) {
+    if (classStudents.length === 0) {
       setSubmitError('No students found in this class.');
-      return;
-    }
-    if (activeStudents.length === 0) {
-      setSubmitError('All students in this class are inactive. No attendance to submit.');
       return;
     }
 
@@ -324,14 +340,24 @@ export default function TeacherAttendance() {
 
     setSubmitError('');
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const records = activeStudents.map(s => ({
+    const records = [
+      ...activeStudents.map(s => ({
       studentId: s.id,
       studentName: s.name,
       class: s.class,
       date: selectedDate,
       status: attendance[s.id] as Status,
       takenBy: user?.name ?? 'Teacher',
-    }));
+      })),
+      ...inactiveStudents.map(s => ({
+        studentId: s.id,
+        studentName: s.name,
+        class: s.class,
+        date: selectedDate,
+        status: 'inactive' as const,
+        takenBy: user?.name ?? 'Teacher',
+      })),
+    ];
     addAttendance(records);
     setSubmitSuccess(true);
     setSelectedClass('');
@@ -364,30 +390,24 @@ export default function TeacherAttendance() {
     setRequestSuccess(`Reactivation request for ${inactiveModalStudent.name} sent to admin.`);
   };
 
-function getInactiveDays(status: string | undefined, records: Array<{ date: string }>): number {
-    if (status !== 'inactive' || records.length === 0) return 0;
-    const last = records.reduce((latest, record) => record.date > latest ? record.date : latest, records[0].date);
-    const start = new Date(`${last}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() + 1);
-    return Math.max(0, Math.floor((today.getTime() - start.getTime()) / 86400000) + 1);
-  }
-
   const reportRecords = useMemo(() => {
     let records = attendanceRecords;
     if (filterReportClass !== 'All') records = records.filter(a => a.class === filterReportClass);
+    if (reportRange === 'monthly') {
+      records = records.filter(a => a.date.startsWith(reportMonth));
+    } else if (reportRange === 'yearly') {
+      records = records.filter(a => a.date.startsWith(reportYear));
+    } else if (reportRange === 'custom') {
+      const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+      if (!validDate(customStartDate) || !validDate(customEndDate) || customStartDate > customEndDate) return [];
+      records = records.filter(a => a.date >= customStartDate && a.date <= customEndDate);
+    }
     return [...records].sort((a, b) => b.date.localeCompare(a.date));
-  }, [attendanceRecords, filterReportClass]);
+  }, [attendanceRecords, filterReportClass, reportRange, reportMonth, reportYear, customStartDate, customEndDate]);
 
-  const reportStudentStats = useMemo(() => {
-    const byStudent: Record<string, { id: string; name: string; cls: string; present: number; absent: number; leave: number; total: number; inactiveDays: number }> = {};
-    const inClass = students.filter(s => !isGraduatedStudent(s) && (filterReportClass === 'All' || s.class === filterReportClass));
-    inClass.forEach(s => { byStudent[s.id] = { id: s.id, name: s.name, cls: s.class, present: 0, absent: 0, leave: 0, total: 0, inactiveDays: 0 }; });
-    reportRecords.forEach(r => { const stat = byStudent[r.studentId]; if (stat) { stat[r.status]++; stat.total++; } });
-    Object.values(byStudent).forEach(stat => { stat.inactiveDays = getInactiveDays(students.find(s => s.id === stat.id)?.status, reportRecords.filter(r => r.studentId === stat.id)); });
-    return Object.values(byStudent).sort((a, b) => a.name.localeCompare(b.name));
-  }, [students, reportRecords, filterReportClass]);
+  const customRangeValid = /^\d{4}-\d{2}-\d{2}$/.test(customStartDate)
+    && /^\d{4}-\d{2}-\d{2}$/.test(customEndDate)
+    && customStartDate <= customEndDate;
 
   const pendingCount = activeStudents.filter(s => !attendance[s.id]).length;
 
@@ -450,7 +470,7 @@ function getInactiveDays(status: string | undefined, records: Array<{ date: stri
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={[s.controlLabel, { color: colors.text, marginBottom: 0 }]}>Date: {selectedDate}</Text>
-              {selectedClass && activeStudents.length > 0 && (
+              {selectedClass && classStudents.length > 0 && (
                 <Text style={{ fontSize: 13, fontWeight: '600', color: pendingCount === 0 ? colors.success : colors.warning }}>
                   {pendingCount === 0 ? 'All marked' : `${pendingCount} pending`}
                 </Text>
@@ -502,8 +522,8 @@ function getInactiveDays(status: string | undefined, records: Array<{ date: stri
                 <TouchableOpacity style={[s.markBtn, { backgroundColor: colors.destructive + '20' }]} onPress={() => markAll('absent')} activeOpacity={0.8}>
                   <Text style={[s.markBtnText, { color: colors.destructive }]}>All A</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[s.markBtn, { backgroundColor: colors.warning + '20' }]} onPress={() => markAll('leave')} activeOpacity={0.8}>
-                  <Text style={[s.markBtnText, { color: colors.warning }]}>All L</Text>
+                <TouchableOpacity style={[s.markBtn, { backgroundColor: colors.warning + '20' }]} onPress={() => markAll('holiday')} activeOpacity={0.8}>
+                  <Text style={[s.markBtnText, { color: colors.warning }]}>Holiday</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -575,11 +595,11 @@ function getInactiveDays(status: string | undefined, records: Array<{ date: stri
                           <Text style={[sc.statusText, { color: status === 'absent' ? '#fff' : colors.mutedForeground }]}>A</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[sc.statusBtn, { backgroundColor: status === 'leave' ? colors.warning : colors.muted }]}
-                          onPress={() => !alreadySubmitted && setStatus(student.id, 'leave')}
+                          style={[sc.statusBtn, { backgroundColor: status === 'holiday' ? colors.warning : colors.muted }]}
+                          onPress={() => !alreadySubmitted && setStatus(student.id, 'holiday')}
                           disabled={alreadySubmitted}
                         >
-                          <Text style={[sc.statusText, { color: status === 'leave' ? '#fff' : colors.mutedForeground }]}>L</Text>
+                          <Text style={[sc.statusText, { color: status === 'holiday' ? '#fff' : colors.mutedForeground }]}>H</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -613,6 +633,87 @@ function getInactiveDays(status: string | undefined, records: Array<{ date: stri
       ) : (
         <>
           <View style={[s.controls, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+            <Text style={[s.reportLabel, { color: colors.mutedForeground }]}>Attendance Period</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {([
+                ['all', 'All Time'],
+                ['monthly', 'Monthly'],
+                ['yearly', 'Yearly'],
+                ['custom', 'Custom Dates'],
+              ] as const).map(([value, label]) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[s.classChip, reportRange === value && { backgroundColor: colors.primary }]}
+                  onPress={() => setReportRange(value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.classChipText, reportRange === value && { color: '#fff' }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {reportRange === 'monthly' && (
+              <View style={s.reportDateField}>
+                <Text style={[s.reportDateLabel, { color: colors.mutedForeground }]}>Month (YYYY-MM)</Text>
+                <TextInput
+                  value={reportMonth}
+                  onChangeText={setReportMonth}
+                  placeholder="2026-08"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[s.reportDateInput, { backgroundColor: colors.muted, color: colors.text }]}
+                  autoCapitalize="none"
+                />
+              </View>
+            )}
+
+            {reportRange === 'yearly' && (
+              <View style={s.reportDateField}>
+                <Text style={[s.reportDateLabel, { color: colors.mutedForeground }]}>Year (YYYY)</Text>
+                <TextInput
+                  value={reportYear}
+                  onChangeText={setReportYear}
+                  placeholder="2026"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[s.reportDateInput, { backgroundColor: colors.muted, color: colors.text }]}
+                  keyboardType="number-pad"
+                />
+              </View>
+            )}
+
+            {reportRange === 'custom' && (
+              <View style={s.customDateRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.reportDateLabel, { color: colors.mutedForeground }]}>From (YYYY-MM-DD)</Text>
+                  <TextInput
+                    value={customStartDate}
+                    onChangeText={setCustomStartDate}
+                    placeholder="2026-08-01"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[s.reportDateInput, { backgroundColor: colors.muted, color: colors.text }]}
+                    autoCapitalize="none"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.reportDateLabel, { color: colors.mutedForeground }]}>To (YYYY-MM-DD)</Text>
+                  <TextInput
+                    value={customEndDate}
+                    onChangeText={setCustomEndDate}
+                    placeholder="2026-08-31"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[s.reportDateInput, { backgroundColor: colors.muted, color: colors.text }]}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+            )}
+
+            {reportRange === 'custom' && !customRangeValid && (
+              <Text style={[s.rangeError, { color: colors.destructive }]}>
+                Enter dates as YYYY-MM-DD with the start date before the end date.
+              </Text>
+            )}
+
+            <Text style={[s.reportLabel, { color: colors.mutedForeground, marginTop: 4 }]}>Class</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {['All', ...classes].map(cls => (
                 <TouchableOpacity key={cls} style={[s.classChip, filterReportClass === cls && { backgroundColor: colors.primary }]} onPress={() => setFilterReportClass(cls)} activeOpacity={0.8}>
@@ -622,34 +723,51 @@ function getInactiveDays(status: string | undefined, records: Array<{ date: stri
             </ScrollView>
           </View>
           <FlatList
-            data={reportStudentStats}
+            data={reportRecords}
             keyExtractor={i => i.id}
             contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
             ListEmptyComponent={<EmptyState icon="calendar" title="No Records" subtitle="No attendance records found" />}
             renderItem={({ item }) => {
-              const totalDays = item.total + item.inactiveDays;
-              const absentDays = item.absent + item.inactiveDays;
-              const pct = totalDays > 0 ? Math.round((item.present / totalDays) * 100) : 0;
-              const color = pct >= 75 ? colors.success : pct >= 50 ? colors.warning : colors.destructive;
+              let color = colors.success;
+              if (item.status === 'absent') color = colors.destructive;
+              else if (item.status === 'inactive') color = colors.mutedForeground;
+              else if (item.status === 'holiday') color = colors.warning;
               return (
-                <View style={[rp.row, { backgroundColor: colors.card }]}>
+                <TouchableOpacity
+                  style={[rp.row, { backgroundColor: colors.card }]}
+                  onPress={() => setDetailStudent({ id: item.studentId, name: item.studentName, cls: item.class })}
+                  activeOpacity={0.75}
+                >
                   <View style={[rp.dateBadge, { backgroundColor: colors.secondary }]}>
-                    <Text style={[rp.dateText, { color: colors.primary }]}>{totalDays}</Text>
-                    <Text style={[rp.dateText, { color: colors.mutedForeground, fontSize: 9 }]}>days</Text>
+                    <Text style={[rp.dateText, { color: colors.primary }]}>{item.date.split('-').slice(1).join('/')}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[rp.stuName, { color: colors.text }]}>{item.name}</Text>
-                    <Text style={[rp.meta, { color: colors.mutedForeground }]}>{item.cls} · P: {item.present} · A: {absentDays}</Text>
-                    {item.inactiveDays > 0 && <Text style={[rp.meta, { color: colors.destructive }]}>Inactive: {item.inactiveDays} days counted absent</Text>}
+                    <Text style={[rp.stuName, { color: colors.text }]}>{item.studentName}</Text>
+                    <Text style={[rp.meta, { color: colors.mutedForeground }]}>{item.class} · By {item.takenBy}</Text>
                   </View>
                   <View style={[rp.statusBadge, { backgroundColor: color + '20' }]}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color }}>{pct}%</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: color }}>
+                        {item.status === 'inactive' ? 'I' : item.status.charAt(0).toUpperCase()}
+                    </Text>
                   </View>
-                </View>
+                  <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+                </TouchableOpacity>
               );
             }}
           />
         </>
+      )}
+
+      {detailStudent && (
+        <AttendanceDetailModal
+          visible={!!detailStudent}
+          studentId={detailStudent.id}
+          studentName={detailStudent.name}
+          studentClass={detailStudent.cls}
+          allRecords={reportRecords}
+          onClose={() => setDetailStudent(null)}
+          colors={colors}
+        />
       )}
     </View>
   );
@@ -681,6 +799,12 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabText: { fontSize: 14, fontWeight: '700' },
   controls: { padding: 16, borderBottomWidth: 1 },
+  reportLabel: { fontSize: 11, fontWeight: '700', marginBottom: 7, textTransform: 'uppercase', letterSpacing: 0.5 },
+  reportDateField: { marginBottom: 12 },
+  reportDateLabel: { fontSize: 11, fontWeight: '600', marginBottom: 5 },
+  reportDateInput: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, fontSize: 14 },
+  customDateRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  rangeError: { fontSize: 12, marginTop: -4, marginBottom: 10 },
   controlLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   classChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.muted, marginRight: 8 },
   classChipText: { fontSize: 13, fontWeight: '600', color: c.mutedForeground },

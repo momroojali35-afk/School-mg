@@ -7,7 +7,6 @@ import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs, useRouter } from 'expo-router';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,7 +21,7 @@ const TABS = [
 ] as const;
 
 // ─── Custom tab bar ─────────────────────────────────────────────────────────────
-function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, navigation }: { state: any; navigation: any }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -30,7 +29,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const isIOS = Platform.OS === 'ios';
 
   // Map route name → TABS index for the visible routes only
-  const visibleRoutes = state.routes.filter(r =>
+  const visibleRoutes = state.routes.filter((r: any) =>
     TABS.some(t => t.name === r.name)
   );
 
@@ -52,10 +51,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       {/* Tab row — each item is flex:1 so they share width perfectly */}
       <View style={tb.row}>
         {TABS.map((tab) => {
-          const route = visibleRoutes.find(r => r.name === tab.name);
+          const route = visibleRoutes.find((r: any) => r.name === tab.name);
           if (!route) return null;
 
-          const routeIndex = state.routes.findIndex(r => r.key === route.key);
+          const routeIndex = state.routes.findIndex((r: any) => r.key === route.key);
           const focused = state.index === routeIndex;
           const tint = focused ? colors.primary : '#94A3B8';
 

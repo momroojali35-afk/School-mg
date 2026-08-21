@@ -1,3 +1,4 @@
+- [Attendance percentage](attendance-percentage.md) — inactive days reduce the percentage; holidays remain excluded.
 - [School Management App bug fixes](bug-fixes-school-mgmt.md) — 4 critical bugs fixed: attendance transaction, exam results conflict update no-op, teacher credentials leak, promotion transaction.
 - [Scoped premium alerts](scoped-premium-alerts.md) — only the requested student validation and exam update alerts use the shared premium style.
 - [Teacher logout navigation](teacher-logout-navigation.md) — clear teacher auth before one explicit login redirect while suppressing the competing dashboard effect.
@@ -15,4 +16,4 @@
 - [Staff APK database readiness](staff-apk-database-readiness.md) — teacher login must verify the server directly; hosted environment databases count as ready.
 - [Finance salary reporting](finance-salary-reporting.md) — Finance reports salary totals/history read-only; salary payment management remains in Teachers.
 - [Promotion success modal](promotion-success-modal.md) — bulk promotion success uses a branded in-app modal instead of a native alert.
-- [Alumni visibility boundary](alumni-visibility-boundary.md) — active modules use non-graduated students; only birthday dashboards intentionally merge Alumni projections.
+- [Numeric roll-number ordering](roll-number-ordering.md) — student rosters use shared numeric ordering so 1, 2, 10 stays serially correct.

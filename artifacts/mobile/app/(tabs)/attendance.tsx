@@ -8,23 +8,9 @@ import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
+import { getAttendanceCounts } from '@/utils/attendance';
 
 type ReportMode = 'daily' | 'monthly' | 'class' | 'student';
-
-function getInactiveDates(status: string | undefined, records: Array<{ date: string }>): string[] {
-  if (status !== 'inactive' || records.length === 0) return [];
-  const last = records.reduce((latest, record) => record.date > latest ? record.date : latest, records[0].date);
-  const start = new Date(`${last}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dates: string[] = [];
-  start.setDate(start.getDate() + 1);
-  while (start <= today) {
-    dates.push(start.toISOString().slice(0, 10));
-    start.setDate(start.getDate() + 1);
-  }
-  return dates;
-}
 
 // ─── Student Attendance Detail Modal ─────────────────────────────────────────
 function StudentAttendanceDetailModal({
@@ -32,7 +18,6 @@ function StudentAttendanceDetailModal({
   studentId,
   studentName,
   studentClass,
-  studentStatus,
   allRecords,
   onClose,
   colors,
@@ -41,7 +26,6 @@ function StudentAttendanceDetailModal({
   studentId: string;
   studentName: string;
   studentClass: string;
-  studentStatus?: string;
   allRecords: ReturnType<typeof useApp>['attendanceRecords'];
   onClose: () => void;
   colors: ReturnType<typeof useColors>;
@@ -51,29 +35,19 @@ function StudentAttendanceDetailModal({
     [allRecords, studentId],
   );
 
-  const inactiveDates = getInactiveDates(studentStatus, records);
-  const totalDays   = records.length + inactiveDates.length;
-  const presentDays = records.filter(r => r.status === 'present').length;
-  const absentDays  = records.filter(r => r.status === 'absent').length + inactiveDates.length;
-  const leaveDays   = records.filter(r => r.status === 'leave').length;
-  const attendancePct = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+  const { present: presentDays, absent: absentDays, inactive: inactiveDays, holiday: holidayDays, attendanceDays, percentage: attendancePct } = getAttendanceCounts(records);
   const pctColor = attendancePct >= 75 ? colors.success : attendancePct >= 50 ? colors.warning : colors.destructive;
 
   // Group by month (YYYY-MM)
   const monthMap = useMemo(() => {
-    const map: Record<string, { present: string[]; absent: string[]; leave: string[]; inactive: string[] }> = {};
+    const map: Record<string, { present: string[]; absent: string[]; inactive: string[]; holiday: string[] }> = {};
     records.forEach(r => {
       const month = r.date.slice(0, 7); // YYYY-MM
-      if (!map[month]) map[month] = { present: [], absent: [], leave: [], inactive: [] };
-      map[month][r.status as 'present' | 'absent' | 'leave'].push(r.date);
-    });
-    inactiveDates.forEach(date => {
-      const month = date.slice(0, 7);
-      if (!map[month]) map[month] = { present: [], absent: [], leave: [], inactive: [] };
-      map[month].inactive.push(date);
+      if (!map[month]) map[month] = { present: [], absent: [], inactive: [], holiday: [] };
+      map[month][r.status].push(r.date);
     });
     return map;
-  }, [records, inactiveDates]);
+  }, [records]);
 
   const months = Object.keys(monthMap).sort().reverse();
 
@@ -107,8 +81,8 @@ function StudentAttendanceDetailModal({
             {/* Overall Stats */}
             <View style={det.statsRow}>
               <View style={[det.statBox, { backgroundColor: colors.primary + '15' }]}>
-                <Text style={[det.statVal, { color: colors.primary }]}>{totalDays}</Text>
-                <Text style={[det.statLbl, { color: colors.primary }]}>Total Days</Text>
+                <Text style={[det.statVal, { color: colors.primary }]}>{attendanceDays}</Text>
+                <Text style={[det.statLbl, { color: colors.primary }]}>Attendance Days</Text>
               </View>
               <View style={[det.statBox, { backgroundColor: pctColor + '15' }]}>
                 <Text style={[det.statVal, { color: pctColor }]}>{attendancePct}%</Text>
@@ -122,16 +96,16 @@ function StudentAttendanceDetailModal({
                 <Text style={[det.statVal, { color: colors.destructive }]}>{absentDays}</Text>
                 <Text style={[det.statLbl, { color: colors.destructive }]}>Absent</Text>
               </View>
-              {inactiveDates.length > 0 && (
-                <View style={[det.statBox, { backgroundColor: colors.destructive + '15' }]}>
-                  <Text style={[det.statVal, { color: colors.destructive }]}>{inactiveDates.length}</Text>
-                  <Text style={[det.statLbl, { color: colors.destructive }]}>Inactive</Text>
+              {holidayDays > 0 && (
+                <View style={[det.statBox, { backgroundColor: colors.warning + '15' }]}>
+                  <Text style={[det.statVal, { color: colors.warning }]}>{holidayDays}</Text>
+                  <Text style={[det.statLbl, { color: colors.warning }]}>Holiday</Text>
                 </View>
               )}
-              {leaveDays > 0 && (
-                <View style={[det.statBox, { backgroundColor: colors.warning + '15' }]}>
-                  <Text style={[det.statVal, { color: colors.warning }]}>{leaveDays}</Text>
-                  <Text style={[det.statLbl, { color: colors.warning }]}>Leave</Text>
+              {inactiveDays > 0 && (
+                <View style={[det.statBox, { backgroundColor: colors.mutedForeground + '15' }]}>
+                  <Text style={[det.statVal, { color: colors.mutedForeground }]}>{inactiveDays}</Text>
+                  <Text style={[det.statLbl, { color: colors.mutedForeground }]}>Inactive</Text>
                 </View>
               )}
             </View>
@@ -144,8 +118,8 @@ function StudentAttendanceDetailModal({
               </View>
             ) : (
               months.map(month => {
-                const { present, absent, leave, inactive } = monthMap[month];
-                const mTotal = present.length + absent.length + leave.length + inactive.length;
+                const { present, absent, inactive, holiday } = monthMap[month];
+                const mTotal = present.length + absent.length + inactive.length;
                 const mPct = mTotal > 0 ? Math.round((present.length / mTotal) * 100) : 0;
                 const mColor = mPct >= 75 ? colors.success : mPct >= 50 ? colors.warning : colors.destructive;
                 return (
@@ -156,8 +130,9 @@ function StudentAttendanceDetailModal({
                       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
                         <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
                           P: <Text style={{ color: colors.success, fontWeight: '700' }}>{present.length}</Text>
-                          {'  '}A: <Text style={{ color: colors.destructive, fontWeight: '700' }}>{absent.length + inactive.length}</Text>
-                          {leave.length > 0 ? <>{'  '}L: <Text style={{ color: colors.warning, fontWeight: '700' }}>{leave.length}</Text></> : null}
+                          {'  '}A: <Text style={{ color: colors.destructive, fontWeight: '700' }}>{absent.length}</Text>
+                           {inactive.length > 0 ? <>{'  '}I: <Text style={{ color: colors.mutedForeground, fontWeight: '700' }}>{inactive.length}</Text></> : null}
+                          {holiday.length > 0 ? <>{'  '}H: <Text style={{ color: colors.warning, fontWeight: '700' }}>{holiday.length}</Text></> : null}
                         </Text>
                         <View style={[det.pctBadge, { backgroundColor: mColor + '20' }]}>
                           <Text style={{ fontSize: 12, fontWeight: '700', color: mColor }}>{mPct}%</Text>
@@ -181,30 +156,14 @@ function StudentAttendanceDetailModal({
                       </View>
                     )}
 
-
-                    {inactive.length > 0 && (
-                      <View style={det.absentSection}>
-                        <Text style={[det.absentTitle, { color: colors.destructive }]}>
-                          <Feather name="pause-circle" size={11} color={colors.destructive} /> Inactive Dates
-                        </Text>
-                        <View style={det.datePills}>
-                          {inactive.map(d => (
-                            <View key={`inactive-${d}`} style={[det.datePill, { backgroundColor: colors.destructive + '15' }]}>
-                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.destructive }}>{formatDate(d)}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* Leave dates */
-                    {leave.length > 0 && (
+                    {/* Holiday dates */}
+                    {holiday.length > 0 && (
                       <View style={det.absentSection}>
                         <Text style={[det.absentTitle, { color: colors.warning }]}>
-                          <Feather name="clock" size={11} color={colors.warning} /> Leave Dates
+                          <Feather name="sun" size={11} color={colors.warning} /> Holiday Dates
                         </Text>
                         <View style={det.datePills}>
-                          {leave.map(d => (
+                          {holiday.map(d => (
                             <View key={d} style={[det.datePill, { backgroundColor: colors.warning + '15' }]}>
                               <Text style={{ fontSize: 12, fontWeight: '600', color: colors.warning }}>{formatDate(d)}</Text>
                             </View>
@@ -248,29 +207,21 @@ export default function AttendanceScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { attendanceRecords, students, classes } = useApp();
-  const visibleStudentIds = useMemo(
-    () => new Set(students.map(student => student.id)),
-    [students],
-  );
-  const visibleAttendanceRecords = useMemo(
-    () => attendanceRecords.filter(record => visibleStudentIds.has(record.studentId)),
-    [attendanceRecords, visibleStudentIds],
-  );
 
   const [mode, setMode] = useState<ReportMode>('daily');
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterClass, setFilterClass] = useState('All');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'present' | 'absent' | 'leave'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'present' | 'absent' | 'inactive' | 'holiday'>('all');
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [searchStudent, setSearchStudent] = useState('');
 
   const [showClassPicker, setShowClassPicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
 
-  const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string; status?: string } | null>(null);
+  const [detailStudent, setDetailStudent] = useState<{ id: string; name: string; cls: string } | null>(null);
 
   const getFilteredRecords = () => {
-    let records = visibleAttendanceRecords;
+    let records = attendanceRecords;
 
     if (mode === 'daily') {
       records = records.filter(r => r.date === filterDate);
@@ -293,13 +244,10 @@ export default function AttendanceScreen() {
 
   const records = getFilteredRecords();
   const total = records.length;
-  const presentCount = records.filter(r => r.status === 'present').length;
-  const absentCount = records.filter(r => r.status === 'absent').length;
-  const leaveCount = records.filter(r => r.status === 'leave').length;
-
-  const presentPct = total > 0 ? Math.round((presentCount / total) * 100) : 0;
-  const absentPct = total > 0 ? Math.round((absentCount / total) * 100) : 0;
-  const leavePct = total > 0 ? Math.round((leaveCount / total) * 100) : 0;
+  const { present: presentCount, absent: absentCount, inactive: inactiveCount, holiday: holidayCount, attendanceDays, percentage: presentPct } = getAttendanceCounts(records);
+  const absentPct = attendanceDays > 0 ? Math.round((absentCount / attendanceDays) * 100) : 0;
+  const inactivePct = attendanceDays > 0 ? Math.round((inactiveCount / attendanceDays) * 100) : 0;
+  const holidayPct = total > 0 ? Math.round((holidayCount / total) * 100) : 0;
 
   const s = styles(colors);
   const botPad = Platform.OS === 'web' ? 84 : insets.bottom + 80;
@@ -314,16 +262,16 @@ export default function AttendanceScreen() {
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => setDetailStudent({ id: r.studentId, name: r.studentName, cls: r.class })}
-          style={[c.card, { backgroundColor: colors.card, borderLeftColor: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : colors.warning, borderLeftWidth: 4 }]}
+          style={[c.card, { backgroundColor: colors.card, borderLeftColor: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : r.status === 'inactive' ? colors.mutedForeground : colors.warning, borderLeftWidth: 4 }]}
         >
           <View style={{ flex: 1 }}>
             <Text style={[c.name, { color: colors.text }]}>{r.studentName}</Text>
             <Text style={[c.sub, { color: colors.mutedForeground }]}>{r.class} • Taken by {r.takenBy}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={[c.badge, { backgroundColor: r.status === 'present' ? colors.success + '20' : r.status === 'absent' ? colors.destructive + '20' : colors.warning + '20' }]}>
-              <Text style={{ fontSize: 12, fontWeight: '700', textTransform: 'capitalize', color: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : colors.warning }}>
-                {r.status}
+            <View style={[c.badge, { backgroundColor: r.status === 'present' ? colors.success + '20' : r.status === 'absent' ? colors.destructive + '20' : r.status === 'inactive' ? colors.mutedForeground + '20' : colors.warning + '20' }]}>
+              <Text style={{ fontSize: 12, fontWeight: '700', textTransform: 'capitalize', color: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : r.status === 'inactive' ? colors.mutedForeground : colors.warning }}>
+                {r.status === 'holiday' ? 'Holiday' : r.status === 'inactive' ? 'Inactive' : r.status}
               </Text>
             </View>
             <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
@@ -335,10 +283,10 @@ export default function AttendanceScreen() {
 
   const renderStudentWiseReport = () => {
     // Group records by student
-    const studentStats: Record<string, { id: string; name: string; cls: string; present: number; absent: number; leave: number; total: number }> = {};
+    const studentStats: Record<string, { id: string; name: string; cls: string; present: number; absent: number; inactive: number; holiday: number; total: number }> = {};
     records.forEach(r => {
       if (!studentStats[r.studentId]) {
-        studentStats[r.studentId] = { id: r.studentId, name: r.studentName, cls: r.class, present: 0, absent: 0, leave: 0, total: 0 };
+        studentStats[r.studentId] = { id: r.studentId, name: r.studentName, cls: r.class, present: 0, absent: 0, inactive: 0, holiday: 0, total: 0 };
       }
       studentStats[r.studentId][r.status]++;
       studentStats[r.studentId].total++;
@@ -353,23 +301,24 @@ export default function AttendanceScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: botPad, flexGrow: 1 }}
         ListEmptyComponent={<EmptyState icon="users" title="No Students" subtitle="Adjust filters or search" />}
         renderItem={({ item: stat }) => {
-          const pct = stat.total > 0 ? Math.round((stat.present / stat.total) * 100) : 0;
+          const attendanceDays = stat.present + stat.absent + stat.inactive;
+          const pct = attendanceDays > 0 ? Math.round((stat.present / attendanceDays) * 100) : 0;
           return (
             <TouchableOpacity
               activeOpacity={0.75}
-              onPress={() => setDetailStudent({ id: stat.id, name: stat.name, cls: stat.cls, status: students.find(s => s.id === stat.id)?.status })}
+              onPress={() => setDetailStudent({ id: stat.id, name: stat.name, cls: stat.cls })}
               style={[c.card, { backgroundColor: colors.card }]}
             >
               <View style={{ flex: 1 }}>
                 <Text style={[c.name, { color: colors.text }]}>{stat.name}</Text>
-                <Text style={[c.sub, { color: colors.mutedForeground }]}>{stat.cls} • {stat.total} Days Total</Text>
+                <Text style={[c.sub, { color: colors.mutedForeground }]}>{stat.cls} • {attendanceDays} Attendance Days</Text>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4, flexDirection: 'row', alignSelf: 'center' }}>
                 <View style={{ alignItems: 'flex-end', gap: 4 }}>
                   <Text style={{ fontSize: 18, fontWeight: '700', color: pct >= 75 ? colors.success : pct >= 50 ? colors.warning : colors.destructive }}>
                     {pct}%
                   </Text>
-                  <Text style={{ fontSize: 11, color: colors.mutedForeground }}>P: {stat.present} | A: {stat.absent}</Text>
+                  <Text style={{ fontSize: 11, color: colors.mutedForeground }}>P: {stat.present} | A: {stat.absent} | I: {stat.inactive}</Text>
                 </View>
                 <Feather name="chevron-right" size={14} color={colors.mutedForeground} style={{ marginLeft: 6 }} />
               </View>
@@ -445,7 +394,8 @@ export default function AttendanceScreen() {
           { label: 'Total Records', val: total, color: colors.primary },
           { label: 'Present', val: `${presentPct}%`, count: presentCount, color: colors.success },
           { label: 'Absent', val: `${absentPct}%`, count: absentCount, color: colors.destructive },
-          { label: 'Leave', val: `${leavePct}%`, count: leaveCount, color: colors.warning },
+          { label: 'Inactive', val: `${inactivePct}%`, count: inactiveCount, color: colors.mutedForeground },
+          { label: 'Holiday', val: `${holidayPct}%`, count: holidayCount, color: colors.warning },
         ].map(st => (
           <View key={st.label} style={[s.sumCard, { backgroundColor: st.color + '15' }]}>
             <Text style={[s.sumVal, { color: st.color }]}>{st.val}</Text>
@@ -464,8 +414,7 @@ export default function AttendanceScreen() {
           studentId={detailStudent.id}
           studentName={detailStudent.name}
           studentClass={detailStudent.cls}
-          studentStatus={detailStudent.status}
-          allRecords={visibleAttendanceRecords}
+          allRecords={attendanceRecords}
           onClose={() => setDetailStudent(null)}
           colors={colors}
         />
