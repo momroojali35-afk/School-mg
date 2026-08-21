@@ -18,7 +18,6 @@ import ReminderCard from '@/components/ReminderCard';
 
 type Tab = 'overview' | 'salary' | 'fees' | 'feeTypes' | 'expenses';
 type Period = 'today' | 'week' | 'month' | 'year' | 'all';
-type SalaryPeriod = 'monthly' | 'yearly' | 'custom';
 
 const EXPENSE_CATEGORIES = ['Supplies', 'Utilities', 'Salaries', 'Maintenance', 'Events', 'Other'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -48,27 +47,6 @@ function fmt(n: number) {
   if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
   if (n >= 1000)   return `₹${(n / 1000).toFixed(1)}k`;
   return `₹${n.toLocaleString('en-IN')}`;
-}
-
-function formatSalaryDateInput(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 6);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
-function parseSalaryDateInput(value: string): string | null {
-  const match = value.trim().match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
-  if (!match) return null;
-  const [, day, month, shortYear] = match;
-  const year = 2000 + Number(shortYear);
-  const date = new Date(year, Number(month) - 1, Number(day));
-  if (
-    date.getFullYear() !== year
-    || date.getMonth() !== Number(month) - 1
-    || date.getDate() !== Number(day)
-  ) return null;
-  return `${year}-${month}-${day}`;
 }
 
 // ── Animated horizontal progress bar ─────────────────────────────────────────
@@ -135,9 +113,6 @@ export default function FinanceScreen() {
 
   const [tab, setTab] = useState<Tab>('overview');
   const [period, setPeriod] = useState<Period>('month');
-  const [salaryPeriod, setSalaryPeriod] = useState<SalaryPeriod>('monthly');
-  const [salaryCustomStart, setSalaryCustomStart] = useState('');
-  const [salaryCustomEnd, setSalaryCustomEnd] = useState('');
   const [activeMetric, setActiveMetric] = useState<'fees' | 'expenses' | 'net'>('fees');
 
   // ── Fee collection state ──
@@ -184,25 +159,17 @@ export default function FinanceScreen() {
   const yearStr = `${now.getFullYear()}`;
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6);
   const weekStartStr = weekStart.toISOString().split('T')[0];
-  const visibleStudentIds = useMemo(
-    () => new Set(students.map(student => student.id)),
-    [students],
-  );
-  const visibleFeeRecords = useMemo(
-    () => feeRecords.filter(record => visibleStudentIds.has(record.studentId)),
-    [feeRecords, visibleStudentIds],
-  );
 
   // ── Period-filtered records ───────────────────────────────────────────────
   const periodFees = useMemo(() => {
     switch (period) {
-      case 'today': return visibleFeeRecords.filter(f => f.date === todayStr);
-      case 'week':  return visibleFeeRecords.filter(f => f.date >= weekStartStr && f.date <= todayStr);
-      case 'month': return visibleFeeRecords.filter(f => f.date.startsWith(monthStr));
-      case 'year':  return visibleFeeRecords.filter(f => f.date.startsWith(yearStr));
-      default:      return visibleFeeRecords;
+      case 'today': return feeRecords.filter(f => f.date === todayStr);
+      case 'week':  return feeRecords.filter(f => f.date >= weekStartStr && f.date <= todayStr);
+      case 'month': return feeRecords.filter(f => f.date.startsWith(monthStr));
+      case 'year':  return feeRecords.filter(f => f.date.startsWith(yearStr));
+      default:      return feeRecords;
     }
-  }, [visibleFeeRecords, period, todayStr, weekStartStr, monthStr, yearStr]);
+  }, [feeRecords, period, todayStr, weekStartStr, monthStr, yearStr]);
 
   const periodExpenses = useMemo(() => {
     switch (period) {
@@ -218,38 +185,21 @@ export default function FinanceScreen() {
   const totalExpenses = useMemo(() => periodExpenses.reduce((s, e) => s + e.amount, 0), [periodExpenses]);
   const netBalance    = totalFees - totalExpenses;
 
-  // Salary periods are intentionally independent from the finance-wide period
-  // selector: salary can be viewed for the current month, current year, or a
-  // custom paid-date range.
+  // Salary periods use the salary month for month/year/all-time views. The
+  // shorter date filters use the actual paid date so they remain useful.
   const salaryPeriodMatches = (record: SalaryRecord) => {
-    if (salaryPeriod === 'yearly') return record.year === now.getFullYear();
-    if (salaryPeriod === 'custom') {
-      const startInput = salaryCustomStart.trim();
-      const endInput = salaryCustomEnd.trim();
-      const start = startInput ? parseSalaryDateInput(startInput) : null;
-      const end = endInput ? parseSalaryDateInput(endInput) : null;
-      if (startInput && !start) return false;
-      if (endInput && !end) return false;
-      if (!start && !end) return true;
-      if ((start || end) && !record.paidDate) return false;
-      return (!start || (record.paidDate ?? '') >= start)
-        && (!end || (record.paidDate ?? '') <= end);
-    }
+    if (period === 'all') return true;
+    if (period === 'today') return record.paidDate === todayStr;
+    if (period === 'week') return !!record.paidDate && record.paidDate >= weekStartStr && record.paidDate <= todayStr;
+    if (period === 'year') return record.year === now.getFullYear();
     const salaryMonthIndex = MONTHS.indexOf(record.month);
     return record.year === now.getFullYear() && salaryMonthIndex === now.getMonth();
   };
 
   const periodSalaryRecords = useMemo(
     () => salaryRecords.filter(salaryPeriodMatches).sort(compareSalaryRecordsNewestFirst),
-    [salaryRecords, salaryPeriod, salaryCustomStart, salaryCustomEnd, now.getFullYear(), now.getMonth()],
+    [salaryRecords, period, todayStr, weekStartStr, now.getFullYear(), now.getMonth()],
   );
-  const salaryPeriodLabel = salaryPeriod === 'monthly'
-    ? 'This Month'
-    : salaryPeriod === 'yearly'
-      ? 'This Year'
-      : salaryCustomStart || salaryCustomEnd
-        ? `${salaryCustomStart || 'Start'} – ${salaryCustomEnd || 'Today'}`
-        : 'Custom Range';
   const totalSalaryPaid = useMemo(
     () => periodSalaryRecords.filter(r => r.status === 'paid').reduce((sum, r) => sum + r.amount, 0),
     [periodSalaryRecords],
@@ -270,10 +220,10 @@ export default function FinanceScreen() {
     }));
     return weeks.map(({ label, start, end }) => ({
       label,
-      fees:     visibleFeeRecords.filter(f => f.date >= start && f.date <= end).reduce((s, f) => s + f.amount, 0),
+      fees:     feeRecords.filter(f => f.date >= start && f.date <= end).reduce((s, f) => s + f.amount, 0),
       expenses: expenses.filter(e => e.date >= start && e.date <= end).reduce((s, e) => s + e.amount, 0),
     }));
-  }, [visibleFeeRecords, expenses, monthStr]);
+  }, [feeRecords, expenses, monthStr]);
 
   // ── Fee type breakdown for period ────────────────────────────────────────
   const feesByType = useMemo(() => {
@@ -302,11 +252,11 @@ export default function FinanceScreen() {
   }, [periodFees, periodExpenses]);
 
   // ── Legacy month-based values (used in student fee cards) ────────────────
-  const monthFees     = useMemo(() => visibleFeeRecords.filter(f => f.date.startsWith(monthStr)).reduce((s, f) => s + f.amount, 0), [visibleFeeRecords, monthStr]);
+  const monthFees     = useMemo(() => feeRecords.filter(f => f.date.startsWith(monthStr)).reduce((s, f) => s + f.amount, 0), [feeRecords, monthStr]);
   const monthExpenses = useMemo(() => expenses.filter(e => e.date.startsWith(monthStr)).reduce((s, e) => s + e.amount, 0), [expenses, monthStr]);
 
-  const getStudentLastFee  = (id: string) => visibleFeeRecords.filter(f => f.studentId === id).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
-  const getStudentTotal    = (id: string) => visibleFeeRecords.filter(f => f.studentId === id).reduce((s, f) => s + f.amount, 0);
+  const getStudentLastFee  = (id: string) => feeRecords.filter(f => f.studentId === id).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+  const getStudentTotal    = (id: string) => feeRecords.filter(f => f.studentId === id).reduce((s, f) => s + f.amount, 0);
   const activeStudents     = useMemo(() => students.filter(isActiveStudent), [students]);
   const uniqueClasses      = useMemo(() => ['All', ...Array.from(new Set(activeStudents.map(s => s.class))).sort()], [activeStudents]);
   const filteredStudents   = useMemo(() => activeStudents.filter(s => {
@@ -319,7 +269,7 @@ export default function FinanceScreen() {
   const openCollect = (student: Student) => {
     setCollectStudent(student);
     setCollectFeeTypeId('');
-    const fi = getStudentFeeInfo(student, visibleFeeRecords);
+    const fi = getStudentFeeInfo(student, feeRecords);
     setCollectAmount(fi.remaining > 0 ? String(fi.remaining) : '');
     setCollectDesc(`Monthly Fee - ${MONTHS[now.getMonth()]} ${now.getFullYear()}`);
     setCollectDate(now.toISOString().split('T')[0]);
@@ -341,7 +291,7 @@ export default function FinanceScreen() {
     const selectedFt = feeTypes.find(f => f.id === collectFeeTypeId);
     const isAnnualFee = selectedFt?.category === 'annual' || (selectedFt?.name.toLowerCase().includes('annual fee') ?? false);
     if (isAnnualFee) {
-    const fi = getStudentFeeInfo(collectStudent, visibleFeeRecords);
+      const fi = getStudentFeeInfo(collectStudent, feeRecords);
       if (fi.annualFee > 0 && finalAmt > fi.remaining) {
         Alert.alert('Overpayment', `Remaining balance is ₹${fi.remaining.toLocaleString('en-IN')}. You cannot collect more than the outstanding balance.`);
         return;
@@ -573,70 +523,6 @@ export default function FinanceScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={(
             <View>
-              <View style={salary.periodCard}>
-                <View style={salary.periodHeader}>
-                  <View>
-                    <Text style={[salary.periodTitle, { color: colors.text }]}>Salary period</Text>
-                    <Text style={[salary.periodHint, { color: colors.mutedForeground }]}>Choose which salary records to show</Text>
-                  </View>
-                  <Feather name="calendar" size={17} color={colors.primary} />
-                </View>
-                <View style={salary.periodPills}>
-                  {([
-                    { key: 'monthly' as const, label: 'Monthly' },
-                    { key: 'yearly' as const, label: 'Yearly' },
-                    { key: 'custom' as const, label: 'Custom' },
-                  ]).map(option => {
-                    const active = salaryPeriod === option.key;
-                    return (
-                      <TouchableOpacity
-                        key={option.key}
-                        onPress={() => setSalaryPeriod(option.key)}
-                        style={[
-                          salary.periodPill,
-                          { borderColor: colors.border, backgroundColor: colors.muted },
-                          active && { borderColor: colors.primary, backgroundColor: colors.primary },
-                        ]}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[salary.periodPillText, { color: colors.mutedForeground }, active && { color: '#fff' }]}>
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                {salaryPeriod === 'custom' && (
-                  <View style={salary.customRange}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[salary.customLabel, { color: colors.mutedForeground }]}>From</Text>
-                      <TextInput
-                        value={salaryCustomStart}
-                        onChangeText={value => setSalaryCustomStart(formatSalaryDateInput(value))}
-                        placeholder="DD/MM/YY"
-                        placeholderTextColor={colors.mutedForeground}
-                        style={[salary.customInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
-                        autoCapitalize="none"
-                        keyboardType="numbers-and-punctuation"
-                        maxLength={8}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[salary.customLabel, { color: colors.mutedForeground }]}>To</Text>
-                      <TextInput
-                        value={salaryCustomEnd}
-                        onChangeText={value => setSalaryCustomEnd(formatSalaryDateInput(value))}
-                        placeholder="DD/MM/YY"
-                        placeholderTextColor={colors.mutedForeground}
-                        style={[salary.customInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
-                        autoCapitalize="none"
-                        keyboardType="numbers-and-punctuation"
-                        maxLength={8}
-                      />
-                    </View>
-                  </View>
-                )}
-              </View>
               <View style={salary.summaryCard}>
                 <View style={salary.summaryTop}>
                   <View style={[salary.summaryIcon, { backgroundColor: colors.success + '18' }]}>
@@ -646,7 +532,7 @@ export default function FinanceScreen() {
                     <Text style={salary.summaryEyebrow}>SALARY PAID</Text>
                     <Text style={[salary.summaryValue, { color: colors.text }]}>{fmt(totalSalaryPaid)}</Text>
                     <Text style={[salary.summaryPeriod, { color: colors.mutedForeground }]}>
-                      {paidSalaryCount} payment{paidSalaryCount === 1 ? '' : 's'} · {salaryPeriodLabel}
+                      {paidSalaryCount} payment{paidSalaryCount === 1 ? '' : 's'} · {PERIODS.find(item => item.key === period)?.label}
                     </Text>
                   </View>
                   <View style={salary.summaryStatus}>
@@ -763,7 +649,7 @@ export default function FinanceScreen() {
           ListEmptyComponent={<EmptyState icon="dollar-sign" title="No Students" subtitle={feeSearch || feeClassFilter !== 'All' ? 'No students match your filter' : 'Add students to manage fees'} />}
           renderItem={({ item: st }) => {
             const last = getStudentLastFee(st.id);
-            const fi = getStudentFeeInfo(st, visibleFeeRecords);
+            const fi = getStudentFeeInfo(st, feeRecords);
             const STATUS_COLORS: Record<string, string> = { paid: colors.success, partial: colors.warning, pending: colors.destructive, 'no-fee': colors.mutedForeground };
             const STATUS_LABELS: Record<string, string> = { paid: 'Paid', partial: 'Partial', pending: 'Pending', 'no-fee': 'No Fee Set' };
             const statusColor = STATUS_COLORS[fi.status];
@@ -775,7 +661,12 @@ export default function FinanceScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[fc.name, { color: colors.text }]}>{st.name}</Text>
-                    <Text style={[fc.sub, { color: colors.mutedForeground }]}>{st.class} • Roll {st.rollNumber}</Text>
+                    <Text style={[fc.sub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                      Father: {st.fatherName || '—'}
+                    </Text>
+                    <Text style={[fc.sub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                      {st.class} • Roll No: {st.rollNumber || '—'}
+                    </Text>
                     {last && <Text style={[fc.sub, { color: colors.mutedForeground }]}>Last: {last.date}</Text>}
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
@@ -917,7 +808,7 @@ export default function FinanceScreen() {
                 </TouchableOpacity>
               </View>
               {collectStudent && (() => {
-                const fi = getStudentFeeInfo(collectStudent, visibleFeeRecords);
+                const fi = getStudentFeeInfo(collectStudent, feeRecords);
                 if (fi.annualFee <= 0) return null;
                 return (
                   <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1046,8 +937,8 @@ export default function FinanceScreen() {
               <TouchableOpacity onPress={() => setShowFeeHistory(null)}><Feather name="x" size={24} color={colors.mutedForeground} /></TouchableOpacity>
             </View>
             {showFeeHistory && (() => {
-              const records = visibleFeeRecords.filter(f => f.studentId === showFeeHistory.id).sort((a, b) => b.date.localeCompare(a.date));
-              const fi = getStudentFeeInfo(showFeeHistory, visibleFeeRecords);
+              const records = feeRecords.filter(f => f.studentId === showFeeHistory.id).sort((a, b) => b.date.localeCompare(a.date));
+              const fi = getStudentFeeInfo(showFeeHistory, feeRecords);
               const STATUS_COLORS: Record<string, string> = { paid: colors.success, partial: colors.warning, pending: colors.destructive, 'no-fee': colors.mutedForeground };
               const STATUS_LABELS: Record<string, string> = { paid: 'Fully Paid', partial: 'Partial', pending: 'Pending', 'no-fee': 'No Fee Set' };
               return (
@@ -1258,7 +1149,7 @@ export default function FinanceScreen() {
                       studentClass={reminderStudent.class}
                       rollNumber={reminderStudent.rollNumber}
                       fatherName={reminderStudent.fatherName}
-                      dueAmount={getStudentFeeInfo(reminderStudent, visibleFeeRecords).remaining}
+                      dueAmount={getStudentFeeInfo(reminderStudent, feeRecords).remaining}
                       logoDataUrl={documentBranding.logoDataUrl}
                     />
                   </ViewShot>
@@ -1445,26 +1336,6 @@ const salary = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  periodCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#0C1F4A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 7,
-    elevation: 1,
-  },
-  periodHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  periodTitle: { fontSize: 14, fontWeight: '800' },
-  periodHint: { fontSize: 11, marginTop: 3 },
-  periodPills: { flexDirection: 'row', gap: 8, marginTop: 13 },
-  periodPill: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingVertical: 9 },
-  periodPillText: { fontSize: 12, fontWeight: '800' },
-  customRange: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  customLabel: { fontSize: 10, fontWeight: '700', marginBottom: 5 },
-  customInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9, fontSize: 12 },
   summaryTop: { flexDirection: 'row', alignItems: 'center' },
   summaryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   summaryEyebrow: { fontSize: 10, color: '#64748B', fontWeight: '800', letterSpacing: 0.8 },
