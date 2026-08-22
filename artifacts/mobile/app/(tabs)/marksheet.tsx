@@ -397,14 +397,14 @@ function buildSingleMarksheetHtml(
 
   /* ---------- info box ---------- */
   .info-box { border:1.5px solid #c8a040; border-radius:8px; display:flex; gap:0; margin-top:8px; overflow:hidden; background:#fdfcf5; }
-  .info-col { flex:1; padding:10px 14px; }
+  .info-col { flex:1; padding:5px 10px; }
   .info-col + .info-col { border-left:1px solid #e8d9a8; }
-  .irow { display:flex; align-items:center; gap:10px; margin-bottom:6px; font-size:13px; }
+  .irow { display:flex; align-items:center; gap:6px; height:17px; margin-bottom:1px; font-size:11px; line-height:1; }
   .irow:last-child { margin-bottom:0; }
-  .irow .ic { width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .irow .lbl { font-weight:600; color:#0c1f4a; min-width:104px; flex-shrink:0; }
+  .irow .ic { width:18px; height:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; }
+  .irow .lbl { font-weight:600; color:#0c1f4a; min-width:88px; flex-shrink:0; }
   .irow .colon { font-weight:700; color:#c8a040; margin:0 4px; flex-shrink:0; }
-  .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:0; }
+  .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:1; overflow:hidden; text-overflow:ellipsis; }
   /* ---------- QR card ---------- */
   .qr-card { margin-top:6px; border:2px solid #c8a040; border-radius:10px; padding:8px 10px; display:inline-flex; flex-direction:column; align-items:center; gap:4px; background:#f5f7fc; box-shadow:0 3px 10px rgba(200,160,64,0.2); }
   .qr-card span { font-size:9px; font-weight:700; color:#0c1f4a; letter-spacing:1.5px; text-transform:uppercase; }
@@ -826,14 +826,14 @@ function buildCombinedMarksheetHtml(
   .comb-title .stars { font-size:11px; color:#c8a040; letter-spacing:5px; margin-top:2px; }
   /* info box */
   .info-box { border:1.5px solid #c8a040; border-radius:8px; display:flex; margin-top:7px; overflow:hidden; background:#fdfcf5; }
-  .info-col { flex:1; padding:7px 14px; }
+  .info-col { flex:1; padding:5px 10px; }
   .info-col + .info-col { border-left:1px solid #e8d9a8; }
-  .irow { display:flex; align-items:center; gap:10px; margin-bottom:4px; font-size:12.5px; line-height:1.15; }
+  .irow { display:flex; align-items:center; gap:6px; height:17px; margin-bottom:1px; font-size:11px; line-height:1; }
   .irow:last-child { margin-bottom:0; }
-  .irow .ic { width:24px; height:21px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .irow .lbl { font-weight:600; color:#0c1f4a; min-width:88px; flex-shrink:0; }
+  .irow .ic { width:18px; height:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; }
+  .irow .lbl { font-weight:600; color:#0c1f4a; min-width:78px; flex-shrink:0; }
   .irow .colon { font-weight:700; color:#c8a040; margin:0 4px; flex-shrink:0; }
-  .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:0; }
+  .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:1; overflow:hidden; text-overflow:ellipsis; }
   /* ---------- QR card ---------- */
   .qr-card { margin-top:5px; border:2px solid #c8a040; border-radius:10px; padding:7px 10px; display:inline-flex; flex-direction:column; align-items:center; gap:4px; background:#f5f7fc; box-shadow:0 3px 10px rgba(200,160,64,0.2); }
   .qr-card span { font-size:9px; font-weight:700; color:#0c1f4a; letter-spacing:1.5px; text-transform:uppercase; }
