@@ -11,7 +11,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import {
   useApp, Exam, getExamSubjectsForClass, getSubjectMaxMarksForClass,
-  isActiveStudent, compareStudentRollNumbers,
+  isGraduatedStudent, compareStudentRollNumbers,
 } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
@@ -123,8 +123,11 @@ export default function TeacherMarks() {
   /** Students in the selected class */
   const examStudents = useMemo(
     () => students
-      .filter(s => s.class === selectedClass && isActiveStudent(s))
-      .sort(compareStudentRollNumbers),
+      .filter(s => s.class === selectedClass && !isGraduatedStudent(s))
+      .sort((a, b) => {
+        const activeOrder = (a.status === 'inactive' ? 1 : 0) - (b.status === 'inactive' ? 1 : 0);
+        return activeOrder || compareStudentRollNumbers(a, b);
+      }),
     [students, selectedClass],
   );
 
@@ -158,8 +161,11 @@ export default function TeacherMarks() {
     setDirtySubjects(new Set()); // reset per-session dirty tracking when switching class
     setEditingSubjects(new Set());
     const classStudents = students
-      .filter(s => s.class === cls && isActiveStudent(s))
-      .sort(compareStudentRollNumbers);
+      .filter(s => s.class === cls && !isGraduatedStudent(s))
+      .sort((a, b) => {
+        const activeOrder = (a.status === 'inactive' ? 1 : 0) - (b.status === 'inactive' ? 1 : 0);
+        return activeOrder || compareStudentRollNumbers(a, b);
+      });
     const subs = getExamSubjectsForClass(exam, cls);
 
     const hasResults = classStudents.some(s =>
