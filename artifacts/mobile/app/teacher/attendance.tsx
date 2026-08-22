@@ -643,7 +643,7 @@ export default function TeacherAttendance() {
     );
   };
 
-  const reportRecords = useMemo(() => {
+  const filteredReportRecords = useMemo(() => {
     let records = attendanceRecords;
     if (filterReportClass !== "All")
       records = records.filter((a) => a.class === filterReportClass);
@@ -673,6 +673,43 @@ export default function TeacherAttendance() {
     customStartDate,
     customEndDate,
   ]);
+
+  // Reports are student summaries, not one row for every attendance date.
+  // Keep the complete filtered list for the detail modal, but show each
+  // active/inactive student only once in the report list.
+  const reportRecords = useMemo(() => {
+    const studentsInClass = students
+      .filter(
+        (student) =>
+          !isGraduatedStudent(student) &&
+          (filterReportClass === "All" || student.class === filterReportClass),
+      )
+      .sort((a, b) => {
+        const classOrder = a.class.localeCompare(b.class, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        return classOrder || compareStudentRollNumbers(a, b);
+      });
+
+    return studentsInClass.map((student) => {
+      const latest = filteredReportRecords.find(
+        (record) => record.studentId === student.id,
+      );
+      return (
+        latest ?? {
+          id: `student-${student.id}`,
+          studentId: student.id,
+          studentName: student.name,
+          class: student.class,
+          date: "",
+          status: student.status === "inactive" ? "inactive" : "absent",
+          takenBy: "",
+          hasAttendanceRecord: false,
+        }
+      );
+    });
+  }, [students, filterReportClass, filteredReportRecords]);
 
   const customRangeValid =
     /^\d{4}-\d{2}-\d{2}$/.test(customStartDate) &&
@@ -1435,7 +1472,8 @@ export default function TeacherAttendance() {
               />
             }
             renderItem={({ item }) => {
-              let color = colors.success;
+              const hasRecord = (item as any).hasAttendanceRecord !== false;
+              let color = hasRecord ? colors.success : colors.mutedForeground;
               if (item.status === "absent" || item.status === "inactive")
                 color = colors.destructive;
               else if (item.status === "holiday") color = colors.warning;
@@ -1457,8 +1495,8 @@ export default function TeacherAttendance() {
                       { backgroundColor: colors.secondary },
                     ]}
                   >
-                    <Text style={[rp.dateText, { color: colors.primary }]}>
-                      {item.date.split("-").slice(1).join("/")}
+                    <Text style={[rp.dateText, { color: hasRecord ? colors.primary : colors.mutedForeground }]}>
+                      {item.date ? item.date.split("-").slice(1).join("/") : "—"}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
@@ -1466,7 +1504,7 @@ export default function TeacherAttendance() {
                       {item.studentName}
                     </Text>
                     <Text style={[rp.meta, { color: colors.mutedForeground }]}>
-                      {item.class} · By {item.takenBy}
+                      {item.class} · {item.takenBy ? `By ${item.takenBy}` : "No attendance recorded"}
                     </Text>
                   </View>
                   <View
@@ -1475,7 +1513,9 @@ export default function TeacherAttendance() {
                     <Text
                       style={{ fontSize: 12, fontWeight: "700", color: color }}
                     >
-                      {item.status === "inactive"
+                      {!hasRecord
+                        ? "—"
+                        : item.status === "inactive"
                         ? "I"
                         : item.status.charAt(0).toUpperCase()}
                     </Text>
@@ -1498,7 +1538,7 @@ export default function TeacherAttendance() {
           studentId={detailStudent.id}
           studentName={detailStudent.name}
           studentClass={detailStudent.cls}
-          allRecords={reportRecords}
+            allRecords={filteredReportRecords}
           onClose={() => setDetailStudent(null)}
           colors={colors}
         />
