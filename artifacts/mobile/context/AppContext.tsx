@@ -470,6 +470,7 @@ interface AppContextType extends AppState {
     adminName: string,
   ) => Promise<void>;
   addFeeRecord: (r: Omit<FeeRecord, "id">) => FeeRecord;
+  updateFeeRecord: (id: string, r: Partial<FeeRecord>) => void;
   deleteFeeRecord: (id: string) => void;
   addExpense: (e: Omit<Expense, "id">) => void;
   deleteExpense: (id: string) => void;
@@ -1831,6 +1832,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     apiDelete(`/fee-records/${id}`).catch(console.error);
   }, []);
 
+  const updateFeeRecord = useCallback((id: string, changes: Partial<FeeRecord>) => {
+    setState((prev) => ({
+      ...prev,
+      feeRecords: prev.feeRecords.map((record) =>
+        record.id === id ? { ...record, ...changes } : record,
+      ),
+    }));
+    apiPut(`/fee-records/${id}`, changes)
+      .then((row) => {
+        setState((prev) => ({
+          ...prev,
+          feeRecords: prev.feeRecords.map((record) =>
+            record.id === id ? mapFeeRecord(row as any) : record,
+          ),
+        }));
+      })
+      .catch(console.error);
+  }, []);
+
   // ── Expenses ──
   const addExpense = useCallback((e: Omit<Expense, "id">) => {
     const ne: Expense = { ...e, id: genId() };
@@ -2294,7 +2314,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         lockSubject,
         unlockSubject,
         addFeeRecord,
-        deleteFeeRecord,
+        updateFeeRecord, deleteFeeRecord,
         addExpense,
         deleteExpense,
         updateSalaryStatus,
