@@ -148,14 +148,14 @@ router.post("/mark-submissions/submit", async (req, res) => {
   // A submitted subject can only be edited by its original teacher when the
   // administrator has enabled mark editing for that individual teacher.
   const existing = await getAdapter().markSubmissions.get(examId, cls, subject);
-  const allowTeacherEdit = (teacher.permissions ?? {}).allowMarkEdit === true;
-  // Older data can contain marks without a corresponding submission row.
-  // Treat those marks as submitted instead of allowing an implicit edit.
+  // A submitted subject belongs to the teacher who submitted it.
+  // Legacy marks without an ownership record remain submitted, but cannot be
+  // edited by a teacher until an admin unlocks and re-submission records ownership.
   const hasLegacyStoredMarks = !existing && await subjectHasStoredMarks(examId, cls, subject);
   const effectiveExisting = existing ?? (hasLegacyStoredMarks ? { status: "submitted", teacherId: null } : null);
   const isTeacherEdit =
     effectiveExisting?.status === "submitted" &&
-    (effectiveExisting.teacherId === teacherId || (hasLegacyStoredMarks && allowTeacherEdit));
+    effectiveExisting.teacherId === teacherId;
 
   if (effectiveExisting?.status === "locked") {
     res.status(409).json({
@@ -167,13 +167,6 @@ router.post("/mark-submissions/submit", async (req, res) => {
   if (effectiveExisting?.status === "submitted" && !isTeacherEdit) {
     res.status(403).json({
       error: `Only the teacher who submitted "${subject}" can edit these marks.`,
-      status: "submitted",
-    });
-    return;
-  }
-  if (isTeacherEdit && !allowTeacherEdit) {
-    res.status(409).json({
-      error: "Editing submitted marks is disabled for this teacher by the administrator.",
       status: "submitted",
     });
     return;
