@@ -385,7 +385,7 @@ export default function TeacherMarks() {
                 <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Edit</Text>
               </TouchableOpacity>
             )}
-            {/* Single Edit button for teachers with allowMarkEdit — unlocks all their submitted subjects at once */}
+            {/* Edit submitted subjects only when the current teacher is the original submitter */}
             {user?.role === 'teacher' && examSubjects.some(sub => canStartTeacherEdit(sub) && !editingSubjects.has(sub)) && (
               <TouchableOpacity
                 style={s.editBtn}
