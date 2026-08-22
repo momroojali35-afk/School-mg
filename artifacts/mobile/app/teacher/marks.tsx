@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
+  View, Text, StyleSheet, TouchableOpacity, TextInput, Modal,
   ScrollView, Platform, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -720,11 +720,25 @@ export default function TeacherMarks() {
             )}
           </ScrollView>
 
-          {savedBanner && (
-            <View style={{ backgroundColor: colors.success, padding: 12, alignItems: 'center' }}>
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>✓ Marks saved successfully!</Text>
+          <Modal visible={savedBanner} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSavedBanner(false)}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(7, 20, 52, 0.42)', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+              <View style={{ width: '100%', maxWidth: 360, borderRadius: 28, backgroundColor: colors.card, padding: 26, alignItems: 'center', shadowColor: '#071434', shadowOpacity: 0.24, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 14 }}>
+                <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+                  <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' }}>
+                    <Feather name="check" size={32} color="#fff" />
+                  </View>
+                </View>
+                <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', textAlign: 'center' }}>Marks Submitted</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 8 }}>
+                  Marks have been submitted successfully for {selectedClass}.
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: colors.success + '12' }}>
+                  <Feather name="shield" size={14} color={colors.success} />
+                  <Text style={{ color: colors.success, fontSize: 12, fontWeight: '700', marginLeft: 6 }}>Saved securely</Text>
+                </View>
+              </View>
             </View>
-          )}
+          </Modal>
           {mode === 'edit' && (
             <View
               style={[
