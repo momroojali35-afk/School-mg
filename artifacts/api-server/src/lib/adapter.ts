@@ -67,6 +67,7 @@ export interface DataAdapter {
   feeRecords: {
     list(): Promise<any[]>;
     create(data: any): Promise<any>;
+    update(id: string, data: any): Promise<any | null>;
     delete(id: string): Promise<void>;
   };
   salaryRecords: {
