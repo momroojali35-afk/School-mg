@@ -88,16 +88,13 @@ export default function TeacherMarks() {
   }, [selectedExam, selectedClass, markSubmissions]);
 
   const canStartTeacherEdit = useCallback((subject: string): boolean => {
-    const currentTeacher = teachers.find(teacher => String(teacher.id) === String(user?.id));
-    const allowMarkEdit = currentTeacher?.permissions.allowMarkEdit ?? user?.permissions?.allowMarkEdit;
-    if (user?.role !== 'teacher' || allowMarkEdit !== true) return false;
+    if (user?.role !== 'teacher') return false;
     const submission = getSubjectSubmission(subject);
     return submission?.status === 'submitted' && String(submission.teacherId) === String(user.id);
   }, [user, teachers, getSubjectSubmission]);
 
   // Draft subjects remain editable as before. Submitted subjects are editable
-  // only after the original teacher taps Edit and only while the admin toggle
-  // is enabled. Locked subjects remain read-only.
+  // only after the original teacher taps Edit. Locked subjects remain read-only.
   const canEditSubject = useCallback((subject: string): boolean => {
     if (user?.role === 'admin') return true;
     if (getSubjectStatus(subject) === 'draft') return true;
