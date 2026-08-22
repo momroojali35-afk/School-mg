@@ -153,6 +153,7 @@ router.post("/mark-submissions/submit", async (req, res) => {
   // edited by a teacher until an admin unlocks and re-submission records ownership.
   const hasLegacyStoredMarks = !existing && await subjectHasStoredMarks(examId, cls, subject);
   const effectiveExisting = existing ?? (hasLegacyStoredMarks ? { status: "submitted", teacherId: null } : null);
+  const allowTeacherEdit = (teacher.permissions ?? {}).allowMarkEdit === true;
   const isTeacherEdit =
     effectiveExisting?.status === "submitted" &&
     effectiveExisting.teacherId === teacherId;
@@ -161,6 +162,13 @@ router.post("/mark-submissions/submit", async (req, res) => {
     res.status(409).json({
       error: `Subject "${subject}" marks are locked. Only an admin can unlock them.`,
       status: "locked",
+    });
+    return;
+  }
+  if (isTeacherEdit && !allowTeacherEdit) {
+    res.status(409).json({
+      error: "Editing submitted marks is disabled for this teacher by the administrator.",
+      status: "submitted",
     });
     return;
   }
