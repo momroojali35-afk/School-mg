@@ -14,6 +14,8 @@ import {
   Exam,
   getExamSubjectsForClass,
   getSubjectMaxMarksForClass,
+  isGraduatedStudent,
+  compareStudentRollNumbers,
 } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 
@@ -139,7 +141,12 @@ export default function TeacherMarks() {
 
   /** Students in the selected class */
   const examStudents = useMemo(
-    () => students.filter(s => s.class === selectedClass),
+    () => students
+      .filter(s => s.class === selectedClass && !isGraduatedStudent(s))
+      .sort((a, b) => {
+        const activeOrder = (a.status === 'inactive' ? 1 : 0) - (b.status === 'inactive' ? 1 : 0);
+        return activeOrder || compareStudentRollNumbers(a, b);
+      }),
     [students, selectedClass],
   );
 
@@ -172,7 +179,12 @@ export default function TeacherMarks() {
     setShowClassPicker(false);
     setDirtySubjects(new Set()); // reset per-session dirty tracking when switching class
     setEditingSubjects(new Set());
-    const classStudents = students.filter(s => s.class === cls);
+    const classStudents = students
+      .filter(s => s.class === cls && !isGraduatedStudent(s))
+      .sort((a, b) => {
+        const activeOrder = (a.status === 'inactive' ? 1 : 0) - (b.status === 'inactive' ? 1 : 0);
+        return activeOrder || compareStudentRollNumbers(a, b);
+      });
     const subs = getExamSubjectsForClass(exam, cls);
 
     const hasResults = classStudents.some(s =>
@@ -568,7 +580,14 @@ export default function TeacherMarks() {
                       <Text style={[mc.avatarText, { color: colors.primary }]}>{student.name.charAt(0)}</Text>
                     </View>
                     <View>
-                      <Text style={[mc.name, { color: colors.text }]}>{student.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={[mc.name, { color: colors.text }]}>{student.name}</Text>
+                        {student.status === 'inactive' && (
+                          <View style={{ backgroundColor: colors.destructive + '18', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                            <Text style={{ color: colors.destructive, fontSize: 9, fontWeight: '700' }}>INACTIVE</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={[mc.roll, { color: colors.mutedForeground }]}>Roll {student.rollNumber}</Text>
                     </View>
                   </View>
