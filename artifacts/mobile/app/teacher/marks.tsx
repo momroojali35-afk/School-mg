@@ -102,7 +102,7 @@ export default function TeacherMarks() {
   const effectivePermissions = currentTeacher?.permissions ?? user?.permissions;
 
   const canStartTeacherEdit = useCallback((subject: string): boolean => {
-    if (user?.role !== 'teacher') return false;
+    if (user?.role !== 'teacher' || effectivePermissions?.allowMarkEdit !== true) return false;
     const submission = getSubjectSubmission(subject);
     return submission?.status === 'submitted' && String(submission.teacherId) === String(user.id);
   }, [user, currentTeacher, getSubjectSubmission]);
