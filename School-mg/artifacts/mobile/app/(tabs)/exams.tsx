@@ -12,7 +12,7 @@ import { useColors } from '@/hooks/useColors';
 import {
   useApp, Exam, ExamResult, SubjectSchedule, ClassSubjectAssignment,
   getExamSubjectsForClass, getSubjectMaxMarksForClass,
-  isActiveStudent, compareStudentRollNumbers,
+  isActiveStudent, isGraduatedStudent, compareStudentRollNumbers,
 } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import PremiumAlert from '@/components/PremiumAlert';
@@ -153,7 +153,7 @@ export default function ExamsScreen() {
 
   const examStudents = useMemo(
     () => students
-      .filter(s => s.class === (selectedClass ?? selectedExam?.class) && isActiveStudent(s))
+      .filter(s => s.class === (selectedClass ?? selectedExam?.class) && !isGraduatedStudent(s))
       .sort(compareStudentRollNumbers),
     [students, selectedClass, selectedExam],
   );
@@ -184,7 +184,7 @@ export default function ExamsScreen() {
     const subs = getExamSubjectsForClass(exam, cls);
     const data: Record<string, Record<string, string>> = {};
     students
-      .filter(s => s.class === cls && isActiveStudent(s))
+      .filter(s => s.class === cls && !isGraduatedStudent(s))
       .sort(compareStudentRollNumbers)
       .forEach(s => {
       const existing = examResults.find(r => r.examId === exam.id && r.studentId === s.id);
@@ -229,7 +229,7 @@ export default function ExamsScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const subs = getExamSubjectsForClass(selectedExam, selectedClass);
     const classStudents = students
-      .filter(s => s.class === selectedClass && isActiveStudent(s))
+      .filter(s => s.class === selectedClass && !isGraduatedStudent(s))
       .sort(compareStudentRollNumbers);
     const results: Omit<ExamResult, 'id'>[] = classStudents.map(s => ({
       examId: selectedExam.id, studentId: s.id, studentName: s.name,
@@ -1120,7 +1120,7 @@ export default function ExamsScreen() {
   // ── Enter Marks View ──────────────────────────────────────────────────────
   if (screen === 'marks' && selectedExam && selectedClass) {
     const markSubs = getExamSubjectsForClass(selectedExam, selectedClass);
-    const markStudents = students.filter(s => s.class === selectedClass && isActiveStudent(s));
+    const markStudents = students.filter(s => s.class === selectedClass && !isGraduatedStudent(s));
     return (
       <View style={[s.root, { backgroundColor: colors.background }]}>
         <View style={[s.backBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
