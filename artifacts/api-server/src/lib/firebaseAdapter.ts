@@ -673,6 +673,18 @@ export function createFirebaseAdapter(fs: Firestore): DataAdapter {
         await col("fee_records").doc(id).set(doc);
         return { id, ...doc };
       },
+      async update(id, data: any) {
+        const ref = col("fee_records").doc(id);
+        const existing = await ref.get();
+        if (!existing.exists) return null;
+        const updates: any = {};
+        for (const key of ["amount", "date", "description", "paymentMethod"]) {
+          if (data[key] !== undefined) updates[key] = data[key];
+        }
+        if (Object.keys(updates).length === 0) return null;
+        await ref.update(updates);
+        return { id, ...existing.data(), ...updates };
+      },
       async delete(id) {
         await col("fee_records").doc(id).delete();
       },
