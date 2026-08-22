@@ -61,8 +61,7 @@ export default function TeacherMarks() {
   const [editingSubjects, setEditingSubjects] = useState<Set<string>>(new Set());
 
   // Permissions can be changed by an administrator on another device while a
-  // teacher app remains open. Refresh before evaluating edit controls so the
-  // UI cannot continue using an old allowMarkEdit value.
+  // teacher app remains open. Refresh teacher data when the screen opens so ownership data stays current.
   useFocusEffect(useCallback(() => {
     refreshTeachers().catch(() => {
       // Keep the existing cached permissions if the refresh is temporarily unavailable.
@@ -103,7 +102,7 @@ export default function TeacherMarks() {
   const effectivePermissions = currentTeacher?.permissions ?? user?.permissions;
 
   const canStartTeacherEdit = useCallback((subject: string): boolean => {
-    if (user?.role !== 'teacher' || effectivePermissions?.allowMarkEdit !== true) return false;
+    if (user?.role !== 'teacher') return false;
     const submission = getSubjectSubmission(subject);
     return submission?.status === 'submitted' && String(submission.teacherId) === String(user.id);
   }, [user, currentTeacher, getSubjectSubmission]);
@@ -399,7 +398,7 @@ export default function TeacherMarks() {
                 <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Edit</Text>
               </TouchableOpacity>
             )}
-            {/* Single Edit button for teachers with allowMarkEdit — unlocks all their submitted subjects at once */}
+            {/* Edit submitted subjects only when the current teacher is the original submitter */}
             {user?.role === 'teacher' && examSubjects.some(sub => canStartTeacherEdit(sub) && !editingSubjects.has(sub)) && (
               <TouchableOpacity
                 style={s.editBtn}
