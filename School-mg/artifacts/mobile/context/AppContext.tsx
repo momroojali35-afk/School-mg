@@ -362,6 +362,7 @@ interface AppContextType extends AppState {
   deleteStudent: (id: string) => void;
   addTeacher: (t: Omit<Teacher, 'id'>) => void;
   updateTeacher: (id: string, t: Partial<Teacher>) => void;
+  refreshTeachers: () => Promise<void>;
   deleteTeacher: (id: string) => void;
   addClass: (name: string) => Promise<void>;
   updateClass: (oldName: string, newName: string) => Promise<void>;
@@ -839,6 +840,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     apiPut(`/teachers/${id}`, t).then(row => {
       setState(prev => ({ ...prev, teachers: prev.teachers.map(x => x.id === id ? mapTeacher(row as any) : x) }));
     }).catch(console.error);
+  }, []);
+
+  const refreshTeachers = useCallback(async (): Promise<void> => {
+    const rows = await apiGet<any[]>(`/teachers?refresh=${Date.now()}`);
+    setState(prev => ({ ...prev, teachers: rows.map(mapTeacher) }));
   }, []);
 
   const deleteTeacher = useCallback((id: string) => {
@@ -1334,7 +1340,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppContext.Provider value={{
       ...state,
       addStudent, updateStudent, deleteStudent,
-      addTeacher, updateTeacher, deleteTeacher,
+      addTeacher, updateTeacher, refreshTeachers, deleteTeacher,
       addClass, updateClass, deleteClass,
       addSection, updateSection, deleteSection,
       addSubject, deleteSubject,
