@@ -18,6 +18,15 @@ router.post("/fee-records", async (req, res) => {
   res.status(201).json(row);
 });
 
+router.put("/fee-records/:id", async (req, res) => {
+  const row = await getAdapter().feeRecords.update(req.params.id, req.body);
+  if (!row) {
+    res.status(404).json({ error: "Fee record not found" });
+    return;
+  }
+  res.json(row);
+});
+
 router.delete("/fee-records/:id", async (req, res) => {
   await getAdapter().feeRecords.delete(req.params.id);
   res.status(204).send();
