@@ -425,6 +425,7 @@ interface AppContextType extends AppState {
   deleteStudent: (id: string) => void;
   addTeacher: (t: Omit<Teacher, "id">) => void;
   updateTeacher: (id: string, t: Partial<Teacher>) => void;
+  refreshTeachers: () => Promise<void>;
   deleteTeacher: (id: string) => void;
   addClass: (name: string) => Promise<void>;
   updateClass: (oldName: string, newName: string) => Promise<void>;
@@ -1371,6 +1372,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .catch(console.error);
   }, []);
 
+  const refreshTeachers = useCallback(async (): Promise<void> => {
+    const rows = await apiGet<any[]>(`/teachers?refresh=${Date.now()}`);
+    setState((prev) => ({ ...prev, teachers: rows.map(mapTeacher) }));
+  }, []);
+
   const deleteTeacher = useCallback((id: string) => {
     setState((prev) => ({
       ...prev,
@@ -2293,6 +2299,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteStudent,
         addTeacher,
         updateTeacher,
+        refreshTeachers,
         deleteTeacher,
         addClass,
         updateClass,
