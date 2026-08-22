@@ -608,6 +608,18 @@ export function createPgAdapter(db: DB): DataAdapter {
         const [row] = await db.insert(feeRecordsTable).values(values).returning();
         return row;
       },
+      async update(id, data: any) {
+        const values: any = {};
+        for (const key of ["amount", "date", "description", "paymentMethod"]) {
+          if (data[key] !== undefined) values[key] = data[key];
+        }
+        if (Object.keys(values).length === 0) return null;
+        const [row] = await db.update(feeRecordsTable)
+          .set(values)
+          .where(eq(feeRecordsTable.id, id))
+          .returning();
+        return row ?? null;
+      },
       async delete(id) {
         await db.delete(feeRecordsTable).where(eq(feeRecordsTable.id, id));
       },
