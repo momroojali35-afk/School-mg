@@ -3,7 +3,7 @@
  */
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { eq, asc, and, desc, inArray, sql as drizzleSql } from "drizzle-orm";
-import * as schema from "@workspace/db";
+import * as schema from "@workspace/db/schema";
 import type { DataAdapter } from "./adapter.js";
 
 type DB = NodePgDatabase<typeof schema>;

@@ -97,7 +97,7 @@ export interface DataAdapter {
     get(examId: string, cls: string, subject: string): Promise<any | null>;
     upsert(data: {
       examId: string; class: string; subject: string; status: string;
-      teacherId?: string; teacherName?: string;
+      teacherId?: string | null; teacherName?: string | null;
       submittedAt?: Date | null; lockedBy?: string | null; lockedAt?: Date | null;
     }): Promise<any>;
   };

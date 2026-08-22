@@ -149,7 +149,10 @@ async function getOrCreateFirestore(id: string, config: FirebaseConfig) {
 async function destroyFirebase(id: string): Promise<void> {
   const app = firebaseApps.get(id);
   if (app) {
-    try { await app.delete(); } catch {}
+    try {
+      const { deleteApp } = await import("firebase-admin/app");
+      await deleteApp(app);
+    } catch {}
     firebaseApps.delete(id);
     firestoreInstances.delete(id);
   }
