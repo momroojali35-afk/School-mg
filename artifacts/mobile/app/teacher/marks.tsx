@@ -53,6 +53,7 @@ export default function TeacherMarks() {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [savedBanner, setSavedBanner] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
   // Tracks which subjects the current teacher has actually typed into this session.
   // Only dirty subjects are submitted — prevents one teacher's save from locking
   // subjects they never touched.
@@ -160,6 +161,7 @@ export default function TeacherMarks() {
     setShowExamPicker(false);
     setSelectedClass(null);
     setMarksData({});
+    setCurrentStudentIndex(0);
     setDirtySubjects(new Set());
     setEditingSubjects(new Set());
     setMode('view');
@@ -178,6 +180,7 @@ export default function TeacherMarks() {
     setShowClassPicker(false);
     setDirtySubjects(new Set()); // reset per-session dirty tracking when switching class
     setEditingSubjects(new Set());
+    setCurrentStudentIndex(0);
     const classStudents = students
       .filter(s => s.class === cls && !isGraduatedStudent(s))
       .sort((a, b) => {
@@ -315,6 +318,8 @@ export default function TeacherMarks() {
 
   // ── Save button label ────────────────────────────────────────────────────────
   const saveLabel = user?.role === 'teacher' ? 'Submit Marks' : 'Save Marks';
+  const currentStudent = examStudents[currentStudentIndex] ?? examStudents[0];
+  const serialEntryMode = user?.role === 'teacher' && mode === 'edit';
 
   // ── Permission gate ────────────────────────────────────────────────────────
   if (user?.role !== 'admin' && effectivePermissions?.manageResults !== true) {
@@ -571,8 +576,38 @@ export default function TeacherMarks() {
             contentContainerStyle={{ padding: 16, paddingBottom: botPad + (mode === 'edit' ? 80 : 20) }}
             keyboardShouldPersistTaps="handled"
           >
+            {serialEntryMode && currentStudent && (
+              <View style={[s.studentPager, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <TouchableOpacity
+                  style={[s.pagerButton, { borderColor: colors.border, opacity: currentStudentIndex > 0 ? 1 : 0.45 }]}
+                  onPress={() => setCurrentStudentIndex(index => Math.max(0, index - 1))}
+                  disabled={currentStudentIndex === 0}
+                  accessibilityLabel="Previous student"
+                >
+                  <Feather name="chevron-left" size={18} color={colors.primary} />
+                  <Text style={[s.pagerButtonText, { color: colors.primary }]}>Previous</Text>
+                </TouchableOpacity>
+                <View style={s.pagerCenter}>
+                  <Text style={[s.pagerTitle, { color: colors.text }]}>
+                    Student {currentStudentIndex + 1} of {examStudents.length}
+                  </Text>
+                  <Text style={[s.pagerSubtitle, { color: colors.mutedForeground }]}>
+                    Enter marks for Roll {currentStudent.rollNumber}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[s.pagerButton, { borderColor: colors.border, opacity: currentStudentIndex < examStudents.length - 1 ? 1 : 0.45 }]}
+                  onPress={() => setCurrentStudentIndex(index => Math.min(examStudents.length - 1, index + 1))}
+                  disabled={currentStudentIndex === examStudents.length - 1}
+                  accessibilityLabel="Next student"
+                >
+                  <Text style={[s.pagerButtonText, { color: colors.primary }]}>Next</Text>
+                  <Feather name="chevron-right" size={18} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            )}
             {mode === 'edit' ? (
-              examStudents.map(student => (
+              (serialEntryMode ? (currentStudent ? [currentStudent] : []) : examStudents).map(student => (
                 <View key={student.id} style={[mc.card, { backgroundColor: colors.card }]}>
                   <View style={mc.header2}>
                     <View style={[mc.avatar, { backgroundColor: colors.secondary }]}>
@@ -808,4 +843,10 @@ const styles = (c: ReturnType<typeof useColors>) => StyleSheet.create({
   saveBar: { padding: 16, borderTopWidth: 1, position: 'absolute', bottom: 0, left: 0, right: 0 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 16 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  studentPager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 14, padding: 8, marginBottom: 12 },
+  pagerButton: { flexDirection: 'row', alignItems: 'center', gap: 2, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 9 },
+  pagerButtonText: { fontSize: 12, fontWeight: '700' },
+  pagerCenter: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  pagerTitle: { fontSize: 13, fontWeight: '700' },
+  pagerSubtitle: { fontSize: 10, marginTop: 2 },
 });
