@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
@@ -38,7 +38,7 @@ export default function TeacherMarks() {
   const {
     exams, students, examResults, teachers,
     saveExamResults, markSubmissions,
-    submitSubjectMarks, lockSubject, unlockSubject,
+    submitSubjectMarks, lockSubject, unlockSubject, refreshTeachers,
   } = useApp();
 
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
@@ -55,6 +55,10 @@ export default function TeacherMarks() {
   const [dirtySubjects, setDirtySubjects] = useState<Set<string>>(new Set());
   // Submitted subjects require an explicit Edit tap by their original submitter.
   const [editingSubjects, setEditingSubjects] = useState<Set<string>>(new Set());
+
+  useFocusEffect(useCallback(() => {
+    refreshTeachers().catch(() => {});
+  }, [refreshTeachers]));
 
   // ── Subject status helpers ───────────────────────────────────────────────────
   const getSubjectStatus = useCallback((subject: string): SubjectStatus => {
@@ -85,7 +89,8 @@ export default function TeacherMarks() {
 
   const canStartTeacherEdit = useCallback((subject: string): boolean => {
     const currentTeacher = teachers.find(teacher => String(teacher.id) === String(user?.id));
-    if (user?.role !== 'teacher' || currentTeacher?.permissions.allowMarkEdit !== true) return false;
+    const allowMarkEdit = currentTeacher?.permissions.allowMarkEdit ?? user?.permissions?.allowMarkEdit;
+    if (user?.role !== 'teacher' || allowMarkEdit !== true) return false;
     const submission = getSubjectSubmission(subject);
     return submission?.status === 'submitted' && String(submission.teacherId) === String(user.id);
   }, [user, teachers, getSubjectSubmission]);
