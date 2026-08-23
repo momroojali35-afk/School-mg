@@ -9,15 +9,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import {
-  useApp, Student, Exam, ExamResult, isActiveStudent,
-  getSubjectMaxMarksForClass,
+  useApp, Student, Exam, ExamResult, getSubjectMaxMarksForClass, isActiveStudent,
 } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { SCHOOL_INFO } from '@/constants/schoolInfo';
-import { downloadHtmlAsPdf, downloadMultipleHtmlsAsPdf, printHtml as sharedPrintHtml } from '@/utils/pdfExport';
+import {
+  downloadHtmlAsPdf,
+  downloadMultipleHtmlsAsPdf,
+  printHtml as sharedPrintHtml,
+  printMultipleHtmlsAsPdf,
+} from '@/utils/pdfExport';
 import {
   documentLogoHtml,
   principalSignatureHtml,
@@ -121,8 +124,8 @@ function combinedMarksheetDownloadName(label: string): string {
 }
 
 // ─── Per-subject max marks lookup ─────────────────────────────────────────────
-function getSubjectMaxMarks(exam: Exam, sub: string): number {
-  return getSubjectMaxMarksForClass(exam, sub, exam.class);
+function getSubjectMaxMarks(exam: Exam, sub: string, className?: string): number {
+  return getSubjectMaxMarksForClass(exam, sub, className);
 }
 
 // ─── Grade calculation ────────────────────────────────────────────────────────
@@ -164,7 +167,7 @@ function calcMarksheet(
 
   // Build per-subject max marks from subjectSchedule, falling back to exam.maxMarks
   const subjectMaxMarks: Record<string, number> = {};
-  subjects.forEach(sub => { subjectMaxMarks[sub] = getSubjectMaxMarks(exam, sub); });
+  subjects.forEach(sub => { subjectMaxMarks[sub] = getSubjectMaxMarks(exam, sub, student.class); });
 
   const passMarks = Math.ceil(exam.maxMarks * 0.30); // kept for banner display
 
@@ -241,7 +244,7 @@ function calcCombinedMarksheet(
       const val = result ? (result.marks[sub] ?? 0) : null;
       marks[key] = val;
       if (val !== null) total += val;
-      max += getSubjectMaxMarks(exam, sub);
+      max += getSubjectMaxMarks(exam, sub, className);
     });
     const pct = max > 0 ? (total / max) * 100 : 0;
     const grade = getGrade(pct).grade;
@@ -255,7 +258,7 @@ function calcCombinedMarksheet(
     if (!exam) return;
     const result = resultMap[key];
     const obtained = result ? exam.subjects.reduce((s, sub) => s + (result.marks[sub] ?? 0), 0) : 0;
-    const max = exam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(exam, sub), 0);
+    const max = exam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(exam, sub, className), 0);
     examTotals[key] = { obtained, max };
   });
 
@@ -394,14 +397,14 @@ function buildSingleMarksheetHtml(
 
   /* ---------- info box ---------- */
   .info-box { border:1.5px solid #c8a040; border-radius:8px; display:flex; gap:0; margin-top:8px; overflow:hidden; background:#fdfcf5; }
-  .info-col { flex:1; padding:10px 14px; }
+  .info-col { flex:1; padding:5px 10px; }
   .info-col + .info-col { border-left:1px solid #e8d9a8; }
-  .irow { display:flex; align-items:center; gap:10px; margin-bottom:6px; font-size:13px; }
+  .irow { display:flex; align-items:center; gap:6px; height:17px; margin-bottom:1px; font-size:11px; line-height:1; }
   .irow:last-child { margin-bottom:0; }
-  .irow .ic { width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .irow .lbl { font-weight:600; color:#0c1f4a; min-width:104px; flex-shrink:0; }
+  .irow .ic { width:18px; height:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; }
+  .irow .lbl { font-weight:600; color:#0c1f4a; min-width:88px; flex-shrink:0; }
   .irow .colon { font-weight:700; color:#c8a040; margin:0 4px; flex-shrink:0; }
-  .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:0; }
+  .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:1; overflow:hidden; text-overflow:ellipsis; }
   /* ---------- QR card ---------- */
   .qr-card { margin-top:6px; border:2px solid #c8a040; border-radius:10px; padding:8px 10px; display:inline-flex; flex-direction:column; align-items:center; gap:4px; background:#f5f7fc; box-shadow:0 3px 10px rgba(200,160,64,0.2); }
   .qr-card span { font-size:9px; font-weight:700; color:#0c1f4a; letter-spacing:1.5px; text-transform:uppercase; }
@@ -527,7 +530,7 @@ function buildSingleMarksheetHtml(
         <div class="irow"><span class="ic">👨</span><span class="lbl">Father's Name</span><span class="colon">:</span><span class="val">${(student.fatherName||'—').toUpperCase()}</span></div>
         <div class="irow"><span class="ic">👩</span><span class="lbl">Mother's Name</span><span class="colon">:</span><span class="val">${(student.motherName||'—').toUpperCase()}</span></div>
         <div class="irow"><span class="ic">🎓</span><span class="lbl">Class</span><span class="colon">:</span><span class="val">${exam.class}</span></div>
-        <div class="irow"><span class="ic">📘</span><span class="lbl">Section</span><span class="colon">:</span><span class="val">${student.section||'—'}</span></div>
+        <div class="irow"><span class="ic">📘</span><span class="lbl">Section</span><span class="colon">:</span><span class="val">${student.section?.trim() || '—'}</span></div>
       </div>
       <div class="info-col">
         <div class="irow"><span class="ic">🪪</span><span class="lbl">Adm. No.</span><span class="colon">:</span><span class="val">${student.admissionNo||'—'}</span></div>
@@ -694,60 +697,6 @@ function buildSingleMarksheetHtml(
 </html>`;
 }
 
-function buildBulkSingleHtml(
-  dataList: MarksheetData[],
-  branding: DocumentBranding = EMPTY_BRANDING,
-  academicSession: string = getAcademicYear(),
-): string {
-  if (dataList.length === 0) return '';
-  if (dataList.length === 1) return buildSingleMarksheetHtml(dataList[0], branding, academicSession);
-
-  const htmls = dataList.map(data => buildSingleMarksheetHtml(data, branding, academicSession));
-
-  // Extract <head> content from the first document (styles are identical across all)
-  const headMatch = htmls[0].match(/<head>([\s\S]*?)<\/head>/);
-  const headContent = headMatch ? headMatch[1] : '';
-
-  // Extract the body content (the .page div) from each document
-  const bodyContents = htmls.map(html => {
-    const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-    return m ? m[1].trim() : '';
-  });
-
-  // Wrap each page in a container that carries its own page break
-  const pages = bodyContents.map((content, i) => {
-    const isLast = i === bodyContents.length - 1;
-    return `<div class="page-wrap${isLast ? ' page-wrap-last' : ''}">\n${content}\n</div>`;
-  }).join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-${headContent}
-<style>
-  /* ── Bulk-mode override: unlock body height so all pages are reachable ──
-     Each individual marksheet injects "html,body{height:297mm;overflow:hidden}"
-     which clips everything after page 1 when merged into one document.
-     The !important rules below cancel those constraints so querySelectorAll('.page')
-     finds every student and html2canvas can scroll to each one. */
-  html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }
-  .page-wrap {
-    margin-bottom: 0;
-    page-break-after: always;
-    break-after: page;
-  }
-  .page-wrap-last {
-    page-break-after: auto;
-    break-after: auto;
-  }
-</style>
-</head>
-<body>
-${pages}
-</body>
-</html>`;
-}
-
 // ─── Combined Annual HTML ─────────────────────────────────────────────────────
 // Columns: Subject | 1st Unit Test (OBT./max) | 2nd Unit Test | Half Yearly | Annual Exam | TOTAL | % | GRADE
 function buildCombinedMarksheetHtml(
@@ -798,7 +747,7 @@ function buildCombinedMarksheetHtml(
         return `<td style="padding:6px 4px;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0;color:#c0c9d8">—</td>`
              + `<td style="padding:6px 4px;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0;color:#c0c9d8">—</td>`;
       return `<td style="padding:6px 4px;font-size:13px;font-weight:800;color:#0c1f4a;text-align:center;border-left:1px solid #dde4f0;border-bottom:1px solid #dde4f0">${v}</td>`
-           + `<td style="padding:6px 4px;font-size:11px;color:#0c1f4a;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0">${getSubjectMaxMarks(ex, row.subject)}</td>`;
+           + `<td style="padding:6px 4px;font-size:11px;color:#0c1f4a;text-align:center;border-left:1px solid #eef1f8;border-bottom:1px solid #dde4f0">${getSubjectMaxMarks(ex, row.subject, student.class)}</td>`;
     }).join('');
     return `<tr style="background:${bg}">
       <td style="padding:6px 12px;font-size:12px;font-weight:700;color:#0c1f4a;text-transform:uppercase;border-bottom:1px solid #dde4f0;border-right:1px solid #dde4f0;white-space:nowrap">${icon}&nbsp;${row.subject}</td>
@@ -877,14 +826,14 @@ function buildCombinedMarksheetHtml(
   .comb-title .stars { font-size:11px; color:#c8a040; letter-spacing:5px; margin-top:2px; }
   /* info box */
   .info-box { border:1.5px solid #c8a040; border-radius:8px; display:flex; margin-top:7px; overflow:hidden; background:#fdfcf5; }
-  .info-col { flex:1; padding:9px 14px; }
+  .info-col { flex:1; padding:5px 10px; }
   .info-col + .info-col { border-left:1px solid #e8d9a8; }
-  .irow { display:flex; align-items:center; gap:10px; margin-bottom:6px; font-size:12.5px; }
+  .irow { display:flex; align-items:center; gap:6px; height:17px; margin-bottom:1px; font-size:11px; line-height:1; }
   .irow:last-child { margin-bottom:0; }
-  .irow .ic { width:24px; height:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .irow .lbl { font-weight:600; color:#0c1f4a; min-width:88px; flex-shrink:0; }
+  .irow .ic { width:18px; height:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; }
+  .irow .lbl { font-weight:600; color:#0c1f4a; min-width:78px; flex-shrink:0; }
   .irow .colon { font-weight:700; color:#c8a040; margin:0 4px; flex-shrink:0; }
-  .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:0; }
+  .irow .val { font-weight:700; color:#1a1a2e; white-space:nowrap; flex-shrink:1; overflow:hidden; text-overflow:ellipsis; }
   /* ---------- QR card ---------- */
   .qr-card { margin-top:5px; border:2px solid #c8a040; border-radius:10px; padding:7px 10px; display:inline-flex; flex-direction:column; align-items:center; gap:4px; background:#f5f7fc; box-shadow:0 3px 10px rgba(200,160,64,0.2); }
   .qr-card span { font-size:9px; font-weight:700; color:#0c1f4a; letter-spacing:1.5px; text-transform:uppercase; }
@@ -988,7 +937,7 @@ function buildCombinedMarksheetHtml(
         <div class="irow"><span class="ic">👨</span><span class="lbl">Father's Name</span><span class="colon">:</span><span class="val">${(student.fatherName||'—').toUpperCase()}</span></div>
         <div class="irow"><span class="ic">👩</span><span class="lbl">Mother's Name</span><span class="colon">:</span><span class="val">${(student.motherName||'—').toUpperCase()}</span></div>
         <div class="irow"><span class="ic">🎓</span><span class="lbl">Class</span><span class="colon">:</span><span class="val">${data.className}</span></div>
-        <div class="irow"><span class="ic">📘</span><span class="lbl">Section</span><span class="colon">:</span><span class="val">${student.section||'—'}</span></div>
+        <div class="irow"><span class="ic">📘</span><span class="lbl">Section</span><span class="colon">:</span><span class="val">${student.section?.trim() || '—'}</span></div>
       </div>
       <div class="info-col">
         <div class="irow"><span class="ic">🪪</span><span class="lbl">Adm. No.</span><span class="colon">:</span><span class="val">${student.admissionNo||'—'}</span></div>
@@ -1152,60 +1101,6 @@ function buildCombinedMarksheetHtml(
   </div><!-- /inner -->
 
 </div><!-- /page -->
-</body>
-</html>`;
-}
-
-function buildBulkCombinedHtml(
-  dataList: CombinedMarksheetData[],
-  branding: DocumentBranding = EMPTY_BRANDING,
-  academicSession: string = getAcademicYear(),
-): string {
-  if (dataList.length === 0) return '';
-  if (dataList.length === 1) return buildCombinedMarksheetHtml(dataList[0], branding, academicSession);
-
-  const htmls = dataList.map(data => buildCombinedMarksheetHtml(data, branding, academicSession));
-
-  // Extract <head> content from the first document (styles are identical across all)
-  const headMatch = htmls[0].match(/<head>([\s\S]*?)<\/head>/);
-  const headContent = headMatch ? headMatch[1] : '';
-
-  // Extract the body content (the .page div) from each document
-  const bodyContents = htmls.map(html => {
-    const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-    return m ? m[1].trim() : '';
-  });
-
-  // Wrap each page in a container that carries its own page break
-  const pages = bodyContents.map((content, i) => {
-    const isLast = i === dataList.length - 1;
-    return `<div class="page-wrap${isLast ? ' page-wrap-last' : ''}">\n${content}\n</div>`;
-  }).join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-${headContent}
-<style>
-  /* ── Bulk-mode override: unlock body height so all pages are reachable ──
-     Each individual marksheet injects "html,body{height:297mm;overflow:hidden}"
-     which clips everything after page 1 when pages are merged into one document.
-     The !important rules below cancel those constraints so querySelectorAll('.page')
-     finds every student and html2canvas can scroll to each one. */
-  html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }
-  .page-wrap {
-    margin-bottom: 0;
-    page-break-after: always;
-    break-after: page;
-  }
-  .page-wrap-last {
-    page-break-after: auto;
-    break-after: auto;
-  }
-</style>
-</head>
-<body>
-${pages}
 </body>
 </html>`;
 }
@@ -1463,8 +1358,22 @@ export default function MarksheetScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      const dataList = list.map(s => buildSingleData(s)).filter(Boolean) as MarksheetData[];
-      await printHtml(buildBulkSingleHtml(dataList, documentBranding, academicSession));
+      const dataList = list
+        .map(s => buildSingleData(s))
+        .filter(Boolean) as MarksheetData[];
+      await printMultipleHtmlsAsPdf(
+        {
+          count: dataList.length,
+          getPage: index =>
+            buildSingleMarksheetHtml(
+              dataList[index],
+              documentBranding,
+              academicSession,
+            ),
+        },
+        `Marksheets – ${selectedClass}`,
+        8,
+      );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
   }, [bulkStudents, bulkSelected, buildSingleData, documentBranding, academicSession]);
@@ -1477,15 +1386,29 @@ export default function MarksheetScreen() {
     try {
       const dataList = list.map(s => buildSingleData(s)).filter(Boolean) as MarksheetData[];
       if (dataList.length === 0) { Alert.alert('No Data', 'No marksheet data available.'); return; }
-      // Build one merged HTML document so that downloadHtmlAsPdf can use
-      // querySelectorAll('.page') to find every student's page and render them
-      // all into the PDF. Using downloadMultipleHtmlsAsPdf with separate HTML
-      // strings only ever captured the first .page element per iframe, producing
-      // a single-student PDF regardless of how many students were selected.
-      await downloadHtml(
-        buildBulkSingleHtml(dataList, documentBranding, academicSession),
-        `Marksheets – ${selectedClass}`,
+      const filename = `Marksheets – ${selectedClass}`;
+      const onSaved = Platform.OS !== 'web'
+        ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
+        : undefined;
+      const url = await downloadMultipleHtmlsAsPdf(
+        {
+          count: dataList.length,
+          getPage: index =>
+            buildSingleMarksheetHtml(
+              dataList[index],
+              documentBranding,
+              academicSession,
+            ),
+        },
+        filename,
+        '.page',
+        Platform.OS === 'web' ? false : true,
+        onSaved,
+        8,
       );
+      if (url && Platform.OS === 'web') {
+        setDownloadReady({ url, filename: `${filename}.pdf` });
+      }
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
   }, [bulkStudents, bulkSelected, buildSingleData, selectedClass, documentBranding, academicSession]);
@@ -1527,39 +1450,78 @@ export default function MarksheetScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      const dataList = combinedStudents.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
-      await printHtml(buildBulkCombinedHtml(dataList, documentBranding, academicSession));
+      const studentsToPrint = bulkSelected.size > 0
+        ? combinedStudents.filter(s => bulkSelected.has(s.id))
+        : combinedStudents;
+      const dataList = studentsToPrint
+        .map(s => buildCombinedData(s))
+        .filter(Boolean) as CombinedMarksheetData[];
+      if (dataList.length === 0) { Alert.alert('No Data', 'No marksheet data available.'); return; }
+      await printMultipleHtmlsAsPdf(
+        {
+          count: dataList.length,
+          getPage: index =>
+            buildCombinedMarksheetHtml(
+              dataList[index],
+              documentBranding,
+              academicSession,
+            ),
+        },
+        `Combined Marksheets – ${combinedClass}`,
+        8,
+      );
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Print failed'); }
     finally { setLoading(false); }
-  }, [combinedStudents, buildCombinedData, documentBranding, academicSession]);
+  }, [combinedStudents, bulkSelected, buildCombinedData, documentBranding, academicSession]);
 
   const bulkCombinedDownload = useCallback(async () => {
     if (combinedStudents.length === 0) { Alert.alert('No Students', 'No students with results.'); return; }
     if (!beginDownload()) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
-      const dataList = combinedStudents.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
+      const studentsToDownload = bulkSelected.size > 0
+        ? combinedStudents.filter(s => bulkSelected.has(s.id))
+        : combinedStudents;
+      const dataList = studentsToDownload.map(s => buildCombinedData(s)).filter(Boolean) as CombinedMarksheetData[];
       if (dataList.length === 0) { Alert.alert('No Data', 'No marksheet data available.'); return; }
-      // Build one merged HTML document (identical strategy to bulkCombinedPrint) so that
-      // downloadHtmlAsPdf can use querySelectorAll('.page') to find every student's page
-      // and render them all into the PDF. Using downloadMultipleHtmlsAsPdf with separate
-      // HTML strings only ever captured the first .page element per iframe, producing a
-      // single-student PDF regardless of how many students were selected.
-      await downloadHtml(
-        buildBulkCombinedHtml(dataList, documentBranding, academicSession),
-        combinedMarksheetDownloadName(`Combined Marksheets – ${combinedClass}`),
+      const filename = combinedMarksheetDownloadName(`Combined Marksheets – ${combinedClass}`);
+      const onSaved = Platform.OS !== 'web'
+        ? (fn: string, uri: string) => setPdfSaved({ filename: fn, fileUri: uri })
+        : undefined;
+      const url = await downloadMultipleHtmlsAsPdf(
+        {
+          count: dataList.length,
+          getPage: index =>
+            buildCombinedMarksheetHtml(
+              dataList[index],
+              documentBranding,
+              academicSession,
+            ),
+        },
+        filename,
+        '.page',
+        Platform.OS === 'web' ? false : true,
+        onSaved,
+        8,
       );
+      if (url && Platform.OS === 'web') {
+        setDownloadReady({ url, filename: `${filename}.pdf` });
+      }
     } catch (e: any) { if (!e?.message?.includes('cancel')) Alert.alert('Error', e?.message ?? 'Download failed'); }
     finally { endDownload(); }
-  }, [combinedStudents, buildCombinedData, combinedClass, documentBranding, academicSession]);
+  }, [combinedStudents, bulkSelected, buildCombinedData, combinedClass, documentBranding, academicSession]);
 
   const toggleBulk = useCallback((id: string) => {
     setBulkSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }, []);
 
-  const toggleAll = useCallback(() => {
-    setBulkSelected(prev => prev.size === bulkStudents.length ? new Set() : new Set(bulkStudents.map(s => s.id)));
-  }, [bulkStudents]);
+  const toggleAll = useCallback((students: Student[]) => {
+    setBulkSelected(prev => (
+      prev.size === students.length
+        ? new Set()
+        : new Set(students.map(s => s.id))
+    ));
+  }, []);
 
   // ── Render ────────────────────────────────────────────────────────────────────
   const isCombined = marksheetType === 'combined';
@@ -1650,18 +1612,6 @@ export default function MarksheetScreen() {
         {/* ── COMBINED ANNUAL MODE ── */}
         {isCombined ? (
           <>
-            {/* Class picker */}
-            <View style={s.filterCard}>
-              <Text style={s.filterLabel}>Select Class</Text>
-              <TouchableOpacity style={s.picker} onPress={() => setShowCombinedClassPicker(true)} activeOpacity={0.7}>
-                <Feather name="layers" size={16} color="#059669" />
-                <Text style={[s.pickerTxt, !combinedClass && { color: '#94A3B8' }]} numberOfLines={1}>
-                  {combinedClass || 'Select Class'}
-                </Text>
-                <Feather name="chevron-down" size={16} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-
             {/* Exam mapping display */}
             {combinedClass ? (
               <View style={s.examMapCard}>
@@ -1693,14 +1643,43 @@ export default function MarksheetScreen() {
             {/* Bulk controls for combined */}
             {isBulk && combinedStudents.length > 0 && (
               <View style={s.bulkControls}>
-                <Text style={s.bulkCount}>{combinedStudents.length} students with results</Text>
-                <TouchableOpacity style={[s.bulkAction, { backgroundColor: '#EFF6FF' }]} onPress={bulkCombinedDownload} activeOpacity={0.7}>
-                  <Feather name="download" size={15} color="#2563EB" />
-                  <Text style={[s.bulkActionTxt, { color: '#2563EB' }]}>All PDFs</Text>
+                <TouchableOpacity
+                  style={s.bulkToggle}
+                  onPress={() => toggleAll(combinedStudents)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    s.checkbox,
+                    bulkSelected.size === combinedStudents.length && {
+                      backgroundColor: '#1e3a8a',
+                      borderColor: '#1e3a8a',
+                    },
+                  ]}>
+                    {bulkSelected.size === combinedStudents.length && (
+                      <Feather name="check" size={12} color="#fff" />
+                    )}
+                  </View>
+                  <Text style={s.bulkToggleTxt}>
+                    {bulkSelected.size === 0
+                      ? `Select all (${combinedStudents.length})`
+                      : `${bulkSelected.size} selected`}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[s.bulkAction, { backgroundColor: '#FFF7ED' }]} onPress={bulkCombinedPrint} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={[s.bulkAction, { backgroundColor: '#EFF6FF' }]}
+                  onPress={bulkCombinedDownload}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="download" size={15} color="#2563EB" />
+                  <Text style={[s.bulkActionTxt, { color: '#2563EB' }]}>PDF</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.bulkAction, { backgroundColor: '#FFF7ED' }]}
+                  onPress={bulkCombinedPrint}
+                  activeOpacity={0.7}
+                >
                   <Feather name="printer" size={15} color="#C2410C" />
-                  <Text style={[s.bulkActionTxt, { color: '#C2410C' }]}>Print All</Text>
+                  <Text style={[s.bulkActionTxt, { color: '#C2410C' }]}>Print</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1729,9 +1708,26 @@ export default function MarksheetScreen() {
                 {combinedStudents.map((item, idx) => {
                   const data = buildCombinedData(item);
                   const clr  = studentColor(item.name);
+                  const isSelected = bulkSelected.has(item.id);
                   return (
                     <View key={item.id} style={{ borderBottomWidth: idx < combinedStudents.length - 1 ? 1 : 0, borderBottomColor: '#F1F5F9' }}>
-                      <View style={s.studentRow}>
+                      <View style={[s.studentRow, isBulk && isSelected && { backgroundColor: '#EFF6FF' }]}>
+                        {isBulk && (
+                          <TouchableOpacity
+                            onPress={() => toggleBulk(item.id)}
+                            activeOpacity={0.7}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: isSelected }}
+                            accessibilityLabel={`Select ${item.name}`}
+                          >
+                            <View style={[
+                              s.checkbox,
+                              isSelected && { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+                            ]}>
+                              {isSelected && <Feather name="check" size={12} color="#fff" />}
+                            </View>
+                          </TouchableOpacity>
+                        )}
                         <View style={[s.avatar, { backgroundColor: clr }]}>
                           <Text style={s.avatarTxt}>{getInitials(item.name)}</Text>
                         </View>
@@ -1821,7 +1817,7 @@ export default function MarksheetScreen() {
               <View style={s.examBanner}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.examBannerTitle}>{selectedExam.name}</Text>
-                  <Text style={s.examBannerSub}>{selectedExam.class} · {selectedExam.subjects.length} subjects · Max {selectedExam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(selectedExam, sub), 0)} total marks</Text>
+                  <Text style={s.examBannerSub}>{selectedExam.class} · {selectedExam.subjects.length} subjects · Max {selectedExam.subjects.reduce((s, sub) => s + getSubjectMaxMarks(selectedExam, sub, selectedClass), 0)} total marks</Text>
                   <Text style={s.examBannerSub}>Pass mark: 30% of each subject's maximum marks</Text>
                 </View>
                 <View style={s.examBannerBadge}>
@@ -1834,7 +1830,7 @@ export default function MarksheetScreen() {
             {/* Bulk controls */}
             {isBulk && selectedExam && bulkStudents.length > 0 && (
               <View style={s.bulkControls}>
-                <TouchableOpacity style={s.bulkToggle} onPress={toggleAll} activeOpacity={0.7}>
+                <TouchableOpacity style={s.bulkToggle} onPress={() => toggleAll(bulkStudents)} activeOpacity={0.7}>
                   <View style={[s.checkbox, bulkSelected.size === bulkStudents.length && { backgroundColor: '#1e3a8a', borderColor: '#1e3a8a' }]}>
                     {bulkSelected.size === bulkStudents.length && <Feather name="check" size={12} color="#fff" />}
                   </View>
