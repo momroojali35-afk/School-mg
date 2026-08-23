@@ -1612,6 +1612,24 @@ export default function MarksheetScreen() {
         {/* ── COMBINED ANNUAL MODE ── */}
         {isCombined ? (
           <>
+            {/* Combined class selector */}
+            <View style={s.filterCard}>
+              <Text style={s.filterLabel}>Select Class</Text>
+              <TouchableOpacity
+                style={s.picker}
+                onPress={() => setShowCombinedClassPicker(true)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Select class for combined annual marksheet"
+              >
+                <Feather name="layers" size={16} color="#059669" />
+                <Text style={[s.pickerTxt, !combinedClass && { color: '#94A3B8' }]} numberOfLines={1}>
+                  {combinedClass || 'Choose a class'}
+                </Text>
+                <Feather name="chevron-down" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
             {/* Exam mapping display */}
             {combinedClass ? (
               <View style={s.examMapCard}>
