@@ -30,7 +30,7 @@ export default function TeacherFees() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
-  const { students, feeTypes, feeRecords, addFeeRecord, documentBranding } = useApp();
+  const { students, feeTypes, feeRecords, addFeeRecord, updateFeeRecord, deleteFeeRecord, documentBranding } = useApp();
 
   // ── Collect form state ──
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -41,6 +41,7 @@ export default function TeacherFees() {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [validationError, setValidationError] = useState('');
   const [lastRecord, setLastRecord] = useState<{ record: any; student: Student } | null>(null);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   // ── Search / filter state ──
   const [studentSearch, setStudentSearch] = useState('');
@@ -124,15 +125,20 @@ export default function TeacherFees() {
     if (!selectedStudent) return;
 
     const fi = getStudentFeeInfo(selectedStudent, feeRecords);
-    if (fi.annualFee > 0 && amt > fi.remaining) {
-      setValidationError(`Remaining balance is ₹${fi.remaining.toLocaleString('en-IN')}. Amount exceeds outstanding balance.`);
+    const existingRecord = editingRecordId
+      ? feeRecords.find((record) => record.id === editingRecordId)
+      : undefined;
+    const availableBalance = fi.remaining
+      + (existingRecord?.studentId === selectedStudent.id ? existingRecord.amount : 0);
+    if (fi.annualFee > 0 && amt > availableBalance) {
+      setValidationError(`Remaining balance is ₹${availableBalance.toLocaleString('en-IN')}. Amount exceeds outstanding balance.`);
       return;
     }
 
     setValidationError('');
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    const record = addFeeRecord({
+    const recordData = {
       studentId: selectedStudent.id,
       studentName: selectedStudent.name,
       class: selectedStudent.class,
@@ -143,13 +149,53 @@ export default function TeacherFees() {
       feeTypeName: selectedFeeType.name,
       collectedBy: user?.name || 'Teacher',
       paymentMethod,
-    });
+    };
+    if (editingRecordId) {
+      updateFeeRecord(editingRecordId, {
+        amount: recordData.amount,
+        date: recordData.date,
+        description: recordData.description,
+        paymentMethod: recordData.paymentMethod,
+      });
+    } else {
+      const record = addFeeRecord(recordData);
+      setLastRecord({ record, student: selectedStudent });
+    }
 
-    setLastRecord({ record, student: selectedStudent });
+    setEditingRecordId(null);
     setSelectedStudentId('');
     setSelectedFeeType(null);
     setAmount('');
     setDescription('');
+  };
+
+  const startEditing = (record: any) => {
+    setEditingRecordId(record.id);
+    setSelectedStudentId(record.studentId);
+    setSelectedFeeType(
+      feeTypes.find((feeType) => feeType.id === record.feeTypeId) ?? {
+        id: record.feeTypeId ?? '',
+        name: record.feeTypeName ?? 'Fee',
+        amount: record.amount,
+        description: '',
+      },
+    );
+    setAmount(String(record.amount));
+    setDescription(record.description ?? '');
+    setDate(record.date);
+    setPaymentMethod(record.paymentMethod ?? 'Cash');
+    setValidationError('');
+  };
+
+  const confirmDelete = (record: any) => {
+    Alert.alert(
+      'Delete payment?',
+      `Delete ₹${record.amount.toLocaleString('en-IN')} collected from ${record.studentName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteFeeRecord(record.id) },
+      ],
+    );
   };
 
   const s = styles(colors);
@@ -276,7 +322,10 @@ export default function TeacherFees() {
                         <View style={{ flex: 1 }}>
                           <Text style={[s.studentName, { color: selected ? colors.primary : colors.text }]}>{st.name}</Text>
                           <Text style={[s.studentMeta, { color: colors.mutedForeground }]}>
-                            {st.class}{fi.annualFee > 0 ? ` · Bal ₹${fi.remaining.toLocaleString('en-IN')}` : ''}
+                            Father: {st.fatherName || '—'}
+                          </Text>
+                          <Text style={[s.studentMeta, { color: colors.mutedForeground }]}>
+                            {st.class} · Roll No: {st.rollNumber || '—'}{fi.annualFee > 0 ? ` · Bal ₹${fi.remaining.toLocaleString('en-IN')}` : ''}
                           </Text>
                         </View>
                         {fi.status !== 'no-fee' && (
@@ -417,7 +466,7 @@ export default function TeacherFees() {
               >
                 <Feather name="check-circle" size={20} color={canSubmit ? '#fff' : colors.mutedForeground} />
                 <Text style={[s.collectBtnText, { color: canSubmit ? '#fff' : colors.mutedForeground }]}>
-                  {canSubmit ? `Collect  ₹${amt.toLocaleString('en-IN')}` : 'Collect Fee'}
+                  {editingRecordId ? `Save Changes  ₹${amt.toLocaleString('en-IN')}` : canSubmit ? `Collect  ₹${amt.toLocaleString('en-IN')}` : 'Collect Fee'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -445,6 +494,12 @@ export default function TeacherFees() {
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => printFeeReceipt(record, undefined, documentBranding)} style={[s.receiptBtn, { backgroundColor: colors.primary + '15' }]}>
                           <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '700' }}>PDF</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => startEditing(record)} style={[s.receiptBtn, { backgroundColor: colors.warning + '20' }]}>
+                          <Feather name="edit-2" size={11} color={colors.warning} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => confirmDelete(record)} style={[s.receiptBtn, { backgroundColor: colors.destructive + '15' }]}>
+                          <Feather name="trash-2" size={11} color={colors.destructive} />
                         </TouchableOpacity>
                       </View>
                     </View>
