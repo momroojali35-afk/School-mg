@@ -715,6 +715,26 @@ export function createPgAdapter(db: DB): DataAdapter {
       async list() {
         return db.select().from(alumniTable).orderBy(asc(alumniTable.batch), asc(alumniTable.name));
       },
+      async syncGraduatedStudents() {
+        const rows = await db
+          .select({ studentId: alumniTable.studentId })
+          .from(alumniTable);
+
+        const studentIds = Array.from(
+          new Set(
+            rows
+              .map((row) => String(row.studentId ?? ""))
+              .filter(Boolean),
+          ),
+        );
+
+        if (studentIds.length === 0) return;
+
+        await db
+          .update(studentsTable)
+          .set({ status: "graduated", class: "", section: null })
+          .where(inArray(studentsTable.id, studentIds));
+      },
       async create(data: any) {
         const values: any = {
           studentId: data.studentId ?? data.id ?? `manual-${Date.now()}`,
