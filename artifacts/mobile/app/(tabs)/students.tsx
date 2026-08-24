@@ -14,7 +14,6 @@ import {
 } from '@/context/AppContext';
 import EmptyState from '@/components/EmptyState';
 import PremiumAlert from '@/components/PremiumAlert';
-import { getAttendanceCounts } from '@/utils/attendance';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function calcFinalPayable(annualFee: string, discountType: 'fixed' | 'percent', discountValue: string) {
@@ -234,7 +233,13 @@ export default function StudentsScreen() {
 
   const getStudentAttendance = (studentId: string) => {
     const records = attendanceRecords.filter(a => a.studentId === studentId);
-    return getAttendanceCounts(records);
+    return {
+      total: records.length,
+      present: records.filter(a => a.status === 'present').length,
+      absent: records.filter(a => a.status === 'absent').length,
+      holiday: records.filter(a => a.status === 'holiday').length,
+        inactive: records.filter(a => a.status === 'inactive').length,
+    };
   };
 
   // Section manager actions
@@ -951,7 +956,8 @@ export default function StudentsScreen() {
           <View style={[modalStyles.sheet, { backgroundColor: colors.card }]}>
             {showAttendance && (() => {
               const att = getStudentAttendance(showAttendance.id);
-              const pct = att.percentage;
+              const countedDays = att.present + att.absent + att.inactive;
+              const pct = countedDays > 0 ? Math.round((att.present / countedDays) * 100) : 0;
               const records = attendanceRecords.filter(a => a.studentId === showAttendance.id).sort((a, b) => b.date.localeCompare(a.date));
               return (
                 <>
@@ -963,8 +969,8 @@ export default function StudentsScreen() {
                     {[
                       { label: 'Present', value: att.present, color: colors.success },
                       { label: 'Absent', value: att.absent, color: colors.destructive },
-                      { label: 'Inactive', value: att.inactive, color: colors.mutedForeground },
                       { label: 'Holiday', value: att.holiday, color: colors.warning },
+                      { label: 'Inactive', value: att.inactive, color: colors.mutedForeground },
                       { label: 'Percent', value: `${pct}%`, color: pct >= 75 ? colors.success : colors.destructive },
                     ].map(stat => (
                       <View key={stat.label} style={[attStyles.statBox, { borderColor: stat.color + '40', backgroundColor: stat.color + '10' }]}>
@@ -978,8 +984,8 @@ export default function StudentsScreen() {
                     {records.map(r => (
                       <View key={r.id} style={[attStyles.row, { borderBottomColor: colors.border }]}>
                         <Text style={{ color: colors.text, fontSize: 14 }}>{r.date}</Text>
-                        <View style={[attStyles.badge, { backgroundColor: r.status === 'present' ? colors.success + '20' : r.status === 'absent' ? colors.destructive + '20' : r.status === 'inactive' ? colors.mutedForeground + '20' : colors.warning + '20' }]}>
-                          <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'capitalize', color: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : r.status === 'inactive' ? colors.mutedForeground : colors.warning }}>
+                        <View style={[attStyles.badge, { backgroundColor: r.status === 'present' ? colors.success + '20' : r.status === 'absent' ? colors.destructive + '20' : colors.warning + '20' }]}>
+                          <Text style={{ fontSize: 12, fontWeight: '600', textTransform: 'capitalize', color: r.status === 'present' ? colors.success : r.status === 'absent' ? colors.destructive : colors.warning }}>
                             {r.status}
                           </Text>
                         </View>
