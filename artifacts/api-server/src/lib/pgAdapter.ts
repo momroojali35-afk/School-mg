@@ -3,7 +3,7 @@
  */
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { eq, asc, and, desc, inArray, sql as drizzleSql } from "drizzle-orm";
-import * as schema from "@workspace/db/schema";
+import * as schema from "@workspace/db";
 import type { DataAdapter } from "./adapter.js";
 
 type DB = NodePgDatabase<typeof schema>;
@@ -119,6 +119,7 @@ export function createPgAdapter(db: DB): DataAdapter {
           mobileNumber: data.mobileNumber ?? "", class: data.class, section: data.section ?? null,
           admissionNo: data.admissionNo ?? null, rollNumber: data.rollNumber,
           dateOfBirth: data.dateOfBirth ?? "", address: data.address ?? null, photo: data.photo ?? null,
+          gender: data.gender ?? null, caste: data.caste ?? null,
           annualFee: data.annualFee ?? null, discountType: data.discountType ?? null,
           discountValue: data.discountValue ?? null,
           status: data.status ?? "active",
@@ -142,6 +143,8 @@ export function createPgAdapter(db: DB): DataAdapter {
         if (data.dateOfBirth !== undefined) setValues.dateOfBirth = data.dateOfBirth;
         if ("address" in data) setValues.address = data.address ?? null;
         if ("photo" in data) setValues.photo = data.photo ?? null;
+        if ("gender" in data) setValues.gender = data.gender ?? null;
+        if ("caste" in data) setValues.caste = data.caste ?? null;
         if ("annualFee" in data) setValues.annualFee = data.annualFee ?? null;
         if ("discountType" in data) setValues.discountType = data.discountType ?? null;
         if ("discountValue" in data) setValues.discountValue = data.discountValue ?? null;
@@ -290,7 +293,7 @@ export function createPgAdapter(db: DB): DataAdapter {
             if (record.status === "absent") {
               consecutiveAbsents++;
             } else {
-              break; // present or leave breaks the streak
+              break; // present or holiday breaks the streak
             }
           }
 
@@ -302,6 +305,27 @@ export function createPgAdapter(db: DB): DataAdapter {
               .where(and(eq(studentsTable.id, studentId), eq(studentsTable.status, "active")))
               .returning({ id: studentsTable.id });
             if (updated) {
+              // Keep the transition date in attendance history so reports can
+              // show inactive days and include them in the denominator.
+              await db
+                .delete(attendanceRecordsTable)
+                .where(and(
+                  eq(attendanceRecordsTable.studentId, studentId),
+                  eq(attendanceRecordsTable.date, date),
+                ));
+              const student = await db
+                .select({ studentName: studentsTable.name })
+                .from(studentsTable)
+                .where(eq(studentsTable.id, studentId))
+                .limit(1);
+              await db.insert(attendanceRecordsTable).values({
+                studentId,
+                studentName: student[0]?.studentName ?? "",
+                class: cls,
+                date,
+                status: "inactive",
+                takenBy: "System",
+              });
               inactivated.push(studentId);
             }
           }
@@ -608,18 +632,6 @@ export function createPgAdapter(db: DB): DataAdapter {
         const [row] = await db.insert(feeRecordsTable).values(values).returning();
         return row;
       },
-      async update(id, data: any) {
-        const values: any = {};
-        for (const key of ["amount", "date", "description", "paymentMethod"]) {
-          if (data[key] !== undefined) values[key] = data[key];
-        }
-        if (Object.keys(values).length === 0) return null;
-        const [row] = await db.update(feeRecordsTable)
-          .set(values)
-          .where(eq(feeRecordsTable.id, id))
-          .returning();
-        return row ?? null;
-      },
       async delete(id) {
         await db.delete(feeRecordsTable).where(eq(feeRecordsTable.id, id));
       },
@@ -703,18 +715,6 @@ export function createPgAdapter(db: DB): DataAdapter {
       async list() {
         return db.select().from(alumniTable).orderBy(asc(alumniTable.batch), asc(alumniTable.name));
       },
-      async syncGraduatedStudents() {
-        const alumniRows = await db
-          .select({ studentId: alumniTable.studentId })
-          .from(alumniTable);
-        const studentIds = Array.from(new Set(
-          alumniRows.map(row => String(row.studentId ?? "")).filter(Boolean),
-        ));
-        if (studentIds.length === 0) return;
-        await db.update(studentsTable)
-          .set({ status: "graduated", class: "", section: null })
-          .where(inArray(studentsTable.id, studentIds));
-      },
       async create(data: any) {
         const values: any = {
           studentId: data.studentId ?? data.id ?? `manual-${Date.now()}`,
@@ -740,9 +740,7 @@ export function createPgAdapter(db: DB): DataAdapter {
           const [row] = await tx.insert(alumniTable).values(values).returning();
           if (data.studentId) {
             await tx.update(studentsTable)
-              // Alumni keeps the historical pass-out class; the student row
-              // must no longer have an active class/section assignment.
-              .set({ status: "graduated", class: "", section: null })
+              .set({ status: "graduated" })
               .where(eq(studentsTable.id, String(data.studentId)));
           }
           return row;
@@ -813,9 +811,7 @@ export function createPgAdapter(db: DB): DataAdapter {
 
           if (studentIds.length > 0) {
             await tx.update(studentsTable)
-              // Keep historical placement in Alumni, but remove the active
-              // class/section assignment from the graduated student row.
-              .set({ status: "graduated", class: "", section: null })
+              .set({ status: "graduated" })
               .where(inArray(studentsTable.id, studentIds));
           }
           return rows;
